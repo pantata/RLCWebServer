@@ -325,6 +325,20 @@ bool loadConfig(Config *conf)
     if(json.containsKey("apip"))conf->apip=String((const char*)json["apip"]);
     if(json.containsKey("apmask"))conf->apmask=String((const char*)json["apmask"]);
     if(json.containsKey("apgw"))conf->apgw=String((const char*)json["apgw"]);
+    String useDST=(json.containsKey("useDST"))?String((const char*)json["useDST"]):"false";
+    conf->useDST=(useDST.equals("true"))?1:0;
+    conf->tzRule=TzRule();
+    if(json.containsKey("tzRule.tzName"))conf->tzRule.tzName=String((const char*)json["tzRule.tzName"]);
+    if(json.containsKey("tzRule.dstStart.day"))conf->tzRule.dstStart.day=json["tzRule.dstStart.day"];
+    if(json.containsKey("tzRule.dstStart.hour"))conf->tzRule.dstStart.hour=json["tzRule.dstStart.hour"];
+    if(json.containsKey("tzRule.dstStart.month"))conf->tzRule.dstStart.month=json["tzRule.dstStart.month"];
+    if(json.containsKey("tzRule.dstStart.offset"))conf->tzRule.dstStart.offset=json["tzRule.dstStart.offset"];
+    if(json.containsKey("tzRule.dstStart.weeek"))conf->tzRule.dstStart.week=json["tzRule.dstStart.weeek"];
+    if(json.containsKey("tzRule.dstEnd.day"))conf->tzRule.dstEnd.day=json["tzRule.dstEnd.day"];
+    if(json.containsKey("tzRule.dstEnd.hour"))conf->tzRule.dstEnd.hour=json["tzRule.dstEnd.hour"];
+    if(json.containsKey("tzRule.dstEnd.month"))conf->tzRule.dstEnd.month=json["tzRule.dstEnd.month"];
+    if(json.containsKey("tzRule.dstEnd.offset"))conf->tzRule.dstEnd.offset=json["tzRule.dstEnd.offset"];
+    if(json.containsKey("tzRule.dstEnd.week"))conf->tzRule.dstEnd.week=json["tzRule.dstEnd.week"];
 
     /* Normalize config file */
     normalizeConfig();
@@ -449,6 +463,20 @@ bool saveConfig()
     json["apip"]=config.apip.c_str();
     json["apmask"]=config.apmask.c_str();
     json["apgw"]=config.apgw.c_str();
+    json["useDST"]=(config.useDST)?"true":"false";
+    json["tzRule.tzName"]=config.tzRule.tzName.c_str();
+    json["tzRule.dstStart.day"]=config.tzRule.dstStart.day;
+    json["tzRule.dstStart.hour"]=config.tzRule.dstStart.hour;
+    json["tzRule.dstStart.month"]=config.tzRule.dstStart.month;
+    json["tzRule.dstStart.offset"]=config.tzRule.dstStart.offset;
+    json["tzRule.dstStart.week"]=config.tzRule.dstStart.week;
+    json["tzRule.dstEnd.day"]=config.tzRule.dstEnd.day;
+    json["tzRule.dstEnd.hour"]=config.tzRule.dstEnd.hour;
+    json["tzRule.dstEnd.month"]=config.tzRule.dstEnd.month;
+    json["tzRule.dstEnd.offset"]=config.tzRule.dstEnd.offset;
+    json["tzRule.dstEnd.week"]=config.tzRule.dstEnd.week;
+
+
     
     File configFile = SPIFFS.open("/config.json", "w");
     if (!configFile) {
