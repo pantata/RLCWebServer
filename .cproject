@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<?fileVersion 4.0.0?><cproject storage_type_id="org.eclipse.cdt.core.XmlProjectDescriptionStorage">
+	<storageModule moduleId="org.eclipse.cdt.core.settings">
+		<cconfiguration id="it.baeyens.arduino.core.toolChain.release.1712405251">
+			<storageModule buildSystemId="org.eclipse.cdt.managedbuilder.core.configurationDataProvider" id="it.baeyens.arduino.core.toolChain.release.1712405251" moduleId="org.eclipse.cdt.core.settings" name="Release">
+				<externalSettings/>
+				<extensions>
+					<extension id="org.eclipse.cdt.core.ELF" point="org.eclipse.cdt.core.BinaryParser"/>
+					<extension id="org.eclipse.cdt.core.GLDErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.MakeErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+					<extension id="org.eclipse.cdt.core.GCCErrorParser" point="org.eclipse.cdt.core.ErrorParser"/>
+				</extensions>
+			</storageModule>
+			<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+				<configuration artifactName="${ProjName}" buildProperties="" description="" id="it.baeyens.arduino.core.toolChain.release.1712405251" name="Release" parent="org.eclipse.cdt.build.core.emptycfg">
+					<folderInfo id="it.baeyens.arduino.core.toolChain.release.1712405251.996042597" name="/" resourcePath="">
+						<toolChain id="it.baeyens.arduino.core.toolChain.release.1179561096" name="Arduino Toolchain" superClass="it.baeyens.arduino.core.toolChain.release">
+							<targetPlatform archList="all" binaryParser="org.eclipse.cdt.core.ELF" id="it.baeyens.arduino.targetplatform.1480975393" name="Arduino Target" osList="all" superClass="it.baeyens.arduino.targetplatform"/>
+							<builder buildPath="${workspace_loc:/RlcWebFw}/Release" id="it.baeyens.arduino.sketch.builder.301938516" keepEnvironmentInBuildfile="false" managedBuildOn="true" name="Arduino sketch builder" superClass="it.baeyens.arduino.sketch.builder"/>
+							<tool id="it.baeyens.arduino.tool.sketch.compiler.cpp.1065785750" name="Arduino C++ Compiler" superClass="it.baeyens.arduino.tool.sketch.compiler.cpp">
+								<option id="it.baeyens.arduino.compiler.cpp.sketch.option.incpath.2104943267" name="Include Paths (-I)" superClass="it.baeyens.arduino.compiler.cpp.sketch.option.incpath" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/core/core}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/core/variant}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ArduinoOTA}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncWebServer}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncWebServer/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/Hash}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/Hash/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/MyTime}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/NTPClient}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ArduinoJson}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncTCP}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncTCP/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESP8266WiFi}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESP8266WiFi/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/DNSServer}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/DNSServer/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESP8266mDNS}&quot;"/>
+								</option>
+								<inputType id="it.baeyens.arduino.compiler.cpp.sketch.input.1172255763" name="CPP source files" superClass="it.baeyens.arduino.compiler.cpp.sketch.input"/>
+							</tool>
+							<tool id="it.baeyens.arduino.tool.compiler.c.1705037484" name="Arduino C Compiler" superClass="it.baeyens.arduino.tool.compiler.c">
+								<option id="it.baeyens.arduino.compiler.c.sketch.option.incpath.2048533979" name="Include Paths (-I)" superClass="it.baeyens.arduino.compiler.c.sketch.option.incpath" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/core/core}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/core/variant}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ArduinoOTA}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncWebServer}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncWebServer/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/Hash}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/Hash/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/MyTime}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/NTPClient}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ArduinoJson}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncTCP}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncTCP/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESP8266WiFi}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESP8266WiFi/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/DNSServer}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/DNSServer/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESP8266mDNS}&quot;"/>
+								</option>
+								<inputType id="it.baeyens.arduino.compiler.c.sketch.input.146899708" name="C Source Files" superClass="it.baeyens.arduino.compiler.c.sketch.input"/>
+							</tool>
+							<tool id="it.baeyens.arduino.tool.sketch.compiler.s.561632119" name="Arduino Assembler" superClass="it.baeyens.arduino.tool.sketch.compiler.s">
+								<option id="it.baeyens.arduino.compiler.asm.sketch.option.incpath.906134775" name="Include Paths (-I)" superClass="it.baeyens.arduino.compiler.asm.sketch.option.incpath" valueType="includePath">
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/core/core}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/core/variant}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ArduinoOTA}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncWebServer}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncWebServer/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/Hash}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/Hash/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/MyTime}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/NTPClient}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ArduinoJson}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncTCP}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESPAsyncTCP/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESP8266WiFi}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESP8266WiFi/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/DNSServer}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/DNSServer/src}&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/RlcWebFw/libraries/ESP8266mDNS}&quot;"/>
+								</option>
+								<inputType id="it.baeyens.arduino.compiler.S.sketch.input.804732522" name="Assembly source files" superClass="it.baeyens.arduino.compiler.S.sketch.input"/>
+							</tool>
+							<tool id="it.baeyens.arduino.tool.ar.288494153" name="Arduino archiver" superClass="it.baeyens.arduino.tool.ar"/>
+							<tool id="it.baeyens.arduino.tool.combine.514690666" name="Arduino combiner" superClass="it.baeyens.arduino.tool.combine"/>
+							<tool id="it.baeyens.arduino.tool.objcopy.eep.993653779" name="Arduino tool objcopy command" superClass="it.baeyens.arduino.tool.objcopy.eep"/>
+							<tool id="it.baeyens.arduino.tool.size.1513032012" name="Arduino tool Print Size" superClass="it.baeyens.arduino.tool.size"/>
+						</toolChain>
+					</folderInfo>
+					<sourceEntries>
+						<entry excluding="libraries/?*/**/?xamples/**|libraries/?*/**/?xtras/**|libraries/?*/**/test*/**|libraries/?*/**/third-party/**|libraries**/._*|libraries/?*/c*/?*|libraries/?*/d*/?*|libraries/?*/D*/?*" flags="VALUE_WORKSPACE_PATH" kind="sourcePath" name=""/>
+					</sourceEntries>
+				</configuration>
+			</storageModule>
+			<storageModule moduleId="org.eclipse.cdt.core.externalSettings"/>
+		</cconfiguration>
+	</storageModule>
+	<storageModule moduleId="cdtBuildSystem" version="4.0.0">
+		<project id="RlcWebFw.null.363666017" name="RlcWebFw"/>
+	</storageModule>
+	<storageModule moduleId="scannerConfiguration">
+		<autodiscovery enabled="true" problemReportingEnabled="true" selectedProfileId=""/>
+	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.core.LanguageSettingsProviders"/>
+	<storageModule moduleId="refreshScope"/>
+</cproject>
