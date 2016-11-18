@@ -9,6 +9,7 @@
 
 #include <Arduino.h>
 #include <MyTime.h>
+#include "tz.h"
 #include "common.h"
 #include "sampling.h"
 
@@ -223,6 +224,14 @@ uint16_t getSamplingValue(uint8_t modul,uint8_t channel,uint32_t timedelay)
 {
     uint16_t ret = 0;
     uint32_t currentTime = (uint32_t)hour()*3600+(uint32_t)minute()*60+(uint32_t)second();
+    time_t ct;
+    if (config.useDST)
+    {
+    	Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
+    	ct=tzlocal.toLocal(currentTime);
+    	currentTime=ct;
+
+    }
     uint32_t startTime = 0;
     uint32_t endTime = 0;
     uint16_t startval = 0;

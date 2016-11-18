@@ -240,14 +240,14 @@ void wifiFailover() {
 }
 
 void normalizeConfig() {
+   	if (config.hostname.length() == 0) config.hostname = HOSTNAME;
     
-    if (config.hostname.length() == 0) config.hostname = HOSTNAME;
-    
-    if (config.ssid.length() == 0) {
-        config.ssid = HOSTNAME;
-        config.wifimode = WIFI_AP;
-        config.useNtp = false;
-    }
+   	if (config.ssid.length() == 0) {
+   		config.ssid = HOSTNAME;
+   		config.wifimode = WIFI_AP;
+   		config.useNtp = false;
+   	}
+
     
     if (config.wifimode == 0) config.wifimode = WIFI_AP;
     if (config.apip.length() == 0 ) config.apip = AP_IP;
@@ -292,7 +292,7 @@ bool loadConfig(Config *conf)
     std::unique_ptr<char[]> buf(pf);
     configFile.readBytes(buf.get(), size);
     
-    StaticJsonBuffer<400> jsonBuffer;
+    StaticJsonBuffer<600> jsonBuffer;
     JsonObject& json = jsonBuffer.parseObject(buf.get());
     
     if (!json.success()) {
@@ -416,7 +416,18 @@ bool saveConfig()
         DEBUG_MSG("config.apip=%s  confsaved.apip=%s\n",config.apip.c_str(),confsaved.apip.c_str());
         DEBUG_MSG("config.apmask=%s  confsaved.apmask=%s\n",config.apmask.c_str(),confsaved.apmask.c_str());
         DEBUG_MSG("config.apgw=%s  confsaved.apgw=%s\n",config.apgw.c_str(),confsaved.apgw.c_str());
-        
+        DEBUG_MSG("config.useDST=%d  confsaved.useDST=%d\n",config.useDST,confsaved.useDST);
+        DEBUG_MSG("config.tzRule.tzName=%s  confsaved.tzRule.tzName=%s\n",config.tzRule.tzName.c_str(),confsaved.tzRule.tzName.c_str());
+        DEBUG_MSG("config.tzRule.dstStart.day=%d  confsaved.tzRule.dstStart.day=%d\n",config.tzRule.dstStart.day,confsaved.tzRule.dstStart.day);
+        DEBUG_MSG("config.tzRule.dstStart.hour=%d  confsaved.tzRule.dstStart.hour=%d\n",config.tzRule.dstStart.hour,confsaved.tzRule.dstStart.hour);
+        DEBUG_MSG("config.tzRule.dstStart.month=%d  confsaved.tzRule.dstStart.month=%d\n",config.tzRule.dstStart.month,confsaved.tzRule.dstStart.month);
+        DEBUG_MSG("config.tzRule.dstStart.offset=%d  confsaved.tzRule.dstStart.offset=%d\n",config.tzRule.dstStart.offset,confsaved.tzRule.dstStart.offset);
+        DEBUG_MSG("config.tzRule.dstStart.week=%d  confsaved.tzRule.dstStart.week=%d\n",config.tzRule.dstStart.week,confsaved.tzRule.dstStart.week);
+        DEBUG_MSG("config.tzRule.dstEnd.day=%d  confsaved.tzRule.dstEnd.day=%d\n",config.tzRule.dstEnd.day,confsaved.tzRule.dstEnd.day);
+        DEBUG_MSG("config.tzRule.dstEnd.hour=%d  confsaved.tzRule.dstEnd.hour=%d\n",config.tzRule.dstEnd.hour,confsaved.tzRule.dstEnd.hour);
+        DEBUG_MSG("config.tzRule.dstEnd.month=%d  confsaved.tzRule.dstEnd.month=%d\n",config.tzRule.dstEnd.month,confsaved.tzRule.dstEnd.month);
+        DEBUG_MSG("config.tzRule.dstEnd.offset=%d  confsaved.tzRule.dstEnd.offset=%d\n",config.tzRule.dstEnd.offset,confsaved.tzRule.dstEnd.offset);
+        DEBUG_MSG("config.tzRule.dstEnd.week=%d  confsaved.tzRule.dstEnd.week=%d\n",config.tzRule.dstEnd.week,confsaved.tzRule.dstEnd.week);
         
         if (config.ssid.equals(confsaved.ssid)&&
             config.pwd.equals(confsaved.pwd)&&
@@ -436,12 +447,24 @@ bool saveConfig()
             config.apchannel==confsaved.apchannel&&
             config.apip.equals(confsaved.apip)&&
             config.apmask.equals(confsaved.apmask)&&
-            config.apgw.equals(confsaved.apgw)
+            config.apgw.equals(confsaved.apgw)&&
+			config.useDST==confsaved.useDST&&
+			config.tzRule.tzName.equals(confsaved.tzRule.tzName)&&
+			config.tzRule.dstStart.day==confsaved.tzRule.dstStart.day&&
+			config.tzRule.dstStart.hour==confsaved.tzRule.dstStart.hour&&
+			config.tzRule.dstStart.month==confsaved.tzRule.dstStart.month&&
+			config.tzRule.dstStart.offset==confsaved.tzRule.dstStart.offset&&
+			config.tzRule.dstStart.week==confsaved.tzRule.dstStart.week&&
+			config.tzRule.dstEnd.day==confsaved.tzRule.dstEnd.day&&
+			config.tzRule.dstEnd.hour==confsaved.tzRule.dstEnd.hour&&
+			config.tzRule.dstEnd.month==confsaved.tzRule.dstEnd.month&&
+			config.tzRule.dstEnd.offset==confsaved.tzRule.dstEnd.offset&&
+			config.tzRule.dstEnd.week==confsaved.tzRule.dstEnd.week
             )
         return false;
     }
     
-    StaticJsonBuffer<400> jsonBuffer;
+    StaticJsonBuffer<600> jsonBuffer;
     JsonObject& json = jsonBuffer.createObject();
     
     json["ssid"]=config.ssid.c_str();
@@ -619,6 +642,7 @@ void setup() {
         normalizeConfig();
         saveConfig();
     }
+
     PRINT_CONFIG(config);
  
   
