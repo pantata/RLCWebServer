@@ -4,16 +4,16 @@ SKETCH_EXTENSION = cpp
 
 
 #cesty
-CURRENT_DIR  := .
-SKETCHBOOK_DIR := /Users/ludek/Dropbox/Arduino-xcode
-USER_LIB_PATH  = $(wildcard $(SKETCHBOOK_DIR)/?ibraries)
-ESP8266_PACKAGES = /Users/ludek/Library/Arduino15/packages/esp8266
+CURRENT_DIR     := .
+SKETCHBOOK_DIR  := /Users/slouf/Dropbox/Arduino-xcode
+USER_LIB_PATH    = $(wildcard $(SKETCHBOOK_DIR)/?ibraries)
+ESP8266_PACKAGES = /Users/slouf/Library/Arduino15/packages/esp8266
 
 #knihovny
 APP_LIBS_LIST = ArduinoOTA esp8266 ESP8266mDNS ESP8266WiFi Hash DNSServer
 USER_LIBS_LIST =  ArduinoJson NTPClient MyTime ESPAsyncTCP ESPAsyncWebServer
 LOCAL_LIBS_LIST = 
-#EXCLUDE_LIBS = Firmata WiFi Esplora OneWire Robot_Control Robot_Control/utility Robot_Motor
+
 WARNING_OPTIONS = 0
 
 #upload
@@ -64,9 +64,6 @@ $(shell echo $$(($$(cat $(BUILD_NUMBER_FILE)) + 1)) > $(BUILD_NUMBER_FILE) )
 
 BUILD_NUMBER := $(shell echo $$(($$(cat $(BUILD_NUMBER_FILE)) + 1)))
 GIT_VERSION := $(shell git describe --tags --always)_$(shell date "+%y%m%d")_$(BUILD_NUMBER)
-
-#EXTRA_CFLAGS += -DVERSION=\"$(GIT_VERSION)\"
-
 CPPFLAGS += -DVERSION=\"$(GIT_VERSION)\"
 
 
@@ -76,6 +73,13 @@ CPPFLAGS += -DVERSION=\"$(GIT_VERSION)\"
 #
 #CURRENT_DIR   := $(shell pwd)
 #CURRENT_DIR   := $(shell echo '$(CURRENT_DIR)' | sed 's/ /\\\ /g')
+
+# Executables
+#
+REMOVE  = rm -r
+MV      = mv -f
+CAT     = cat
+ECHO    = echo
 
 MAKEFILE_PATH  = Makefiles
 #OPTIMISATION    = -Os -g3

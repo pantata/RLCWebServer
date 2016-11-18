@@ -179,36 +179,7 @@ LOCAL_OBJ_FILES = $(LOCAL_C_SRCS:.c=.c.o) $(LOCAL_CPP_SRCS:.cpp=.cpp.o) $(LOCAL_
 LOCAL_OBJS      = $(patsubst $(LOCAL_LIB_PATH)/%,$(OBJDIR)/%,$(filter-out %/$(PROJECT_NAME_AS_IDENTIFIER).o,$(LOCAL_OBJ_FILES)))
 
 
-# Local archives
-#
-LOCAL_ARCHIVES  = $(wildcard $(patsubst %,%/*.a,$(LOCAL_LIBS))) $(wildcard $(LOCAL_LIB_PATH)/*.a) # */
-
-# Check against .board
-#
-ifneq ($(trim $(LOCAL_LIBS)),)
-ifneq ($(MAKECMDGOALS),archive)
-ifneq ($(MAKECMDGOALS),unarchive)
-    LOCAL_TARGETS   := $(shell find $(LOCAL_LIBS) -name \*.board -exec basename {} .board \;)
-    LOCAL_RESULT    := $(filter-out $(BOARD_TAG),$(LOCAL_TARGETS))
-
-    ifneq ($(trim $(LOCAL_ARCHIVES)),)
-    ifeq ($(LOCAL_TARGETS),)
-        $(info ---- Pre-compiled libraries ----)
-        $(error Missing .board file for one or more pre-compiled libraries)
-    endif
-    endif
-    ifneq ($(LOCAL_RESULT),)
-        $(info ---- Pre-compiled libraries ----)
-        $(info Found    $(LOCAL_RESULT))
-        $(info Expected $(BOARD_TAG))
-        $(error One or more pre-compiled libraries are not compatible with $(BOARD_TAG))
-    endif
-endif
-endif
-endif
-
 # All the objects
-# ??? Does order matter?
 #
 ifeq ($(REMOTE_OBJS),)
     REMOTE_OBJS = $(sort $(CORE_OBJS) $(BUILD_CORE_OBJS) $(APP_LIB_OBJS) $(BUILD_APP_LIB_OBJS) $(VARIANT_OBJS) $(USER_OBJS))
@@ -219,17 +190,6 @@ OBJS        = $(REMOTE_OBJS) $(LOCAL_OBJS)
 #
 DEPS   = $(OBJS:.o=.d)
 
-
-# Processor model and frequency
-# ----------------------------------
-#
-#ifndef MCU
-#    MCU   = $(call PARSE_BOARD,$(BOARD_TAG),build.mcu)
-#endif
-
-#ifndef F_CPU
-#    F_CPU = $(call PARSE_BOARD,$(BOARD_TAG),build.f_cpu)
-#endif
 
 ifeq ($(OUT_PREPOSITION),)
     OUT_PREPOSITION = -o # end of line
@@ -266,13 +226,6 @@ endif
 # List of dependencies
 #
 DEP_FILE   = $(OBJDIR)/depends.mk
-
-# Executables
-#
-REMOVE  = rm -r
-MV      = mv -f
-CAT     = cat
-ECHO    = echo
 
 # General arguments
 #
@@ -769,7 +722,7 @@ ifneq ($(MAKECMDGOALS),boards)
 		@echo 'Target		'$(MAKECMDGOALS)
 		@echo 'Name		'$(PROJECT_NAME)' ('$(SKETCH_EXTENSION)')'
 		@echo 'Tag			'$(BOARD_TAG)
-		@echo 'VARIANT			'$(VARIANT)
+		@echo 'USER_LIBS			'$(USER_LIBS)
 				
 
 #    ifneq ($(PLATFORM),Wiring)
@@ -851,7 +804,7 @@ endif
 # Rules
 # ----------------------------------
 #
-all: 		info message_all clean compile  raw_upload serial end_all
+all: 		info message_all clean compile  raw_upload  end_all
 
 
 build: 		info message_build clean compile end_build
@@ -887,11 +840,6 @@ else ifeq ($(UPLOADER),espota)
 	$(UPLOADER_EXEC) $(UPLOADER_OPTS) -f Builds/$(TARGET).bin
 endif
 
-serial:		
-		@echo "---- Serial ---- "
-		$(call SHOW,"11.8-SERIAL",$(UPLOADER))
-		#osascript -e 'tell application "Terminal" to do script "$(SERIAL_COMMAND) $(USED_SERIAL_PORT) $(SERIAL_BAUDRATE)"'  -e 'tell application "Terminal" to activate'
-
 size:
 		@echo '---- Size ----'
 		@echo 'Estimated Flash: ' $(shell $(FLASH_SIZE)) $(MAX_FLASH_BYTES); echo;
@@ -921,13 +869,6 @@ depends:	$(DEPS)
 		@echo "---- Depends ---- "
 		@cat $(DEPS) > $(DEP_FILE)
 
-
-boards:
-		@echo .
-		@echo "==== Boards ===="
-		@ls -1 Configurations/ | sed 's/\(.*\)\..*/\1/'
-		@echo "==== Boards done ==== "
-
 message_all:
 		@echo .
 		@echo "==== All ===="
@@ -950,11 +891,9 @@ end_build:
 		@echo "==== Build done ==== "
 
 # ~
-fast: 		info message_fast changed compile raw_upload end_fast
+fast: 		info message_fast changed compile end_fast
 
 make:		info message_make changed compile end_make
-
-#archive:	info message_make changed compile end_make do_archive
 
 message_fast:
 		@echo .
@@ -973,5 +912,5 @@ end_fast:
 # ~~
 
 # cat Step2.mk | grep -e "^[A-z]\+:" | cut -d: -f1
-.PHONY:	info all build compile upload raw_upload serial size clean changed depends do_archive boards message_all message_build message_compile message_upload end_all end_build fast make archive message_fast message_make end_make end_fast
+.PHONY:	info all build compile upload raw_upload size clean changed depends do_archive  message_all message_build message_compile message_upload end_all end_build fast make archive message_fast message_make end_make end_fast
 
