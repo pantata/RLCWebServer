@@ -1,3 +1,9 @@
+ifeq ($(OS),Windows_NT)
+   FixPath = $(subst /,\,$1)
+else
+   FixPath = $1
+endif
+
 # ESP8266 NodeMCU.app path for ArduinoCC 1.6.5
 #
 ESP8266_APP     = $(ESP8266_PACKAGES)
@@ -679,10 +685,10 @@ size:
 		$(RAM_SIZE)
 		@echo		
 clean:
-		@if [ ! -d $(OBJDIR) ]; then mkdir $(OBJDIR); fi
+		@if [ ! -d $(OBJDIR) ]; then $(MKDIR) $(call FixPath,$(OBJDIR)); fi
 		@echo "nil" > $(OBJDIR)/nil
 		@echo "---- Clean ----"
-		-@rm -r $(OBJDIR)/* # */
+		@$(REMOVE) $(call FixPath,$(OBJDIR)/*)   # */
 
 changed:
 		@echo "---- Clean changed ----"
@@ -712,7 +718,7 @@ message_build:
 		@echo "==== Build ===="
 
 message_compile:
-		@echo "---- Compile ----"
+		@echo "==== Compile ===="
 
 message_upload:
 		@echo .

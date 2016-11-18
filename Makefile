@@ -2,21 +2,23 @@
 #
 
 ifeq ($(OS),Windows_NT)
-GIT     = git
-REMOVE  = del 
-MV      = move
-COPY      = copy
-CAT     = cat
-ECHO    = echo
-PYTHON  = python.exe
+   GIT     = git
+   REMOVE  = del /F /Q 
+   MV      = move
+   COPY    = copy
+   CAT     = cat
+   ECHO    = echo
+   PYTHON  = python.exe
+   FixPath = $(subst /,\,$1)
 else
-GIT     = git
-REMOVE  = rm -r
-MV      = mv -f
-COPY    = cp
-CAT     = cat
-ECHO    = echo
-PYTHON  = /usr/bin/python
+   GIT     = git
+   REMOVE  = rm -rf
+   MV      = mv -f
+   COPY    = cp
+   CAT     = cat
+   ECHO    = echo
+   PYTHON  = /usr/bin/python
+   FixPath = $1
 endif
 
 #identifikace
