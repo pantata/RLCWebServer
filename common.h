@@ -17,7 +17,7 @@
 #ifdef DEBUG
 #define DEBUG_MSG(fmt, ...) Serial.printf(fmt, __VA_ARGS__)
 //#define PRINT_CONFIG(c) for(;0;)
-#define PRINT_CONFIG(c) Serial.printf("Config  ssid=%s,pwd=%s,hostname=%s,wifimode=%d,ntpServer=%s,localPort=%d,useNtp=%d,profileFileName=%s, HEAP=%d\n",c.ssid.c_str(),c.pwd.c_str(),c.hostname.c_str(),c.wifimode,c.ntpServer.c_str(),c.localPort,c.useNtp,c.profileFileName.c_str(),ESP.getFreeHeap())
+#define PRINT_CONFIG(c) Serial.printf("Config  ssid=%s,pwd=%s,hostname=%s,wifimode=%d,ntpServer=%s,localPort=%d,useNtp=%d,profileFileName=%s,wifidhcp=%d,wifiip=%s,wifimask=%s,wifigw=%s,wifidns1=%s,wifidns2=%s,appwd=%s,apchannel=%d,apip=%s,apmask=%s,apgw=%s,useDST=%d,tzRule.tzName=%s,tzRule.dstStart.day=%d, tzRule.dstStart.month=%d,tzRule.dstStart.hour=%d,tzRule.dstStart.offset=%d,tzRule.dstStart.week=%d,tzRule.dstEnd.day=%d,tzRule.dstEnd.month=%d,tzRule.dstEnd.hour=%d,tzRule.dstEnd.offset=%d,tzRule.dstEnd.week=%d, HEAP=%d\n",c.ssid.c_str(),c.pwd.c_str(),c.hostname.c_str(),c.wifimode,c.ntpServer.c_str(),c.localPort,c.useNtp,c.profileFileName.c_str(),c.wifidhcp,c.wifiip.c_str(),c.wifimask.c_str(),c.wifigw.c_str(),c.wifidns1.c_str(),c.wifidns2.c_str(),c.appwd.c_str(),c.apchannel,c.apip.c_str(),c.apmask.c_str(),c.apgw.c_str(),c.useDST,c.tzRule.tzName.c_str(),c.tzRule.dstStart.day,c.tzRule.dstStart.month,c.tzRule.dstStart.hour,c.tzRule.dstStart.offset,c.tzRule.dstStart.week,c.tzRule.dstEnd.day,c.tzRule.dstEnd.month,c.tzRule.dstEnd.hour,c.tzRule.dstEnd.offset,c.tzRule.dstEnd.week,ESP.getFreeHeap())
 #else
 #define DEBUG_MSG(fmt, ...) for(;0;)
 #define PRINT_CONFIG(c) for(;0;)

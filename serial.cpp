@@ -10,6 +10,7 @@
 #include <Esp.h>
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include <MyTime.h>
 
 #include "common.h"
 #include "sampling.h"
@@ -63,12 +64,21 @@ void process3()
 
 void process4()
 {
+	unixtime.time=(uint32_t)hour()*3600+(uint32_t)minute()*60+(uint32_t)second();
+    if (config.useDST)
+    {
+    	Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
+    	time_t ct=tzlocal.toLocal(unixtime.time);
+    	unixtime.time=ct;
+
+    }
+
 #ifdef DEBUG
     Serial.printf("%c%c%c%c\n",unixtime.btime[0]+48,unixtime.btime[1]+48,unixtime.btime[2]+48,unixtime.btime[3]+48);
 #else
     Serial.printf("%c%c%c%c\n",unixtime.btime[0],unixtime.btime[1],unixtime.btime[2],unixtime.btime[3]);
 #endif
-    
+    DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n","false",day(),month(),year(),hour(),minute(),second());
 }
 
 void process5(String data)

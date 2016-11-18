@@ -202,8 +202,18 @@ void setTimeCgi(AsyncWebServerRequest *request) {
     else
     {
         config.useNtp=false;
-        setTime(atoi(curtime.c_str()));
-        DEBUG_MSG("setTime.cgi saved config.useNtp=%s, time set to %s \n","false",curtime.c_str());
+        time_t ct=atoi(curtime.c_str());
+        if (config.useDST)
+        {
+        	Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
+        	time_t ct1=tzlocal.toUTC(ct);
+        	ct=ct1;
+
+        }
+
+        setTime(ct);
+        DEBUG_MSG("setTime.cgi saved config.useNtp=%s, time set to %s \n","false",String(ct).c_str());
+        DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n","false",day(),month(),year(),hour(),minute(),second());
     }
     saveConfig();
     
