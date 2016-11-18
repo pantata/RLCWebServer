@@ -29,7 +29,7 @@ BOARD_TAGS_LIST   = $(BOARD_TAG) $(BOARD_TAG1) $(BOARD_TAG2)
 ifeq ($(UPLOADER),espota)
 # ~
     UPLOADER_PATH       = $(HARDWARE_PATH)/tools
-    UPLOADER_EXEC       = /usr/bin/python $(UPLOADER_PATH)/espota.py
+    UPLOADER_EXEC       = $(PYTHON) $(UPLOADER_PATH)/espota.py
     UPLOADER_OPTS       = -d -i $(IP_ADDRESS)
 # ~~
 else

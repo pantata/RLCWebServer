@@ -506,203 +506,28 @@ $(OBJDIR)/%.d: %.s
 $(TARGET_ELF): 	$(OBJS)
 		@echo "---- Link ---- "
 		$(call SHOW,"5.1-ARCHIVE",$@,.)
-
-ifneq ($(FIRST_O_IN_A),)
+		$(call SHOW,"5.1.1-ARCHIVE",$@,.)
 		$(QUIET)$(AR) rcs $(TARGET_A) $(FIRST_O_IN_A)
-endif
-
-# ~
-ifeq ($(PLATFORM),IntelYocto)
-    ifneq ($(REMOTE_OBJS),)
+		$(call SHOW,"5.1.3-ARCHIVE",$@,.)
 		$(QUIET)$(AR) rcs $(TARGET_A) $(REMOTE_OBJS)
-    endif
-else
-	$(QUIET)$(AR) rcs $(TARGET_A) $(REMOTE_OBJS)
-endif
-# ~~
-
-ifneq ($(EXTRA_COMMAND),)
-		$(call SHOW,"5.2-COPY",$@,.)
-
-		$(EXTRA_COMMAND)
-endif
-
-ifneq ($(COMMAND_LINK),)
 		$(call SHOW,"5.3-LINK",$@,.)
-
 		$(QUIET)$(COMMAND_LINK)
-
-else
-		$(call SHOW,"5.4-LINK default",$@,.)
-
-		$(QUIET)$(CXX) $(OUT_PREPOSITION)$@ $(LOCAL_OBJS) $(LOCAL_ARCHIVES) $(TARGET_A) $(LDFLAGS)
-endif
-
-
-$(TARGET_OUT): 	$(OBJS)
-# ~
-ifeq ($(BUILD_CORE),c2000)
-		$(call SHOW,"5.5-ARCHIVE",$@,.)
-
-		$(QUIET)$(AR) r $(TARGET_A) $(FIRST_O_IN_A)
-		$(QUIET)$(AR) r $(TARGET_A) $(REMOTE_OBJS)
-
-		$(call SHOW,"5.6-LINK",$@,.)
-
-		$(QUIET)$(CC) $(CPPFLAGS) $(LDFLAGS) $(OUT_PREPOSITION)$@ $(LOCAL_OBJS) $(TARGET_A) $(COMMAND_FILES) -l$(LDSCRIPT)
-
-else
-		$(call SHOW,"5.7-LINK",$@,.)
-
-endif
-# ~~
-
 
 # 6- Final conversions
 # ----------------------------------
 #
-$(OBJDIR)/%.hex: $(OBJDIR)/%.elf
-	$(call SHOW,"6.1-COPY HEX",$@,$<)
-
-	$(QUIET)$(OBJCOPY) -Oihex -R .eeprom $< $@
-# ~
-ifneq ($(SOFTDEVICE),)
-	$(call SHOW,"6.2-COPY HEX",$@,$<)
-
-	$(QUIET)$(MERGE_PATH)/$(MERGE_EXEC) $(SOFTDEVICE_HEX) -intel $(CURRENT_DIR)/$@ -intel $(OUT_PREPOSITION)$(CURRENT_DIR)/combined.hex $(MERGE_OPTS)
-	$(QUIET)mv $(CURRENT_DIR)/combined.hex $(CURRENT_DIR)/$@
-endif
-# ~~
-
-$(OBJDIR)/%.bin: $(OBJDIR)/%.elf
-	$(call SHOW,"6.3-COPY BIN",$@,$<)
-  ifneq ($(COMMAND_COPY),)
-	$(QUIET)$(COMMAND_COPY)
-  else
-	$(QUIET)$(OBJCOPY) -Obinary $< $@
-  endif
 
 $(OBJDIR)/%.bin2: $(OBJDIR)/%.elf
 	$(call SHOW,"6.4-COPY BIN",$@,$<)
 
 	$(QUIET)$(ESP_POST_COMPILE) -eo $(BOOTLOADER_ELF) -bo Builds/$(TARGET)_$(ADDRESS_BIN1).bin -bm $(OBJCOPYFLAGS) -bf $(BUILD_FLASH_FREQ) -bz $(BUILD_FLASH_SIZE) -bs .text -bp 4096 -ec -eo $< -bs .irom0.text -bs .text -bs .data -bs .rodata -bc -ec
-	$(QUIET)cp Builds/$(TARGET)_$(ADDRESS_BIN1).bin Builds/$(TARGET).bin
-
-$(OBJDIR)/%.eep: $(OBJDIR)/%.elf
-	$(call SHOW,"6.5-COPY EEP",$@,$<)
-
-	-$(QUIET)$(OBJCOPY) -Oihex -j .eeprom --set-section-flags=.eeprom=alloc,load --no-change-warnings --change-section-lma .eeprom=0 $< $@
-
-$(OBJDIR)/%.lss: $(OBJDIR)/%.elf
-	$(call SHOW,"6.6-COPY LSS",$@,$<)
-
-	$(QUIET)$(OBJDUMP) -h -S $< > $@
-
-$(OBJDIR)/%.sym: $(OBJDIR)/%.elf
-	$(call SHOW,"6.7-COPY SYM",$@,$<)
-
-	$(QUIET)$(NM) -n $< > $@
-
-#$(OBJDIR)/%.txt: $(OBJDIR)/%.out
-#	$(call SHOW,"6.8-COPY",$@,$<)
-#
-#	echo ' -boot -sci8 -a $< -o $@'
-#	$(QUIET)$(OBJCOPY) -boot -sci8 -a $< -o $@
-
-$(OBJDIR)/%.mcu: $(OBJDIR)/%.elf
-	$(call SHOW,"6.9-COPY MCU",$@,$<)
-
-	@rm -f $(OBJDIR)/intel_mcu.*
-	@cp $(OBJDIR)/embeddedcomputing.elf $(OBJDIR)/intel_mcu.elf
-	@cd $(OBJDIR) ; export TOOLCHAIN_PATH=$(APP_TOOLS_PATH) ; $(UTILITIES_PATH)/generate_mcu.sh
-
-# ~
-$(OBJDIR)/%.vxp: $(OBJDIR)/%.elf
-	$(call SHOW,"6.10-COPY VXP",$@,$<)
-
-	$(QUIET)cp $(OBJDIR)/embeddedcomputing.elf $(OBJDIR)/embeddedcomputing2.elf
-	$(QUIET)$(OBJCOPY) -i $<
-	$(QUIET)mv $(OBJDIR)/embeddedcomputing2.elf $(OBJDIR)/embeddedcomputing.elf
-# ~~
-
-$(OBJDIR)/%: $(OBJDIR)/%.elf
-	$(call SHOW,"6.11-COPY",$@,$<)
-
-	$(QUIET)cp $< $@
-
+	$(QUIET)$(COPY) Builds/$(TARGET)_$(ADDRESS_BIN1).bin Builds/$(TARGET).bin
 
 # Size of file
 # ----------------------------------
-#
-#ifeq ($(TARGET_HEXBIN),$(TARGET_HEX))
-#    FLASH_SIZE = $(SIZE) --target=ihex --totals $(CURRENT_DIR)/$(TARGET_HEX) | grep TOTALS | awk '{t=$$3 + $$2} END {print t}'
-#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
 
-# ~
-#else ifeq ($(TARGET_HEXBIN),$(TARGET_VXP))
-#    FLASH_SIZE = $(SIZE) $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1 + $$2} END {print t}'
-#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3} END {print t}'
-# ~~
-
-#else ifeq ($(TARGET_HEXBIN),$(TARGET_BIN))
-    #FLASH_SIZE = $(SIZE) --target=binary --totals $(CURRENT_DIR)/$(TARGET_BIN) | grep TOTALS | tr '\t' . | cut -d. -f2 | tr -d ' '
-    FLASH_SIZE = $(SIZE) --target=binary --totals $(CURRENT_DIR)/$(TARGET_BIN)
-    #RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
-    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF)
-
-#else ifeq ($(TARGET_HEXBIN),$(TARGET_BIN2))
-
-#    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1 + $$2} END {print t}'
-#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
-
-#else ifeq ($(TARGET_HEXBIN),$(TARGET_OUT))
-#    FLASH_SIZE = cat Builds/embeddedcomputing.map | grep '^.text' | awk 'BEGIN { OFS = "" } {print "0x",$$4}' | xargs printf '%d'
-#    RAM_SIZE = cat Builds/embeddedcomputing.map | grep '^.ebss' | awk 'BEGIN { OFS = "" } {print "0x",$$4}' | xargs printf '%d'
-
-#else ifeq ($(TARGET_HEXBIN),$(TARGET_DOT))
-#    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1} END {print t}'
-#    FLASH_SIZE = ls -all $(CURRENT_DIR)/$(TARGET_DOT) | awk '{print $$5}'
-#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
-
-#else ifeq ($(TARGET_HEXBIN),$(TARGET_ELF))
-#    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1} END {print t}'
-#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
-
-#else ifeq ($(TARGET_HEXBIN),$(TARGET_MCU))
-#    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$4} END {print t}'
-#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$4} END {print t}'
-#endif
-
-#ifeq ($(MAX_FLASH_SIZE),)
-#    MAX_FLASH_SIZE = $(firstword $(call PARSE_BOARD,$(BOARD_TAG),upload.maximum_size))
-#endif
-#ifeq ($(MAX_RAM_SIZE),)
-#    MAX_RAM_SIZE = $(call PARSE_BOARD,$(BOARD_TAG),upload.maximum_data_size)
-#endif
-#ifeq ($(MAX_RAM_SIZE),)
-#    MAX_RAM_SIZE = $(call PARSE_BOARD,$(BOARD_TAG),upload.maximum_ram_size)
-#endif
-
-#ifneq ($(MAX_FLASH_SIZE),)
-#     MAX_FLASH_BYTES   = 'bytes (of a '$(MAX_FLASH_SIZE)' byte maximum)'
-# ~
-#    MAX_FLASH_BYTES   = 'bytes used ('$(shell echo "scale=1; (100.0* $(shell $(FLASH_SIZE)))/$(MAX_FLASH_SIZE)" | bc)'% of '$(MAX_FLASH_SIZE)' maximum), '$(shell echo "$(MAX_FLASH_SIZE) - $(shell $(FLASH_SIZE))"|bc) 'bytes free ('$(shell echo "scale=1; 100-(100.0* $(shell $(FLASH_SIZE)))/$(MAX_FLASH_SIZE)"|bc)'%)'
-# ~~
-#else
-#    MAX_FLASH_BYTES   = bytes used
-#endif
-
-#ifneq ($(MAX_RAM_SIZE),)
-#    MAX_RAM_BYTES   = 'bytes (of a '$(MAX_RAM_SIZE)' byte maximum)'
-# ~
-#    MAX_RAM_BYTES   = 'bytes used ('$(shell echo "scale=1; (100.0* $(shell $(RAM_SIZE)))/$(MAX_RAM_SIZE)" | bc)'% of '$(MAX_RAM_SIZE)' maximum), '$(shell echo "$(MAX_RAM_SIZE) - $(shell $(RAM_SIZE))"|bc) 'bytes free ('$(shell echo "scale=1; 100-(100.0* $(shell $(RAM_SIZE)))/$(MAX_RAM_SIZE)"|bc)'%)'
-# ~~
-#else
-#    MAX_RAM_BYTES   = bytes used
-#endif
-
-
-
+FLASH_SIZE = $(SIZE) --target=binary --totals $(CURRENT_DIR)/$(TARGET_BIN)
+RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF)
 
 # Info for debugging
 # ----------------------------------
@@ -710,9 +535,6 @@ $(OBJDIR)/%: $(OBJDIR)/%.elf
 # 0- Info
 #
 info:
-#		@if [ -f $(CURRENT_DIR)/About/About.txt ]; then $(CAT) $(CURRENT_DIR)/About/About.txt | head -6; fi;
-		#@if [ -f $(UTILITIES_PATH)/embedXcode_check ]; then $(UTILITIES_PATH)/embedXcode_check; fi
-		#@echo $(STARTCHRONO)
 ifeq ($(UNKNOWN_BOARD),1)
 		@echo .
 		@echo ==== Info ====
@@ -760,7 +582,7 @@ ifneq ($(MAKECMDGOALS),boards)
 		@echo 'Uploader		'$(UPLOADER)
 
 		@echo ---- Libraries ----
-		@echo Application libraries from $(basename $(APP_LIB_PATH)) # | cut -d. -f1,2
+		@echo Application libraries from $(basename $(APP_LIB_PATH)) 
 		@echo $(APP_LIBS_LIST)
 		@echo User libraries from $(SKETCHBOOK_DIR)
 		@echo $(USER_LIBS_LIST)
@@ -780,7 +602,7 @@ ifneq ($(MAKECMDGOALS),boards)
 
 		@echo ---- Tools ----
 		@echo $(PLATFORM) $(PLATFORM_VERSION)	
-		@$(CC) --version | head -1
+		@$(CC) --version
 
 		@echo ==== Info done ====
   endif
@@ -923,6 +745,5 @@ end_fast:
 		@echo "==== Fast done ==== "
 # ~~
 
-# cat Step2.mk | grep -e "^[A-z]\+:" | cut -d: -f1
-.PHONY:	info all build compile upload raw_upload size clean changed depends do_archive  message_all message_build message_compile message_upload end_all end_build fast make archive message_fast message_make end_make end_fast
+.PHONY:	info all build compile upload raw_upload size clean changed depends  message_all message_build message_compile message_upload end_all end_build fast make archive message_fast message_make end_make end_fast
 

@@ -1,10 +1,23 @@
 # Executables
 #
+
+ifeq ($(OS),Windows_NT)
+GIT     = git
+REMOVE  = del 
+MV      = move
+COPY      = copy
+CAT     = cat
+ECHO    = echo
+PYTHON  = python.exe
+else
 GIT     = git
 REMOVE  = rm -r
 MV      = mv -f
+COPY    = cp
 CAT     = cat
 ECHO    = echo
+PYTHON  = /usr/bin/python
+endif
 
 #identifikace
 PROJECT_NAME_AS_IDENTIFIER = RlcWebFw
