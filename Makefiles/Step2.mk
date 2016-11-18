@@ -50,11 +50,16 @@ EXCLUDE_NAMES  = Example example Examples examples Archive archive Archives arch
 EXCLUDE_NAMES += ArduinoTestSuite tests
 EXCLUDE_NAMES += $(EXCLUDE_LIBS)
 EXCLUDE_LIST   = $(addprefix %,$(EXCLUDE_NAMES))
+EXCLUDE_LIST1   = $(addsuffix /,$(EXCLUDE_LIST))
 
 # Functions
 # ----------------------------------
 #
 SHOW  = @printf '%-24s\t%s\r\n' $(1) $(2)
+RWILDCARD = $(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call RWILDCARD,$d/,$2))
+
+not-containing = $(foreach v,$2 ,$(if $(findstring $1,$v),,$v))
+not-containing = $(foreach v,$2 ,$(if $(findstring $1,$v),,$v))
 
 # ~
 #QUIET = @
@@ -131,15 +136,16 @@ ifneq ($(MAKECMDGOALS),clean)
 ifeq ($(USER_LIBS_LOCK),)
 ifneq ($(USER_LIBS_LIST),0)
     s203             = $(patsubst %,$(USER_LIB_PATH)/%,$(USER_LIBS_LIST))
-    EXCLUDE_LIST     = $(shell echo $(strip $(EXCLUDE_NAMES)) | sed "s/ /|/g" )
-    USER_LIBS       := $(sort $(foreach dir,$(s203),$(shell find $(dir) -type d | egrep -v '$(EXCLUDE_LIST)' )))
-
-    USER_LIB_CPP_SRC = $(foreach dir,$(USER_LIBS),$(wildcard $(dir)/*.cpp)) # */
-    USER_LIB_C_SRC   = $(foreach dir,$(USER_LIBS),$(wildcard $(dir)/*.c)) # */
+    
+    USER_LIBS1       := $(sort $(foreach dir,$(s203),$(sort $(dir $(wildcard $(dir)/**/* $(dir)/*)))))	         
+    USER_LIBS 		:=  $(filter-out $(EXCLUDE_LIST1),$(USER_LIBS1))
+        
+    USER_LIB_CPP_SRC = $(foreach dir,$(USER_LIBS),$(wildcard $(dir)/*.cpp)) # */    
+    USER_LIB_C_SRC   = $(foreach dir,$(USER_LIBS),$(wildcard $(dir)/*.c)) # *
     USER_LIB_H_SRC   = $(foreach dir,$(USER_LIBS),$(wildcard $(dir)/*.h)) # */
-
+  
     USER_OBJS        = $(patsubst $(USER_LIB_PATH)/%.cpp,$(OBJDIR)/user/%.cpp.o,$(USER_LIB_CPP_SRC))
-    USER_OBJS       += $(patsubst $(USER_LIB_PATH)/%.c,$(OBJDIR)/user/%.c.o,$(USER_LIB_C_SRC))
+    USER_OBJS       += $(patsubst $(USER_LIB_PATH)/%.c,$(OBJDIR)/user/%.c.o,$(USER_LIB_C_SRC))    
 endif
 endif
 endif
@@ -150,17 +156,17 @@ endif
 LOCAL_LIB_PATH  = .
 #LOCAL_LIB_PATH  = $(CURRENT_DIR)
 
-ifndef LOCAL_LIBS_LIST
-    s206            = $(sort $(dir $(wildcard $(LOCAL_LIB_PATH)/*/*.h))) # */
-    s212            = $(subst $(LOCAL_LIB_PATH)/,,$(filter-out $(EXCLUDE_LIST)/,$(s206))) # */
-    LOCAL_LIBS_LIST = $(shell echo $(s212)' ' | sed 's://:/:g' | sed 's:/ : :g')
-endif
+#ifndef LOCAL_LIBS_LIST
+#    s206            = $(sort $(dir $(wildcard $(LOCAL_LIB_PATH)/*/*.h))) # */
+#    s212            = $(subst $(LOCAL_LIB_PATH)/,,$(filter-out $(EXCLUDE_LIST)/,$(s206))) # */
+#    LOCAL_LIBS_LIST = $(shell echo $(s212)' ' | sed 's://:/:g' | sed 's:/ : :g')
+#endif
 
-ifneq ($(LOCAL_LIBS_LIST),0)
-    s207          = $(patsubst %,$(LOCAL_LIB_PATH)/%,$(LOCAL_LIBS_LIST))
-    s208          = $(sort $(dir $(foreach dir,$(s207),$(wildcard $(dir)/*.h $(dir)/*/*.h $(dir)/*/*/*.h))))
-    LOCAL_LIBS    = $(shell echo $(s208)' ' | sed 's://:/:g' | sed 's:/ : :g')
-endif
+#ifneq ($(LOCAL_LIBS_LIST),0)
+#    s207          = $(patsubst %,$(LOCAL_LIB_PATH)/%,$(LOCAL_LIBS_LIST))
+#    s208          = $(sort $(dir $(foreach dir,$(s207),$(wildcard $(dir)/*.h $(dir)/*/*.h $(dir)/*/*/*.h))))
+#    LOCAL_LIBS    = $(shell echo $(s208)' ' | sed 's://:/:g' | sed 's:/ : :g')
+#endif
 
 # Core main function check
 s209             = $(wildcard $(patsubst %,%/*.cpp,$(LOCAL_LIBS))) $(wildcard $(LOCAL_LIB_PATH)/*.cpp) # */
@@ -628,43 +634,44 @@ $(OBJDIR)/%: $(OBJDIR)/%.elf
 # Size of file
 # ----------------------------------
 #
-ifeq ($(TARGET_HEXBIN),$(TARGET_HEX))
-#    FLASH_SIZE = $(SIZE) --target=ihex --totals $(CURRENT_DIR)/$(TARGET_HEX) | grep TOTALS | tr '\t' . | cut -d. -f2 | tr -d ' '
-    FLASH_SIZE = $(SIZE) --target=ihex --totals $(CURRENT_DIR)/$(TARGET_HEX) | grep TOTALS | awk '{t=$$3 + $$2} END {print t}'
-    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
+#ifeq ($(TARGET_HEXBIN),$(TARGET_HEX))
+#    FLASH_SIZE = $(SIZE) --target=ihex --totals $(CURRENT_DIR)/$(TARGET_HEX) | grep TOTALS | awk '{t=$$3 + $$2} END {print t}'
+#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
 
 # ~
-else ifeq ($(TARGET_HEXBIN),$(TARGET_VXP))
-    FLASH_SIZE = $(SIZE) $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1 + $$2} END {print t}'
-    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3} END {print t}'
+#else ifeq ($(TARGET_HEXBIN),$(TARGET_VXP))
+#    FLASH_SIZE = $(SIZE) $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1 + $$2} END {print t}'
+#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3} END {print t}'
 # ~~
 
-else ifeq ($(TARGET_HEXBIN),$(TARGET_BIN))
-    FLASH_SIZE = $(SIZE) --target=binary --totals $(CURRENT_DIR)/$(TARGET_BIN) | grep TOTALS | tr '\t' . | cut -d. -f2 | tr -d ' '
-    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
+#else ifeq ($(TARGET_HEXBIN),$(TARGET_BIN))
+    #FLASH_SIZE = $(SIZE) --target=binary --totals $(CURRENT_DIR)/$(TARGET_BIN) | grep TOTALS | tr '\t' . | cut -d. -f2 | tr -d ' '
+    FLASH_SIZE = $(SIZE) --target=binary --totals $(CURRENT_DIR)/$(TARGET_BIN)
+    #RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
+    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF)
 
-else ifeq ($(TARGET_HEXBIN),$(TARGET_BIN2))
+#else ifeq ($(TARGET_HEXBIN),$(TARGET_BIN2))
 
-    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1 + $$2} END {print t}'
-    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
+#    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1 + $$2} END {print t}'
+#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
 
-else ifeq ($(TARGET_HEXBIN),$(TARGET_OUT))
-    FLASH_SIZE = cat Builds/embeddedcomputing.map | grep '^.text' | awk 'BEGIN { OFS = "" } {print "0x",$$4}' | xargs printf '%d'
-    RAM_SIZE = cat Builds/embeddedcomputing.map | grep '^.ebss' | awk 'BEGIN { OFS = "" } {print "0x",$$4}' | xargs printf '%d'
+#else ifeq ($(TARGET_HEXBIN),$(TARGET_OUT))
+#    FLASH_SIZE = cat Builds/embeddedcomputing.map | grep '^.text' | awk 'BEGIN { OFS = "" } {print "0x",$$4}' | xargs printf '%d'
+#    RAM_SIZE = cat Builds/embeddedcomputing.map | grep '^.ebss' | awk 'BEGIN { OFS = "" } {print "0x",$$4}' | xargs printf '%d'
 
-else ifeq ($(TARGET_HEXBIN),$(TARGET_DOT))
-    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1} END {print t}'
+#else ifeq ($(TARGET_HEXBIN),$(TARGET_DOT))
+#    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1} END {print t}'
 #    FLASH_SIZE = ls -all $(CURRENT_DIR)/$(TARGET_DOT) | awk '{print $$5}'
-    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
+#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
 
-else ifeq ($(TARGET_HEXBIN),$(TARGET_ELF))
-    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1} END {print t}'
-    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
+#else ifeq ($(TARGET_HEXBIN),$(TARGET_ELF))
+#    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$1} END {print t}'
+#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$3 + $$2} END {print t}'
 
-else ifeq ($(TARGET_HEXBIN),$(TARGET_MCU))
-    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$4} END {print t}'
-    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$4} END {print t}'
-endif
+#else ifeq ($(TARGET_HEXBIN),$(TARGET_MCU))
+#    FLASH_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$4} END {print t}'
+#    RAM_SIZE = $(SIZE) --totals $(CURRENT_DIR)/$(TARGET_ELF) | sed '1d' | awk '{t=$$4} END {print t}'
+#endif
 
 #ifeq ($(MAX_FLASH_SIZE),)
 #    MAX_FLASH_SIZE = $(firstword $(call PARSE_BOARD,$(BOARD_TAG),upload.maximum_size))
@@ -676,23 +683,23 @@ endif
 #    MAX_RAM_SIZE = $(call PARSE_BOARD,$(BOARD_TAG),upload.maximum_ram_size)
 #endif
 
-ifneq ($(MAX_FLASH_SIZE),)
+#ifneq ($(MAX_FLASH_SIZE),)
 #     MAX_FLASH_BYTES   = 'bytes (of a '$(MAX_FLASH_SIZE)' byte maximum)'
 # ~
-    MAX_FLASH_BYTES   = 'bytes used ('$(shell echo "scale=1; (100.0* $(shell $(FLASH_SIZE)))/$(MAX_FLASH_SIZE)" | bc)'% of '$(MAX_FLASH_SIZE)' maximum), '$(shell echo "$(MAX_FLASH_SIZE) - $(shell $(FLASH_SIZE))"|bc) 'bytes free ('$(shell echo "scale=1; 100-(100.0* $(shell $(FLASH_SIZE)))/$(MAX_FLASH_SIZE)"|bc)'%)'
+#    MAX_FLASH_BYTES   = 'bytes used ('$(shell echo "scale=1; (100.0* $(shell $(FLASH_SIZE)))/$(MAX_FLASH_SIZE)" | bc)'% of '$(MAX_FLASH_SIZE)' maximum), '$(shell echo "$(MAX_FLASH_SIZE) - $(shell $(FLASH_SIZE))"|bc) 'bytes free ('$(shell echo "scale=1; 100-(100.0* $(shell $(FLASH_SIZE)))/$(MAX_FLASH_SIZE)"|bc)'%)'
 # ~~
-else
-    MAX_FLASH_BYTES   = bytes used
-endif
+#else
+#    MAX_FLASH_BYTES   = bytes used
+#endif
 
-ifneq ($(MAX_RAM_SIZE),)
+#ifneq ($(MAX_RAM_SIZE),)
 #    MAX_RAM_BYTES   = 'bytes (of a '$(MAX_RAM_SIZE)' byte maximum)'
 # ~
-    MAX_RAM_BYTES   = 'bytes used ('$(shell echo "scale=1; (100.0* $(shell $(RAM_SIZE)))/$(MAX_RAM_SIZE)" | bc)'% of '$(MAX_RAM_SIZE)' maximum), '$(shell echo "$(MAX_RAM_SIZE) - $(shell $(RAM_SIZE))"|bc) 'bytes free ('$(shell echo "scale=1; 100-(100.0* $(shell $(RAM_SIZE)))/$(MAX_RAM_SIZE)"|bc)'%)'
+#    MAX_RAM_BYTES   = 'bytes used ('$(shell echo "scale=1; (100.0* $(shell $(RAM_SIZE)))/$(MAX_RAM_SIZE)" | bc)'% of '$(MAX_RAM_SIZE)' maximum), '$(shell echo "$(MAX_RAM_SIZE) - $(shell $(RAM_SIZE))"|bc) 'bytes free ('$(shell echo "scale=1; 100-(100.0* $(shell $(RAM_SIZE)))/$(MAX_RAM_SIZE)"|bc)'%)'
 # ~~
-else
-    MAX_RAM_BYTES   = bytes used
-endif
+#else
+#    MAX_RAM_BYTES   = bytes used
+#endif
 
 
 
@@ -722,7 +729,8 @@ ifneq ($(MAKECMDGOALS),boards)
 		@echo 'Target		'$(MAKECMDGOALS)
 		@echo 'Name		'$(PROJECT_NAME)' ('$(SKETCH_EXTENSION)')'
 		@echo 'Tag			'$(BOARD_TAG)
-		@echo 'USER_LIBS			'$(USER_LIBS)
+		@echo 'EXCLUDE_LIST '$(EXCLUDE_LIST)
+		@echo 'LOCAL_LIBS '$(LOCAL_LIBS)
 				
 
 #    ifneq ($(PLATFORM),Wiring)
@@ -842,8 +850,12 @@ endif
 
 size:
 		@echo '---- Size ----'
-		@echo 'Estimated Flash: ' $(shell $(FLASH_SIZE)) $(MAX_FLASH_BYTES); echo;
-		@echo 'Estimated SRAM:  ' $(shell $(RAM_SIZE)) $(MAX_RAM_BYTES); echo;		
+		@echo 'Estimated Flash:'
+		$(FLASH_SIZE)
+		@echo
+		@echo 'Estimated SRAM:'
+		$(RAM_SIZE)
+		@echo		
 clean:
 		@if [ ! -d $(OBJDIR) ]; then mkdir $(OBJDIR); fi
 		@echo "nil" > $(OBJDIR)/nil
