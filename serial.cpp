@@ -78,7 +78,7 @@ void process4()
 #else
     Serial.printf("%c%c%c%c\n",unixtime.btime[0],unixtime.btime[1],unixtime.btime[2],unixtime.btime[3]);
 #endif
-    DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n","false",day(),month(),year(),hour(),minute(),second());
+    DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n",day(),month(),year(),hour(),minute(),second());
 }
 
 void process5(String data)
