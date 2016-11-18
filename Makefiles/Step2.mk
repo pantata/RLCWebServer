@@ -1,3 +1,56 @@
+# ESP8266 NodeMCU.app path for ArduinoCC 1.6.5
+#
+ESP8266_APP     = $(ESP8266_PACKAGES)
+ESP8266_PATH    = $(ESP8266_APP)
+ESP8266_BOARDS  = $(ESP8266_PACKAGES)/hardware/esp8266/$(ESP8266_RELEASE)/boards.txt
+
+# Miscellaneous
+# ----------------------------------
+# Variables
+#
+TARGET      := $(PROJECT_NAME_AS_IDENTIFIER)
+USER_FLAG   := true
+
+# Builds directory
+#
+OBJDIR  = Builds
+
+# ~
+# Warnings flags
+#
+ifeq ($(WARNING_OPTIONS),)
+    WARNING_FLAGS = -Wall
+else
+    ifeq ($(WARNING_OPTIONS),0)
+        WARNING_FLAGS = -w
+    else
+        WARNING_FLAGS = $(addprefix -W, $(WARNING_OPTIONS))
+    endif
+endif
+# ~~
+
+
+# Clean if new BOARD_TAG
+# ----------------------------------
+#
+NEW_TAG := $(strip $(OBJDIR)/$(BOARD_TAG).board) #
+OLD_TAG := $(strip $(wildcard $(OBJDIR)/*.board)) # */
+
+ifneq ($(OLD_TAG),$(NEW_TAG))
+    CHANGE_FLAG := 1
+else
+    CHANGE_FLAG := 0
+endif
+
+include $(MAKEFILE_PATH)/ESP8266.mk
+
+# List of sub-paths to be excluded
+#
+EXCLUDE_NAMES  = Example example Examples examples Archive archive Archives archives Documentation documentation Reference reference
+EXCLUDE_NAMES += ArduinoTestSuite tests
+EXCLUDE_NAMES += $(EXCLUDE_LIBS)
+EXCLUDE_LIST   = $(addprefix %,$(EXCLUDE_NAMES))
+
 # Functions
 # ----------------------------------
 #
@@ -78,18 +131,12 @@ ifneq ($(MAKECMDGOALS),clean)
 ifeq ($(USER_LIBS_LOCK),)
 ifneq ($(USER_LIBS_LIST),0)
     s203             = $(patsubst %,$(USER_LIB_PATH)/%,$(USER_LIBS_LIST))
-#	USER_LIBS        = $(realpath $(sort $(dir $(foreach dir,$(s203),$(wildcard $(dir)/*.h $(dir)/*/*.h $(dir)/*/*/*.h)))))
-#    USER_LIBS        = $(sort $(foreach dir,$(s203),$(shell find $(dir) -type d  | grep -v [eE]xample)))
     EXCLUDE_LIST     = $(shell echo $(strip $(EXCLUDE_NAMES)) | sed "s/ /|/g" )
     USER_LIBS       := $(sort $(foreach dir,$(s203),$(shell find $(dir) -type d | egrep -v '$(EXCLUDE_LIST)' )))
 
     USER_LIB_CPP_SRC = $(foreach dir,$(USER_LIBS),$(wildcard $(dir)/*.cpp)) # */
     USER_LIB_C_SRC   = $(foreach dir,$(USER_LIBS),$(wildcard $(dir)/*.c)) # */
     USER_LIB_H_SRC   = $(foreach dir,$(USER_LIBS),$(wildcard $(dir)/*.h)) # */
-
-#    USER_LIB_CPP_SRC = $(wildcard $(patsubst %,%/*.cpp,$(USER_LIBS))) # */
-#    USER_LIB_C_SRC   = $(wildcard $(patsubst %,%/*.c,$(USER_LIBS))) # */
-#    USER_LIB_H_SRC   = $(wildcard $(patsubst %,%/*.h,$(USER_LIBS))) # */
 
     USER_OBJS        = $(patsubst $(USER_LIB_PATH)/%.cpp,$(OBJDIR)/user/%.cpp.o,$(USER_LIB_CPP_SRC))
     USER_OBJS       += $(patsubst $(USER_LIB_PATH)/%.c,$(OBJDIR)/user/%.c.o,$(USER_LIB_C_SRC))
@@ -874,35 +921,6 @@ depends:	$(DEPS)
 		@echo "---- Depends ---- "
 		@cat $(DEPS) > $(DEP_FILE)
 
-# ~
-# Archive rules
-# ----------------------------------
-#
-do_archive:
-		@echo .
-		@echo "==== Archive ==== "
-		@echo "---- Generate ---- "
-		for f in $(LOCAL_LIBS_LIST) ; do if [ -d Builds/$$f ] ; then $(QUIET)$(AR) rcs $$f/$$f.a $$(find Builds/$$f/ -name *.o) ; echo $$f/$$f.a ; echo $(BOARD_TAG) > $$f/$(BOARD_TAG).board ; fi ; done ; # */
-		@echo "---- Rename ---- "
-		@for f in $(LOCAL_LIBS_LIST) ; do find $$f -name '*.cpp' -exec sh -c 'echo "$$0" to "$${0%.cpp}._cpp"' {} \; ; done ;
-		@for f in $(LOCAL_LIBS_LIST) ; do find $$f -name '*.cpp' -exec sh -c 'mv "$$0" "$${0%.cpp}._cpp"' {} \; ; done ;
-		@for f in $(LOCAL_LIBS_LIST) ; do find $$f/ -name '*.c' -exec sh -c 'echo "$$0" to "$${0%.c}._c"' {} \; ; done ;
-		@for f in $(LOCAL_LIBS_LIST) ; do find $$f/ -name '*.c' -exec sh -c 'mv "$$0" "$${0%.c}._c"' {} \; ; done ;
-		@echo "==== Archive done ==== "
-
-unarchive:
-		@echo .
-		@echo "==== Unarchive ==== "
-		@echo "---- Remove ---- "
-		@for f in $(LOCAL_LIBS_LIST) ; do find $$f -name "*.a" -exec echo '{}' \; -delete ; done ;
-		@for f in $(LOCAL_LIBS_LIST) ; do find $$f/ -name '*.board' -delete ; done ;
-		@echo "---- Rename ---- "
-		@for f in $(LOCAL_LIBS_LIST) ; do find $$f -name '*._cpp' -exec sh -c 'echo "$$0" to "$${0%._cpp}.cpp"' {} \; ; done ;
-		@for f in $(LOCAL_LIBS_LIST) ; do find $$f -name '*._cpp' -exec sh -c 'mv "$$0" "$${0%._cpp}.cpp"' {} \; ; done ;
-		@for f in $(LOCAL_LIBS_LIST) ; do find $$f/ -name '*._c' -exec sh -c 'echo "$$0" to "$${0%._c}.c"' {} \; ; done ;
-		@for f in $(LOCAL_LIBS_LIST) ; do find $$f/ -name '*._c' -exec sh -c 'mv "$$0" "$${0%._c}.c"' {} \; ; done ;
-		@echo "==== Unarchive done ==== "
-# ~~
 
 boards:
 		@echo .
@@ -936,7 +954,7 @@ fast: 		info message_fast changed compile raw_upload end_fast
 
 make:		info message_make changed compile end_make
 
-archive:	info message_make changed compile end_make do_archive
+#archive:	info message_make changed compile end_make do_archive
 
 message_fast:
 		@echo .
@@ -955,5 +973,5 @@ end_fast:
 # ~~
 
 # cat Step2.mk | grep -e "^[A-z]\+:" | cut -d: -f1
-.PHONY:	info all build compile upload raw_upload serial size clean changed depends do_archive unarchive boards message_all message_build message_compile message_upload end_all end_build fast make archive message_fast message_make end_make end_fast
+.PHONY:	info all build compile upload raw_upload serial size clean changed depends do_archive boards message_all message_build message_compile message_upload end_all end_build fast make archive message_fast message_make end_make end_fast
 

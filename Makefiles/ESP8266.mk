@@ -3,10 +3,9 @@
 #
 BOARD_NAME       := Generic ESP8266 Module
 MCU              := esp8266 
-F_CPU			 := 80000000L	 
+	 
 PLATFORM         := esp8266
-MAX_FLASH_SIZE   := 761840
-MAX_RAM_SIZE     := 81920
+
 PLATFORM_TAG      = ARDUINO=10610 ARDUINO_ARCH_ESP8266 EMBEDXCODE=$(RELEASE_NOW) ESP8266 ARDUINO_BOARD=ESP8266_NODEMCU
 APPLICATION_PATH := $(ESP8266_PATH)
 PLATFORM_VERSION := $(ESP8266_RELEASE) for Arduino $(ARDUINO_CC_RELEASE)
@@ -27,14 +26,6 @@ BOOTLOADER_ELF     = $(HARDWARE_PATH)/bootloaders/eboot/eboot.elf
 #
 BOARD_TAGS_LIST   = $(BOARD_TAG) $(BOARD_TAG1) $(BOARD_TAG2)
 
-# flash_size is defined twice for nodemcu and nodemcuv2, take first
-#
-BUILD_FLASH_SIZE   = 1M
-BUILD_FLASH_FREQ   = 40
-LDSCRIPT = eagle.flash.1m256.ld
-#flashmode 
-FLASH_MODE := qio
-RESET_MODE := ck 
 ifeq ($(UPLOADER),espota)
 # ~
     UPLOADER_PATH       = $(HARDWARE_PATH)/tools
@@ -140,9 +131,6 @@ LDFLAGS     += -L$(HARDWARE_PATH)/tools/sdk/lib
 LDFLAGS     += -L$(HARDWARE_PATH)/tools/sdk/ld
 LDFLAGS     += -T $(LDSCRIPT)
 LDFLAGS     += -Wl,--gc-sections -Wl,-wrap,system_restart_local -Wl,-wrap,register_chipv6_phy
-
-
-
 
 # Target
 #
