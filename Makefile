@@ -27,9 +27,9 @@ SKETCH_EXTENSION = cpp
 
 #cesty
 CURRENT_DIR      := .
-SKETCHBOOK_DIR   := /Users/slouf/Dropbox/Arduino-xcode
+SKETCHBOOK_DIR   := /Users/ludek/Dropbox/Arduino-xcode
 USER_LIB_PATH    := $(wildcard $(SKETCHBOOK_DIR)/?ibraries)
-ESP8266_PACKAGES := /Users/slouf/Library/Arduino15/packages/esp8266
+ESP8266_PACKAGES := /Users/ludek/Library/Arduino15/packages/esp8266
 
 #knihovny
 APP_LIBS_LIST    = ArduinoOTA esp8266 ESP8266mDNS ESP8266WiFi Hash DNSServer

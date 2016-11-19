@@ -598,7 +598,7 @@ ifneq ($(MAKECMDGOALS),boards)
 		@echo $(subst .h,,$(notdir $(wildcard $(LOCAL_LIB_PATH)/*.h))) # */
     endif
     ifneq ($(strip $(LOCAL_LIBS_LIST)),)
-		@echo '$(LOCAL_LIBS_LIST) ' | sed 's/\/ / /g'
+		@echo '$(LOCAL_LIBS_LIST) '
     endif
     ifeq ($(wildcard $(LOCAL_LIB_PATH)/*.h),) # */
         ifeq ($(strip $(LOCAL_LIBS_LIST)),)
