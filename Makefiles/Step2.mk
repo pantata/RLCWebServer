@@ -21,7 +21,7 @@ USER_FLAG   := true
 #
 OBJDIR  = Builds
 
-# ~
+#Â ~
 # Warnings flags
 #
 ifeq ($(WARNING_OPTIONS),)
@@ -33,21 +33,12 @@ else
         WARNING_FLAGS = $(addprefix -W, $(WARNING_OPTIONS))
     endif
 endif
-# ~~
+#Â ~~
 
 
 # Clean if new BOARD_TAG
 # ----------------------------------
 #
-NEW_TAG := $(strip $(OBJDIR)/$(BOARD_TAG).board) #
-OLD_TAG := $(strip $(wildcard $(OBJDIR)/*.board)) # */
-
-ifneq ($(OLD_TAG),$(NEW_TAG))
-    CHANGE_FLAG := 1
-else
-    CHANGE_FLAG := 0
-endif
-
 include $(MAKEFILE_PATH)/ESP8266.mk
 
 # List of sub-paths to be excluded
@@ -61,7 +52,11 @@ EXCLUDE_LIST1   = $(addsuffix /,$(EXCLUDE_LIST))
 # Functions
 # ----------------------------------
 #
+ifeq ($(OS),Windows_NT)
+SHOW  = @echo $(1) $(2)
+else
 SHOW  = @printf '%-24s\t%s\r\n' $(1) $(2)
+endif
 RWILDCARD = $(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call RWILDCARD,$d/,$2))
 
 not-containing = $(foreach v,$2 ,$(if $(findstring $1,$v),,$v))
@@ -252,7 +247,7 @@ SYS_OBJS      = $(wildcard $(patsubst %,%/*.o,$(APP_LIBS))) # */
 SYS_OBJS     += $(wildcard $(patsubst %,%/*.o,$(BUILD_APP_LIBS))) # */
 SYS_OBJS     += $(wildcard $(patsubst %,%/*.o,$(USER_LIBS))) # */
 
-# ~
+#Â ~
 ifeq ($(WARNING_OPTIONS),)
     WARNING_FLAGS = -Wall
 else
@@ -262,7 +257,7 @@ else
         WARNING_FLAGS = $(addprefix -W, $(WARNING_OPTIONS))
     endif
 endif
-# ~~
+#Â ~~
 
 ifeq ($(OPTIMISATION),)
     OPTIMISATION = -Os -g
@@ -284,13 +279,13 @@ ifdef USE_GNU99
     CFLAGS       += -std=gnu99
 endif
 
-# ~
+#Â ~
 ifeq (true,true)
     SCOPE_FLAG  := +$(PLATFORM):$(BUILD_CORE)
 else
     SCOPE_FLAG  := -$(PLATFORM)
 endif
-# ~~
+#Â ~~
 
 # CXX = flags for C++ only
 # CPP = flags for both C and C++
@@ -329,46 +324,46 @@ endif
 #
 $(OBJDIR)/%.cpp.o: $(APPLICATION_PATH)/%.cpp
 	$(call SHOW,"1.1-APPLICATION CPP",$@,$<)
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.c.o: $(APPLICATION_PATH)/%.c
 	$(call SHOW,"1.2-APPLICATION C",$@,$<)
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -c $(CPPFLAGS) $(CFLAGS) $< $(OUT_PREPOSITION)$@
 
-$(OBJDIR)/%.s.o: $(APPLICATION_PATH)/%.s
-	$(call SHOW,"1.3-APPLICATION AS",$@,$<)
-	@mkdir -p $(dir $@)
-	$(QUIET)$(CC) -c $(CPPFLAGS) $(ASFLAGS) $< $(OUT_PREPOSITION)$@
+#$(OBJDIR)/%.s.o: $(APPLICATION_PATH)/%.s
+#	$(call SHOW,"1.3-APPLICATION AS",$@,$<)
+#	$(call mkdir, $(dir $@) )
+#	$(QUIET)$(CC) -c $(CPPFLAGS) $(ASFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.S.o: $(APPLICATION_PATH)/%.S
 	$(call SHOW,"1.4-APPLICATION AS",$@,$<)
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -c $(CPPFLAGS) $(ASFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.d: $(APPLICATION_PATH)/%.c
 	$(call SHOW,"1.5-APPLICATION D",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -MM $(CPPFLAGS) $(CFLAGS) $< -MF $@ -MT $(@:.d=.c.o)
 
 $(OBJDIR)/%.d: $(APPLICATION_PATH)/%.cpp
 	$(call SHOW,"1.6-APPLICATION D",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CXX) -MM $(CPPFLAGS) $(CXXFLAGS) $< -MF $@ -MT $(@:.d=.cpp.o)
 
 $(OBJDIR)/%.d: $(APPLICATION_PATH)/%.S
 	$(call SHOW,"1.7-APPLICATION D",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -MM $(CPPFLAGS) $(ASFLAGS) $< -MF $@ -MT $(@:.d=.S.o)
 
 $(OBJDIR)/%.d: $(APPLICATION_PATH)/%.s
 	$(call SHOW,"1.8-APPLICATION D",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -MM $(CPPFLAGS) $(ASFLAGS) $< -MF $@ -MT $(@:.d=.s.o)
 
 
@@ -379,46 +374,46 @@ $(OBJDIR)/%.d: $(APPLICATION_PATH)/%.s
 #
 $(OBJDIR)/%.cpp.o: $(HARDWARE_PATH)/%.cpp
 	$(call SHOW,"2.1-HARDWARE CPP",$@,$<)
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.c.o: $(HARDWARE_PATH)/%.c
 	$(call SHOW,"2.2-HARDWARE C",$@,$<)
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -c $(CPPFLAGS) $(CFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.s.o: $(HARDWARE_PATH)/%.s
 	$(call SHOW,"2.3-HARDWARE AS",$@,$<)
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -c $(CPPFLAGS) $(ASFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.S.o: $(HARDWARE_PATH)/%.S
 	$(call SHOW,"2.4-HARDWARE AS",$@,$<)
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -c $(CPPFLAGS) $(ASFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.d: $(HARDWARE_PATH)/%.c
 	$(call SHOW,"2.5-HARDWARE D",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -MM $(CPPFLAGS) $(CFLAGS) $< -MF $@ -MT $(@:.d=.c.o)
 
 $(OBJDIR)/%.d: $(HARDWARE_PATH)/%.cpp
 	$(call SHOW,"2.6-HARDWARE D",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CXX) -MM $(CPPFLAGS) $(CXXFLAGS) $< -MF $@ -MT $(@:.d=.cpp.o)
 
 $(OBJDIR)/%.d: $(HARDWARE_PATH)/%.S
 	$(call SHOW,"2.7-HARDWARE D",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -MM $(CPPFLAGS) $(ASFLAGS) $< -MF $@ -MT $(@:.d=.S.o)
 
 $(OBJDIR)/%.d: $(HARDWARE_PATH)/%.s
 	$(call SHOW,"2.8-HARDWARE D",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -MM $(CPPFLAGS) $(ASFLAGS) $< -MF $@ -MT $(@:.d=.s.o)
 
 # 3- USER library sources
@@ -426,25 +421,25 @@ $(OBJDIR)/%.d: $(HARDWARE_PATH)/%.s
 $(OBJDIR)/user/%.cpp.o: $(USER_LIB_PATH)/%.cpp
 	$(call SHOW,"3.1-USER CPP",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/user/%.c.o: $(USER_LIB_PATH)/%.c
 	$(call SHOW,"3.2-USER C",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -c $(CPPFLAGS) $(CFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/user/%.d: $(USER_LIB_PATH)/%.cpp
 	$(call SHOW,"3.3-USER CPP",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CXX) -MM $(CPPFLAGS) $(CXXFLAGS) $< -MF $@ -MT $(@:.d=.cpp.o)
 
 $(OBJDIR)/user/%.d: $(USER_LIB_PATH)/%.c
 	$(call SHOW,"3.4-USER C",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -MM $(CPPFLAGS) $(CFLAGS) $< -MF $@ -MT $(@:.d=.c.o)
 
     
@@ -454,55 +449,55 @@ $(OBJDIR)/user/%.d: $(USER_LIB_PATH)/%.c
 $(OBJDIR)/%.c.o: %.c
 	$(call SHOW,"4.1-LOCAL C",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -c $(CPPFLAGS) $(CFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.cc.o: %.cc
 	$(call SHOW,"4.2-LOCAL CC",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.cpp.o: 	%.cpp
 	$(call SHOW,"4.3-LOCAL CPP",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CXX) -c $(CPPFLAGS) $(CXXFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.S.o: %.S
 	$(call SHOW,"4.4-LOCAL AS",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -c $(CPPFLAGS) $(ASFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.s.o: %.s
 	$(call SHOW,"4.5-LOCAL AS",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -c $(CPPFLAGS) $(ASFLAGS) $< $(OUT_PREPOSITION)$@
 
 $(OBJDIR)/%.d: %.c
 	$(call SHOW,"4.6-LOCAL C",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -MM $(CPPFLAGS) $(CFLAGS) $< -MF $@ -MT $(@:.d=.c.o)
 
 $(OBJDIR)/%.d: %.cpp
 	$(call SHOW,"4.7-LOCAL CPP",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CXX) -MM $(CPPFLAGS) $(CXXFLAGS) $< -MF $@ -MT $(@:.d=.cpp.o)
 
 $(OBJDIR)/%.d: %.S
 	$(call SHOW,"4.8-LOCAL AS",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -MM $(CPPFLAGS) $(ASFLAGS) $< -MF $@ -MT $(@:.d=.S.o)
 
 $(OBJDIR)/%.d: %.s
 	$(call SHOW,"4.9-LOCAL AS",$@,$<)
 
-	@mkdir -p $(dir $@)
+	$(call mkdir, $(dir $@) )
 	$(QUIET)$(CC) -MM $(CPPFLAGS) $(ASFLAGS) $< -MF $@ -MT $(@:.d=.s.o)
 
 
@@ -527,7 +522,8 @@ $(OBJDIR)/%.bin2: $(OBJDIR)/%.elf
 	$(call SHOW,"6.4-COPY BIN",$@,$<)
 
 	$(QUIET)$(ESP_POST_COMPILE) -eo $(BOOTLOADER_ELF) -bo Builds/$(TARGET)_$(ADDRESS_BIN1).bin -bm $(OBJCOPYFLAGS) -bf $(BUILD_FLASH_FREQ) -bz $(BUILD_FLASH_SIZE) -bs .text -bp 4096 -ec -eo $< -bs .irom0.text -bs .text -bs .data -bs .rodata -bc -ec
-	$(QUIET)$(COPY) Builds/$(TARGET)_$(ADDRESS_BIN1).bin Builds/$(TARGET).bin
+	@echo $(call FixPath, Builds/$(TARGET)_$(ADDRESS_BIN1).bin) $(call FixPath,Builds/$(TARGET).bin)
+	$(QUIET)$(COPY) $(call FixPath, Builds/$(TARGET)_$(ADDRESS_BIN1).bin) $(call FixPath,Builds/$(TARGET).bin)
 
 # Size of file
 # ----------------------------------
@@ -615,7 +611,7 @@ ifneq ($(MAKECMDGOALS),boards)
 endif
 
 
-# ~
+#Â ~
 # Additional features
 # ----------------------------------
 #
@@ -634,7 +630,7 @@ endif
 ifeq ($(MAKECMDGOALS),style)
     include $(MAKEFILE_PATH)/Doxygen.mk
 endif
-# ~~
+#Â ~~
 
 
 # Rules
@@ -646,8 +642,7 @@ all: 		info message_all clean compile  raw_upload  end_all
 build: 		info message_build clean compile end_build
 
 
-compile:	info message_compile $(OBJDIR) $(TARGET_HEXBIN) $(TARGET_EEP) size
-		@echo $(BOARD_TAG) > $(NEW_TAG)
+compile:	info message_compile $(OBJDIR) $(TARGET_HEXBIN) $(TARGET_EEP) size		
 
 
 $(OBJDIR):
@@ -685,25 +680,14 @@ size:
 		$(RAM_SIZE)
 		@echo		
 clean:
-		@if [ ! -d $(OBJDIR) ]; then $(MKDIR) $(call FixPath,$(OBJDIR)); fi
-		@echo "nil" > $(OBJDIR)/nil
-		@echo "---- Clean ----"
-		@$(REMOVE) $(call FixPath,$(OBJDIR)/*)   # */
-
-changed:
-		@echo "---- Clean changed ----"
-ifeq ($(CHANGE_FLAG),1)
-		@if [ ! -d $(OBJDIR) ]; then mkdir $(OBJDIR); fi
-		@echo "nil" > $(OBJDIR)/nil
-		@$(REMOVE) $(OBJDIR)/* # */
-		@echo "Remove all"
+		@echo "---- Clean ----"	
+ifeq ($(OS),Windows_NT)	
+		$(REMOVE) $(call FixPath,$(OBJDIR))\*.*
 else
-#		$(REMOVE) $(LOCAL_OBJS)
-		@for f in $(LOCAL_OBJS); do if [ -f $$f ] ; then rm $$f; fi; done
-		@for d in $(LOCAL_LIBS_LIST) ; do if [ -d Builds/$$d ] ; then rm -R Builds/$$d; fi; done
-		@echo "Remove local only"
-		@if [ -f $(OBJDIR)/$(TARGET).elf ] ; then rm $(OBJDIR)/$(TARGET).* ; fi ;
-endif
+		@if [ ! -d $(OBJDIR) ]; then $(MKDIR) $(call FixPath,$(OBJDIR)); fi
+		@echo "nil" > $(OBJDIR)/nil	
+		$(REMOVE) $(OBJDIR)/*
+endif		
 
 depends:	$(DEPS)
 		@echo "---- Depends ---- "
@@ -731,9 +715,9 @@ end_build:
 		@echo "==== Build done ==== "
 
 # ~
-fast: 		info message_fast changed compile end_fast
+fast: 		info message_fast compile end_fast
 
-make:		info message_make changed compile end_make
+make:		info message_make clean compile end_make
 
 message_fast:
 		@echo .
@@ -751,5 +735,4 @@ end_fast:
 		@echo "==== Fast done ==== "
 # ~~
 
-.PHONY:	info all build compile upload raw_upload size clean changed depends  message_all message_build message_compile message_upload end_all end_build fast make archive message_fast message_make end_make end_fast
-
+.PHONY:	info all build compile upload raw_upload size clean depends  message_all message_build message_compile message_upload end_all end_build fast make archive message_fast message_make end_make end_fast

@@ -3,13 +3,17 @@
 
 ifeq ($(OS),Windows_NT)
    GIT     = git
-   REMOVE  = del /F /Q 
+   REMOVE  = del /F /Q /S
    MV      = move
    COPY    = copy
    CAT     = cat
    ECHO    = echo
    PYTHON  = python.exe
    FixPath = $(subst /,\,$1)
+   mkdir = @mkdir $(subst /,\,$(1)) > nul 2>&1 || (exit 0)
+#   rm = $(wordlist 2,65535,$(foreach FILE,$(subst /,\,$(1)),& del $(FILE) > nul 2>&1)) || (exit 0)
+#   rmdir = rmdir $(subst /,\,$(1)) > nul 2>&1 || (exit 0)
+#   echo = echo $(1)  
 else
    GIT     = git
    REMOVE  = rm -rf
@@ -19,6 +23,10 @@ else
    ECHO    = echo
    PYTHON  = /usr/bin/python
    FixPath = $1
+   mkdir = mkdir -p $(1)
+#   rm = rm $(1) > /dev/null 2>&1 || true
+#   rmdir = rmdir $(1) > /dev/null 2>&1 || true
+#   echo = echo "$(1)"  
 endif
 
 #identifikace
@@ -26,11 +34,17 @@ PROJECT_NAME_AS_IDENTIFIER = RlcWebFw
 SKETCH_EXTENSION = cpp
 
 #cesty
+ifeq ($(OS),Windows_NT)
+CURRENT_DIR      := .
+SKETCHBOOK_DIR   := C:/Users/ludek/Documents/Arduino
+USER_LIB_PATH    := $(wildcard $(SKETCHBOOK_DIR)/?ibraries)
+ESP8266_PACKAGES := C:/Users/ludek/AppData/Local/Arduino15/packages/esp8266
+else
 CURRENT_DIR      := .
 SKETCHBOOK_DIR   := /Users/ludek/Dropbox/Arduino-xcode
 USER_LIB_PATH    := $(wildcard $(SKETCHBOOK_DIR)/?ibraries)
 ESP8266_PACKAGES := /Users/ludek/Library/Arduino15/packages/esp8266
-
+endif
 #knihovny
 APP_LIBS_LIST    = ArduinoOTA esp8266 ESP8266mDNS ESP8266WiFi Hash DNSServer
 USER_LIBS_LIST   = ArduinoJson NTPClient MyTime ESPAsyncTCP ESPAsyncWebServer
