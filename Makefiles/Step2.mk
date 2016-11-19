@@ -547,38 +547,26 @@ endif
 
 ifneq ($(MAKECMDGOALS),boards)
   ifneq ($(MAKECMDGOALS),clean)
-		@echo .
 		@echo ==== Info ====
 		@echo ---- Project ----
-		@echo 'Target		'$(MAKECMDGOALS)
-		@echo 'Name		'$(PROJECT_NAME)' ('$(SKETCH_EXTENSION)')'
-		@echo 'Tag			'$(BOARD_TAG)
-		@echo 'EXCLUDE_LIST '$(EXCLUDE_LIST)
-		@echo 'LOCAL_LIBS '$(LOCAL_LIBS)
+		@echo 'Target:  '$(MAKECMDGOALS)
+		@echo 'Name  :  '$(PROJECT_NAME)' ('$(SKETCH_EXTENSION)')'
+		@echo 'Tag   :  '$(BOARD_TAG)
 				
-
 #    ifneq ($(PLATFORM),Wiring)
     ifneq ($PLATFORM_VERSION),)
 		@echo ---- Platform ----
-		@echo 'IDE			'$(PLATFORM)' version '$(PLATFORM_VERSION)
+		@echo 'IDE		'$(PLATFORM)' version '$(PLATFORM_VERSION)
     endif
     
     ifneq ($(BUILD_CORE),)
-		@echo 'Platform		'$(BUILD_CORE)
+		@echo 'Platform	 '$(BUILD_CORE)
     endif
-
-    ifneq ($(VARIANT),)
-		@echo 'Variant		'$(VARIANT)
-    endif
-
-    ifneq ($(USB_VID),)
-		@echo 'USB			VID = '$(USB_VID)', PID = '$(USB_PID)
-    endif
-
+    
 		@echo ---- Board ----
 		@echo 'Name		''$(BOARD_NAME)' ' ('$(BOARD_TAG)')'
-		@echo 'MCU			'$(MCU)' at '$(F_CPU)
-		@echo 'Memory		Flash = '$(MAX_FLASH_SIZE)' bytes, RAM = '$(MAX_RAM_SIZE)' bytes'
+		@echo 'MCU		'$(MCU)' at '$(F_CPU)
+		@echo 'Memory	Flash = '$(MAX_FLASH_SIZE)' bytes, RAM = '$(MAX_RAM_SIZE)' bytes'
 
 		@echo ---- Port ----
 		@echo 'Uploader		'$(UPLOADER)
@@ -611,28 +599,6 @@ ifneq ($(MAKECMDGOALS),boards)
 endif
 
 
-#Â ~
-# Additional features
-# ----------------------------------
-#
-ifeq ($(MAKECMDGOALS),document)
-    include $(MAKEFILE_PATH)/Doxygen.mk
-endif
-
-ifeq ($(MAKECMDGOALS),distribute)
-    include $(MAKEFILE_PATH)/Doxygen.mk
-endif
-
-ifeq ($(MAKECMDGOALS),debug)
-    include $(MAKEFILE_PATH)/Debug.mk
-endif
-
-ifeq ($(MAKECMDGOALS),style)
-    include $(MAKEFILE_PATH)/Doxygen.mk
-endif
-#Â ~~
-
-
 # Rules
 # ----------------------------------
 #
@@ -647,7 +613,7 @@ compile:	info message_compile $(OBJDIR) $(TARGET_HEXBIN) $(TARGET_EEP) size
 
 $(OBJDIR):
 		@echo "---- Build ---- "
-		@mkdir $(OBJDIR)
+		$(call mkdir,$(OBJDIR))
 
 
 $(DEP_FILE):	$(OBJDIR) $(DEPS)
@@ -655,22 +621,12 @@ $(DEP_FILE):	$(OBJDIR) $(DEPS)
 		@cat $(DEPS) > $(DEP_FILE)
 
 
-upload:		message_upload  raw_upload
+upload:	
+		@echo "==== Upload ===="				
+		$(call SHOW,"10.25-UPLOAD",$(UPLOADER))
+		@$(COMMAND_UPLOAD)
 		@echo "==== upload done ==== "
-
-raw_upload:
-		@echo "---- Upload ---- "
-		
-ifeq ($(UPLOADER),esptool)
-	$(call SHOW,"10.25-UPLOAD",$(UPLOADER))
-	echo 'USED_SERIAL_PORT = '$(USED_SERIAL_PORT)
-	$(UPLOADER_EXEC) $(UPLOADER_OPTS) -cp $(USED_SERIAL_PORT) -ca 0x$(ADDRESS_BIN1) -cf Builds/$(TARGET)_$(ADDRESS_BIN1).bin
-else ifeq ($(UPLOADER),espota)
-	$(call SHOW,"10.26-UPLOAD",$(UPLOADER))	
-	echo 'USED_SERIAL_PORT = '$(USED_SERIAL_PORT)
-	$(UPLOADER_EXEC) $(UPLOADER_OPTS) -f Builds/$(TARGET).bin
-endif
-
+				
 size:
 		@echo '---- Size ----'
 		@echo 'Estimated Flash:'
@@ -679,10 +635,11 @@ size:
 		@echo 'Estimated SRAM:'
 		$(RAM_SIZE)
 		@echo		
+
 clean:
 		@echo "---- Clean ----"	
 ifeq ($(OS),Windows_NT)	
-		$(REMOVE) $(call FixPath,$(OBJDIR))\*.*
+		$(rmdir) $(call FixPath,$(OBJDIR))
 else
 		@if [ ! -d $(OBJDIR) ]; then $(MKDIR) $(call FixPath,$(OBJDIR)); fi
 		@echo "nil" > $(OBJDIR)/nil	
@@ -703,11 +660,7 @@ message_build:
 
 message_compile:
 		@echo "==== Compile ===="
-
-message_upload:
-		@echo .
-		@echo "==== Upload ===="
-
+		
 end_all:
 		@echo "==== All done ==== "
 
@@ -735,4 +688,4 @@ end_fast:
 		@echo "==== Fast done ==== "
 # ~~
 
-.PHONY:	info all build compile upload raw_upload size clean depends  message_all message_build message_compile message_upload end_all end_build fast make archive message_fast message_make end_make end_fast
+.PHONY:	info all build compile upload size clean depends  message_all message_build message_compile end_all end_build fast make archive message_fast message_make end_make end_fast

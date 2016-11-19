@@ -1,33 +1,5 @@
-# Executables
-#
+# TODO: upravit mazani pro Windows 
 
-ifeq ($(OS),Windows_NT)
-   GIT     = git
-   REMOVE  = del /F /Q /S
-   MV      = move
-   COPY    = copy
-   CAT     = cat
-   ECHO    = echo
-   PYTHON  = python.exe
-   FixPath = $(subst /,\,$1)
-   mkdir = @mkdir $(subst /,\,$(1)) > nul 2>&1 || (exit 0)
-#   rm = $(wordlist 2,65535,$(foreach FILE,$(subst /,\,$(1)),& del $(FILE) > nul 2>&1)) || (exit 0)
-#   rmdir = rmdir $(subst /,\,$(1)) > nul 2>&1 || (exit 0)
-#   echo = echo $(1)  
-else
-   GIT     = git
-   REMOVE  = rm -rf
-   MV      = mv -f
-   COPY    = cp
-   CAT     = cat
-   ECHO    = echo
-   PYTHON  = /usr/bin/python
-   FixPath = $1
-   mkdir = mkdir -p $(1)
-#   rm = rm $(1) > /dev/null 2>&1 || true
-#   rmdir = rmdir $(1) > /dev/null 2>&1 || true
-#   echo = echo "$(1)"  
-endif
 
 #identifikace
 PROJECT_NAME_AS_IDENTIFIER = RlcWebFw
@@ -77,6 +49,38 @@ BOARD_TAG1 = generic.menu.FlashSize.1M256
 BOARD_TAG2 = generic.menu.FlashFreq.40
 GCC_PREPROCESSOR_DEFINITIONS = ESP8266 ARDUINO
 
+#
+# Executables
+#
+ifeq ($(OS),Windows_NT)
+   GIT     = git
+   REMOVE  = del /F /Q /S
+   MV      = move
+   COPY    = copy
+   CAT     = cat
+   ECHO    = echo
+   PYTHON  = python.exe
+   FixPath = $(subst /,\,$1)
+   mkdir = @mkdir $(subst /,\,$(1)) > nul 2>&1 || (exit 0)
+#   rm = $(wordlist 2,65535,$(foreach FILE,$(subst /,\,$(1)),& del $(FILE) > nul 2>&1)) || (exit 0)
+   rmdir = rmdir $(1) > nul 2>&1 || (exit 0)
+#   echo = echo $(1)  
+else
+   GIT     = git
+   REMOVE  = rm -rf
+   MV      = mv -f
+   COPY    = cp
+   CAT     = cat
+   ECHO    = echo
+   PYTHON  = /usr/bin/python
+   FixPath = $1
+   mkdir = mkdir -p $(1)
+#   rm = rm $(1) > /dev/null 2>&1 || true
+#   rmdir = rmdir $(1) > /dev/null 2>&1 || true
+#   echo = echo "$(1)"  
+endif
+
+
 #verzovani souboru
 #VER  = $(shell sed -i '' -e "s/\@version.*/\@version    `git describe --tags --always`/g" $(CURRENT_DIR)/$(1))
 
@@ -98,7 +102,7 @@ GCC_PREPROCESSOR_DEFINITIONS = ESP8266 ARDUINO
 #$(shell echo $$(($$(cat $(BUILD_NUMBER_FILE)) + 1)) > $(BUILD_NUMBER_FILE) )
 
 #BUILD_NUMBER := $(shell echo $$(($$(cat $(BUILD_NUMBER_FILE)) + 1)))
-GIT_VERSION := $(shell $(GIT) describe --tags --always)#_$(shell date "+%y%m%d")_$(BUILD_NUMBER)
+GIT_VERSION := $(shell $(GIT) describe --tags --always) #_$(shell date "+%y%m%d")_$(BUILD_NUMBER)
 CPPFLAGS += -DVERSION=\"$(GIT_VERSION)\"
 
 
@@ -110,7 +114,7 @@ CPPFLAGS += -DVERSION=\"$(GIT_VERSION)\"
 #CURRENT_DIR   := $(shell echo '$(CURRENT_DIR)' | sed 's/ /\\\ /g')
 
 
-
+PROJECT_NAME = $(PROJECT_NAME_AS_IDENTIFIER)
 MAKEFILE_PATH  = Makefiles
 #OPTIMISATION    = -Os -g3
 ARDUINO_CC_RELEASE = 1.6.12
