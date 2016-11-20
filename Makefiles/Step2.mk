@@ -551,6 +551,7 @@ ifneq ($(MAKECMDGOALS),boards)
 		@echo ---- Project ----
 		@echo 'Target:  '$(MAKECMDGOALS)
 		@echo 'Name  :  '$(PROJECT_NAME)' ('$(SKETCH_EXTENSION)')'
+		@echo 'Version  :  '$(GIT_VERSION)
 		@echo 'Tag   :  '$(BOARD_TAG)
 				
 #    ifneq ($(PLATFORM),Wiring)
@@ -686,6 +687,12 @@ end_make:
 
 end_fast:
 		@echo "==== Fast done ==== "
+
+#	verzovani souboru		
+version:
+	@echo '=== Add verison number to header ==='
+	@echo $(VERSION_EDIT)
+	@echo '=== end versioning ==='		
 # ~~
 
-.PHONY:	info all build compile upload size clean depends  message_all message_build message_compile end_all end_build fast make archive message_fast message_make end_make end_fast
+.PHONY:	version info all build compile upload size clean depends  message_all message_build message_compile end_all end_build fast make archive message_fast message_make end_make end_fast

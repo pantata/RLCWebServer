@@ -1,18 +1,8 @@
 //
 // main.cpp
 // Main file
-// ----------------------------------
-// Developed with embedXcode+
-// http://embedXcode.weebly.com
-//
 // Project 		RlcWebFw
-//
-// Created by 	Ludek Slouf, 21.10.16 15:51
-//              Ludek Slouf
-//
-// Copyright 	© Ludek Slouf, 2016
-// Licence 		CC = BY SA NC
-//
+
 // See 			RlcWebFw.cpp and ReadMe.txt for references
 //
 // ----------------------------------
@@ -20,10 +10,9 @@
 // THE SKETCH IS IN RlcWebFw.cpp
 // ----------------------------------
 //
-// Last update: Sep 16, 2016 release 5.2.5
-
 //This may be used to change user task stack size:
 //#define CONT_STACKSIZE 4096
+
 #include <Arduino.h>
 #include "Schedule.h"
 extern "C" {

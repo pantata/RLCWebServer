@@ -6,7 +6,7 @@
 /// @n
 ///
 /// @date		21.10.16 15:51
-/// @version    v0.1-4-gb551a72
+/// @version v0.2-1-g519ac0c
 ///
 ///
 /// @see		ReadMe.txt for references

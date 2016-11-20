@@ -4,7 +4,7 @@
 //
 //  Created by Ludek Slouf on 14.11.16.
 //  Copyright © 2016 Ludek Slouf. All rights reserved.
-//  @version    v0.1-4-gb551a72
+//  @version v0.2-1-g519ac0c
 
 #include <Arduino.h>
 #include <ArduinoJson.h>

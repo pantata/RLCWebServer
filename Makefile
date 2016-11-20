@@ -81,28 +81,27 @@ else
 endif
 
 
-#verzovani souboru
-#VER  = $(shell sed -i '' -e "s/\@version.*/\@version    `git describe --tags --always`/g" $(CURRENT_DIR)/$(1))
 
-#$(call VER,"RlcWebFw.ino")
-#$(call VER,"RlcWebFw.h")
-#$(call VER,"common.h")
-#$(call VER,"sampling.cpp")
-#$(call VER,"sampling.h")
-#$(call VER,"serial.cpp")
-#$(call VER,"serial.h")
-#$(call VER,"webserver.cpp")
-#$(call VER,"webserver.h")
 
-#BUILD_NUMBER_FILE=build-number.txt
+
+
+BUILD_NUMBER_FILE=build-number.txt
 
 # Build number file.  Increment if any object file changes.
-
-#$(shell if ! test -f $(BUILD_NUMBER_FILE); then echo 0 > $(BUILD_NUMBER_FILE);fi )
-#$(shell echo $$(($$(cat $(BUILD_NUMBER_FILE)) + 1)) > $(BUILD_NUMBER_FILE) )
-
-#BUILD_NUMBER := $(shell echo $$(($$(cat $(BUILD_NUMBER_FILE)) + 1)))
-GIT_VERSION := $(shell $(GIT) describe --tags --always) #_$(shell date "+%y%m%d")_$(BUILD_NUMBER)
+ifeq ($(OS),Windows_NT)
+GIT_VERSION := $(shell $(GIT) describe --tags --always)
+else
+ifneq ($(MAKECMDGOALS),upload)
+  ifneq ($(MAKECMDGOALS),info)
+    ifneq ($(MAKECMDGOALS),clean)
+      $(shell if ! test -f $(BUILD_NUMBER_FILE); then echo 0 > $(BUILD_NUMBER_FILE);fi )
+      $(shell echo $$(($$(cat $(BUILD_NUMBER_FILE)) + 1)) > $(BUILD_NUMBER_FILE) )
+    endif  
+  endif
+endif    
+BUILD_NUMBER := $(shell echo $$(($$(cat $(BUILD_NUMBER_FILE)) + 1)))
+GIT_VERSION := $(shell $(GIT) describe --tags --always)_$(shell date "+%y%m%d")_$(BUILD_NUMBER)
+endif
 CPPFLAGS += -DVERSION=\"$(GIT_VERSION)\"
 
 
@@ -119,6 +118,12 @@ MAKEFILE_PATH  = Makefiles
 #OPTIMISATION    = -Os -g3
 ARDUINO_CC_RELEASE = 1.6.12
 
+ALL_SOURCE_FILES = $(wildcard *.cpp) $(wildcard *.h) $(wildcard *.c)
+ifeq ($(OS),Windows_NT)
+   VERSION_EDIT = 	
+else
+   VERSION_EDIT = $(foreach a,$(ALL_SOURCE_FILES),$(shell sed -i '' -e "s/\@version.*/\@version `git describe --tags --always`/g" $(a)))
+endif
 include $(MAKEFILE_PATH)/Step2.mk
 
 
