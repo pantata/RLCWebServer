@@ -1,34 +1,45 @@
 # TODO: upravit mazani pro Windows 
 
+include user.mk
+#
+# vytvorit soubor user.mk, ktery je v .gitignore
+# zkopirovat a upravit nasledujici radky
+#
+## zacatek user.mk
+## pro windows:
+# CURRENT_DIR      := .
+# SKETCHBOOK_DIR   := C:/Users/ludek/Documents/Arduino
+# USER_LIB_PATH    := $(wildcard $(SKETCHBOOK_DIR)/?ibraries)
+# ESP8266_PACKAGES := C:/Users/ludek/AppData/Local/Arduino15/packages/esp8266
+#
+## pro mac, linux
+# CURRENT_DIR      := $(shell pwd)
+# SKETCHBOOK_DIR   := /Users/ludek/Dropbox/Arduino-xcode
+# USER_LIB_PATH    := $(wildcard $(SKETCHBOOK_DIR)/?ibraries)
+# ESP8266_PACKAGES := /Users/ludek/Library/Arduino15/packages/esp8266
+#
+## pro oba systemy
+# BOARD_PORT = /dev/cu.usb*
+# SERIAL_BAUDRATE = 115200
+# UPLOADER = espota
+# IP_ADDRESS = 192.168.168.105
+#
+## konec user.mk
+
+ifndef SKETCHBOOK_DIR
+$(error user.mk is not set. Read Makefile and create user.mk)
+endif
 
 #identifikace
 PROJECT_NAME_AS_IDENTIFIER = RlcWebFw
 SKETCH_EXTENSION = cpp
 
-#cesty
-ifeq ($(OS),Windows_NT)
-CURRENT_DIR      := .
-SKETCHBOOK_DIR   := C:/Users/ludek/Documents/Arduino
-USER_LIB_PATH    := $(wildcard $(SKETCHBOOK_DIR)/?ibraries)
-ESP8266_PACKAGES := C:/Users/ludek/AppData/Local/Arduino15/packages/esp8266
-else
-CURRENT_DIR      := .
-SKETCHBOOK_DIR   := /Users/ludek/Dropbox/Arduino-xcode
-USER_LIB_PATH    := $(wildcard $(SKETCHBOOK_DIR)/?ibraries)
-ESP8266_PACKAGES := /Users/ludek/Library/Arduino15/packages/esp8266
-endif
 #knihovny
 APP_LIBS_LIST    = ArduinoOTA esp8266 ESP8266mDNS ESP8266WiFi Hash DNSServer
 USER_LIBS_LIST   = ArduinoJson NTPClient MyTime ESPAsyncTCP ESPAsyncWebServer
 LOCAL_LIBS_LIST  = 
 
 WARNING_OPTIONS = 0
-
-#upload
-BOARD_PORT = /dev/cu.usb*
-SERIAL_BAUDRATE = 115200
-UPLOADER = espota
-IP_ADDRESS = 192.168.168.105
 
 #ESP CHIP
 ESP8266_RELEASE  = 2.3.0

@@ -5,3 +5,4 @@ core
 /.cproject
 /.DS_Store
 Builds
+user.mk
