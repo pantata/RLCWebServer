@@ -1,5 +1,12 @@
-# TODO: upravit mazani pro Windows 
-
+# TODO: upravit mazani pro Windows
+# targety:  
+# make build  = preklad
+# make fast   = rychly preklad
+# make clean  = vycisteni projektu
+# make upload = nahraje program na chip TODO: seriova komunikace  
+# make info   = vzpise informace o verzich a knihovnach
+# make version = do c, cpp a h souboru zapise verzi z gitu 
+#
 include user.mk
 #
 # vytvorit soubor user.mk, ktery je v .gitignore
