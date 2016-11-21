@@ -232,7 +232,7 @@ uint16_t getSamplingValue(uint8_t modul,uint8_t channel,uint32_t timedelay)
     	currentTime=ct;
 
     }
-    DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n","false",day(),month(),year(),hour(),minute(),second());
+    DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n",day(),month(),year(),hour(),minute(),second());
     uint32_t startTime = 0;
     uint32_t endTime = 0;
     uint16_t startval = 0;

@@ -213,7 +213,7 @@ void setTimeCgi(AsyncWebServerRequest *request) {
 
         setTime(ct);
         DEBUG_MSG("setTime.cgi saved config.useNtp=%s, time set to %s \n","false",String(ct).c_str());
-        DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n","false",day(),month(),year(),hour(),minute(),second());
+        DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n",day(),month(),year(),hour(),minute(),second());
     }
     saveConfig();
     
