@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html class="">
+	<head>
+    	<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta http-equiv="cache-control" content="max-age=0" />
+		<meta http-equiv="cache-control" content="no-cache" />
+		<meta http-equiv="expires" content="0" />
+		<meta http-equiv="expires" content="Tue, 01 Jan 1980 1:00:00 GMT" />
+		<meta http-equiv="pragma" content="no-cache" />		
+		<title>Nereus</title>
+		<style>
+/*!
+Pure v0.6.0
+Copyright 2014 Yahoo! Inc. All rights reserved.
+Licensed under the BSD License.
+https://github.com/yahoo/pure/blob/master/LICENSE.md
+*/
+/*!
+normalize.css v^3.0 | MIT License | git.io/normalize
+Copyright (c) Nicolas Gallagher and Jonathan Neal
+*/
+/*! normalize.css v3.0.2 | MIT License | git.io/normalize */html{font-family:sans-serif;-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}body{margin:0}article,aside,details,figcaption,figure,footer,header,hgroup,main,menu,nav,section,summary{display:block}audio,canvas,progress,video{display:inline-block;vertical-align:baseline}audio:not([controls]){display:none;height:0}[hidden],template{display:none}a{background-color:transparent}a:active,a:hover{outline:0}abbr[title]{border-bottom:1px dotted}b,strong{font-weight:700}dfn{font-style:italic}h1{font-size:2em;margin:.67em 0}mark{background:#ff0;color:#000}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sup{top:-.5em}sub{bottom:-.25em}img{border:0}svg:not(:root){overflow:hidden}figure{margin:1em 40px}hr{-moz-box-sizing:content-box;box-sizing:content-box;height:0}pre{overflow:auto}code,kbd,pre,samp{font-family:monospace,monospace;font-size:1em}button,input,optgroup,select,textarea{color:inherit;font:inherit;margin:0}button{overflow:visible}button,select{text-transform:none}button,html input[type=button],input[type=reset],input[type=submit]{-webkit-appearance:button;cursor:pointer}button[disabled],html input[disabled]{cursor:default}button::-moz-focus-inner,input::-moz-focus-inner{border:0;padding:0}input{line-height:normal}input[type=checkbox],input[type=radio]{box-sizing:border-box;padding:0}input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{height:auto}input[type=search]{-webkit-appearance:textfield;-moz-box-sizing:content-box;-webkit-box-sizing:content-box;box-sizing:content-box}input[type=search]::-webkit-search-cancel-button,input[type=search]::-webkit-search-decoration{-webkit-appearance:none}fieldset{border:1px solid silver;margin:0 2px;padding:.35em .625em .75em}legend{border:0;padding:0}textarea{overflow:auto}optgroup{font-weight:700}table{border-collapse:collapse;border-spacing:0}td,th{padding:0}.hidden,[hidden]{display:none!important}.pure-img{max-width:100%;height:auto;display:block}.pure-g{letter-spacing:-.31em;*letter-spacing:normal;*word-spacing:-.43em;text-rendering:optimizespeed;font-family:FreeSans,Arimo,"Droid Sans",Helvetica,Arial,sans-serif;display:-webkit-flex;-webkit-flex-flow:row wrap;display:-ms-flexbox;-ms-flex-flow:row wrap;-ms-align-content:flex-start;-webkit-align-content:flex-start;align-content:flex-start}.opera-only :-o-prefocus,.pure-g{word-spacing:-.43em}.pure-u{display:inline-block;*display:inline;zoom:1;letter-spacing:normal;word-spacing:normal;vertical-align:top;text-rendering:auto}.pure-g [class *="pure-u"]{font-family:sans-serif}.pure-u-1,.pure-u-1-1,.pure-u-1-2,.pure-u-1-3,.pure-u-2-3,.pure-u-1-4,.pure-u-3-4,.pure-u-1-5,.pure-u-2-5,.pure-u-3-5,.pure-u-4-5,.pure-u-5-5,.pure-u-1-6,.pure-u-5-6,.pure-u-1-8,.pure-u-3-8,.pure-u-5-8,.pure-u-7-8,.pure-u-1-12,.pure-u-5-12,.pure-u-7-12,.pure-u-11-12,.pure-u-1-24,.pure-u-2-24,.pure-u-3-24,.pure-u-4-24,.pure-u-5-24,.pure-u-6-24,.pure-u-7-24,.pure-u-8-24,.pure-u-9-24,.pure-u-10-24,.pure-u-11-24,.pure-u-12-24,.pure-u-13-24,.pure-u-14-24,.pure-u-15-24,.pure-u-16-24,.pure-u-17-24,.pure-u-18-24,.pure-u-19-24,.pure-u-20-24,.pure-u-21-24,.pure-u-22-24,.pure-u-23-24,.pure-u-24-24{display:inline-block;*display:inline;zoom:1;letter-spacing:normal;word-spacing:normal;vertical-align:top;text-rendering:auto}.pure-u-1-24{width:4.1667%;*width:4.1357%}.pure-u-1-12,.pure-u-2-24{width:8.3333%;*width:8.3023%}.pure-u-1-8,.pure-u-3-24{width:12.5%;*width:12.469%}.pure-u-1-6,.pure-u-4-24{width:16.6667%;*width:16.6357%}.pure-u-1-5{width:20%;*width:19.969%}.pure-u-5-24{width:20.8333%;*width:20.8023%}.pure-u-1-4,.pure-u-6-24{width:25%;*width:24.969%}.pure-u-7-24{width:29.1667%;*width:29.1357%}.pure-u-1-3,.pure-u-8-24{width:33.3333%;*width:33.3023%}.pure-u-3-8,.pure-u-9-24{width:37.5%;*width:37.469%}.pure-u-2-5{width:40%;*width:39.969%}.pure-u-5-12,.pure-u-10-24{width:41.6667%;*width:41.6357%}.pure-u-11-24{width:45.8333%;*width:45.8023%}.pure-u-1-2,.pure-u-12-24{width:50%;*width:49.969%}.pure-u-13-24{width:54.1667%;*width:54.1357%}.pure-u-7-12,.pure-u-14-24{width:58.3333%;*width:58.3023%}.pure-u-3-5{width:60%;*width:59.969%}.pure-u-5-8,.pure-u-15-24{width:62.5%;*width:62.469%}.pure-u-2-3,.pure-u-16-24{width:66.6667%;*width:66.6357%}.pure-u-17-24{width:70.8333%;*width:70.8023%}.pure-u-3-4,.pure-u-18-24{width:75%;*width:74.969%}.pure-u-19-24{width:79.1667%;*width:79.1357%}.pure-u-4-5{width:80%;*width:79.969%}.pure-u-5-6,.pure-u-20-24{width:83.3333%;*width:83.3023%}.pure-u-7-8,.pure-u-21-24{width:87.5%;*width:87.469%}.pure-u-11-12,.pure-u-22-24{width:91.6667%;*width:91.6357%}.pure-u-23-24{width:95.8333%;*width:95.8023%}.pure-u-1,.pure-u-1-1,.pure-u-5-5,.pure-u-24-24{width:100%}.pure-button{display:inline-block;zoom:1;line-height:normal;white-space:nowrap;vertical-align:middle;text-align:center;cursor:pointer;-webkit-user-drag:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none;-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box}.pure-button::-moz-focus-inner{padding:0;border:0}.pure-button{font-family:inherit;font-size:100%;padding:.5em 1em;color:#444;color:rgba(0,0,0,.8);border:1px solid #999;border:0 rgba(0,0,0,0);background-color:#E6E6E6;text-decoration:none;border-radius:2px}.pure-button-hover,.pure-button:hover,.pure-button:focus{filter:progid:DXImageTransform.Microsoft.gradient(startColorstr='#00000000', endColorstr='#1a000000', GradientType=0);background-image:-webkit-gradient(linear,0 0,0 100%,from(transparent),color-stop(40%,rgba(0,0,0,.05)),to(rgba(0,0,0,.1)));background-image:-webkit-linear-gradient(transparent,rgba(0,0,0,.05) 40%,rgba(0,0,0,.1));background-image:-moz-linear-gradient(top,rgba(0,0,0,.05) 0,rgba(0,0,0,.1));background-image:-o-linear-gradient(transparent,rgba(0,0,0,.05) 40%,rgba(0,0,0,.1));background-image:linear-gradient(transparent,rgba(0,0,0,.05) 40%,rgba(0,0,0,.1))}.pure-button:focus{outline:0}.pure-button-active,.pure-button:active{box-shadow:0 0 0 1px rgba(0,0,0,.15) inset,0 0 6px rgba(0,0,0,.2) inset;border-color:#000\9}.pure-button[disabled],.pure-button-disabled,.pure-button-disabled:hover,.pure-button-disabled:focus,.pure-button-disabled:active{border:0;background-image:none;filter:progid:DXImageTransform.Microsoft.gradient(enabled=false);filter:alpha(opacity=40);-khtml-opacity:.4;-moz-opacity:.4;opacity:.4;cursor:not-allowed;box-shadow:none}.pure-button-hidden{display:none}.pure-button::-moz-focus-inner{padding:0;border:0}.pure-button-primary,.pure-button-selected,a.pure-button-primary,a.pure-button-selected{background-color:#0078e7;color:#fff}.pure-form input[type=text],.pure-form input[type=password],.pure-form input[type=email],.pure-form input[type=url],.pure-form input[type=date],.pure-form input[type=month],.pure-form input[type=time],.pure-form input[type=datetime],.pure-form input[type=datetime-local],.pure-form input[type=week],.pure-form input[type=number],.pure-form input[type=search],.pure-form input[type=tel],.pure-form input[type=color],.pure-form select,.pure-form textarea{padding:.5em .6em;display:inline-block;border:1px solid #ccc;box-shadow:inset 0 1px 3px #ddd;border-radius:4px;vertical-align:middle;-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box}.pure-form input:not([type]){padding:.5em .6em;display:inline-block;border:1px solid #ccc;box-shadow:inset 0 1px 3px #ddd;border-radius:4px;-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box}.pure-form input[type=color]{padding:.2em .5em}.pure-form input[type=text]:focus,.pure-form input[type=password]:focus,.pure-form input[type=email]:focus,.pure-form input[type=url]:focus,.pure-form input[type=date]:focus,.pure-form input[type=month]:focus,.pure-form input[type=time]:focus,.pure-form input[type=datetime]:focus,.pure-form input[type=datetime-local]:focus,.pure-form input[type=week]:focus,.pure-form input[type=number]:focus,.pure-form input[type=search]:focus,.pure-form input[type=tel]:focus,.pure-form input[type=color]:focus,.pure-form select:focus,.pure-form textarea:focus{outline:0;border-color:#129FEA}.pure-form input:not([type]):focus{outline:0;border-color:#129FEA}.pure-form input[type=file]:focus,.pure-form input[type=radio]:focus,.pure-form input[type=checkbox]:focus{outline:thin solid #129FEA;outline:1px auto #129FEA}.pure-form .pure-checkbox,.pure-form .pure-radio{margin:.5em 0;display:block}.pure-form input[type=text][disabled],.pure-form input[type=password][disabled],.pure-form input[type=email][disabled],.pure-form input[type=url][disabled],.pure-form input[type=date][disabled],.pure-form input[type=month][disabled],.pure-form input[type=time][disabled],.pure-form input[type=datetime][disabled],.pure-form input[type=datetime-local][disabled],.pure-form input[type=week][disabled],.pure-form input[type=number][disabled],.pure-form input[type=search][disabled],.pure-form input[type=tel][disabled],.pure-form input[type=color][disabled],.pure-form select[disabled],.pure-form textarea[disabled]{cursor:not-allowed;background-color:#eaeded;color:#cad2d3}.pure-form input:not([type])[disabled]{cursor:not-allowed;background-color:#eaeded;color:#cad2d3}.pure-form input[readonly],.pure-form select[readonly],.pure-form textarea[readonly]{background-color:#eee;color:#777;border-color:#ccc}.pure-form input:focus:invalid,.pure-form textarea:focus:invalid,.pure-form select:focus:invalid{color:#b94a48;border-color:#e9322d}.pure-form input[type=file]:focus:invalid:focus,.pure-form input[type=radio]:focus:invalid:focus,.pure-form input[type=checkbox]:focus:invalid:focus{outline-color:#e9322d}.pure-form select{height:2.25em;border:1px solid #ccc;background-color:#fff}.pure-form select[multiple]{height:auto}.pure-form label{margin:.5em 0 .2em}.pure-form fieldset{margin:0;padding:.35em 0 .75em;border:0}.pure-form legend{display:block;width:100%;padding:.3em 0;margin-bottom:.3em;color:#333;border-bottom:1px solid #e5e5e5}.pure-form-stacked input[type=text],.pure-form-stacked input[type=password],.pure-form-stacked input[type=email],.pure-form-stacked input[type=url],.pure-form-stacked input[type=date],.pure-form-stacked input[type=month],.pure-form-stacked input[type=time],.pure-form-stacked input[type=datetime],.pure-form-stacked input[type=datetime-local],.pure-form-stacked input[type=week],.pure-form-stacked input[type=number],.pure-form-stacked input[type=search],.pure-form-stacked input[type=tel],.pure-form-stacked input[type=color],.pure-form-stacked input[type=file],.pure-form-stacked select,.pure-form-stacked label,.pure-form-stacked textarea{display:block;margin:.25em 0}.pure-form-stacked input:not([type]){display:block;margin:.25em 0}.pure-form-aligned input,.pure-form-aligned textarea,.pure-form-aligned select,.pure-form-aligned .pure-help-inline,.pure-form-message-inline{display:inline-block;*display:inline;*zoom:1;vertical-align:middle}.pure-form-aligned textarea{vertical-align:top}.pure-form-aligned .pure-control-group{margin-bottom:.5em}.pure-form-aligned .pure-control-group label{text-align:right;display:inline-block;vertical-align:middle;width:10em;margin:0 1em 0 0}.pure-form-aligned .pure-controls{margin:1.5em 0 0 11em}.pure-form input.pure-input-rounded,.pure-form .pure-input-rounded{border-radius:2em;padding:.5em 1em}.pure-form .pure-group fieldset{margin-bottom:10px}.pure-form .pure-group input,.pure-form .pure-group textarea{display:block;padding:10px;margin:0 0 -1px;border-radius:0;position:relative;top:-1px}.pure-form .pure-group input:focus,.pure-form .pure-group textarea:focus{z-index:3}.pure-form .pure-group input:first-child,.pure-form .pure-group textarea:first-child{top:1px;border-radius:4px 4px 0 0;margin:0}.pure-form .pure-group input:first-child:last-child,.pure-form .pure-group textarea:first-child:last-child{top:1px;border-radius:4px;margin:0}.pure-form .pure-group input:last-child,.pure-form .pure-group textarea:last-child{top:-2px;border-radius:0 0 4px 4px;margin:0}.pure-form .pure-group button{margin:.35em 0}.pure-form .pure-input-1{width:100%}.pure-form .pure-input-2-3{width:66%}.pure-form .pure-input-1-2{width:50%}.pure-form .pure-input-1-3{width:33%}.pure-form .pure-input-1-4{width:25%}.pure-form .pure-help-inline,.pure-form-message-inline{display:inline-block;padding-left:.3em;color:#666;vertical-align:middle;font-size:.875em}.pure-form-message{display:block;color:#666;font-size:.875em}@media only screen and (max-width :480px){.pure-form button[type=submit]{margin:.7em 0 0}.pure-form input:not([type]),.pure-form input[type=text],.pure-form input[type=password],.pure-form input[type=email],.pure-form input[type=url],.pure-form input[type=date],.pure-form input[type=month],.pure-form input[type=time],.pure-form input[type=datetime],.pure-form input[type=datetime-local],.pure-form input[type=week],.pure-form input[type=number],.pure-form input[type=search],.pure-form input[type=tel],.pure-form input[type=color],.pure-form label{margin-bottom:.3em;display:block}.pure-group input:not([type]),.pure-group input[type=text],.pure-group input[type=password],.pure-group input[type=email],.pure-group input[type=url],.pure-group input[type=date],.pure-group input[type=month],.pure-group input[type=time],.pure-group input[type=datetime],.pure-group input[type=datetime-local],.pure-group input[type=week],.pure-group input[type=number],.pure-group input[type=search],.pure-group input[type=tel],.pure-group input[type=color]{margin-bottom:0}.pure-form-aligned .pure-control-group label{margin-bottom:.3em;text-align:left;display:block;width:100%}.pure-form-aligned .pure-controls{margin:1.5em 0 0}.pure-form .pure-help-inline,.pure-form-message-inline,.pure-form-message{display:block;font-size:.75em;padding:.2em 0 .8em}}.pure-menu{-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box}.pure-menu-fixed{position:fixed;left:0;top:0;z-index:3}.pure-menu-list,.pure-menu-item{position:relative}.pure-menu-list{list-style:none;margin:0;padding:0}.pure-menu-item{padding:0;margin:0}.pure-menu-link,.pure-menu-heading{display:block;text-decoration:none;white-space:nowrap}.pure-menu-horizontal{width:100%;white-space:nowrap}.pure-menu-horizontal .pure-menu-list{display:inline-block}.pure-menu-horizontal .pure-menu-item,.pure-menu-horizontal .pure-menu-heading,.pure-menu-horizontal .pure-menu-separator{display:inline-block;*display:inline;zoom:1;vertical-align:middle}.pure-menu-item .pure-menu-item{display:block}.pure-menu-children{display:none;position:absolute;left:100%;top:0;margin:0;padding:0;z-index:3}.pure-menu-horizontal .pure-menu-children{left:0;top:auto;width:inherit}.pure-menu-allow-hover:hover>.pure-menu-children,.pure-menu-active>.pure-menu-children{display:block;position:absolute}.pure-menu-has-children>.pure-menu-link:after{padding-left:.5em;content:"\25B8";font-size:small}.pure-menu-horizontal .pure-menu-has-children>.pure-menu-link:after{content:"\25BE"}.pure-menu-scrollable{overflow-y:scroll;overflow-x:hidden}.pure-menu-scrollable .pure-menu-list{display:block}.pure-menu-horizontal.pure-menu-scrollable .pure-menu-list{display:inline-block}.pure-menu-horizontal.pure-menu-scrollable{white-space:nowrap;overflow-y:hidden;overflow-x:auto;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;padding:.5em 0}.pure-menu-horizontal.pure-menu-scrollable::-webkit-scrollbar{display:none}.pure-menu-separator{background-color:#ccc;height:1px;margin:.3em 0}.pure-menu-horizontal .pure-menu-separator{width:1px;height:1.3em;margin:0 .3em}.pure-menu-heading{text-transform:uppercase;color:#565d64}.pure-menu-link{color:#777}.pure-menu-children{background-color:#fff}.pure-menu-link,.pure-menu-disabled,.pure-menu-heading{padding:.5em 1em}.pure-menu-disabled{opacity:.5}.pure-menu-disabled .pure-menu-link:hover{background-color:transparent}.pure-menu-active>.pure-menu-link,.pure-menu-link:hover,.pure-menu-link:focus{background-color:#eee}.pure-menu-selected .pure-menu-link,.pure-menu-selected .pure-menu-link:visited{color:#000}.pure-table{border-collapse:collapse;border-spacing:0;empty-cells:show;border:1px solid #cbcbcb}.pure-table caption{color:#000;font:italic 85%/1 arial,sans-serif;padding:1em 0;text-align:center}.pure-table td,.pure-table th{border-left:1px solid #cbcbcb;border-width:0 0 0 1px;font-size:inherit;margin:0;overflow:visible;padding:.5em 1em}.pure-table td:first-child,.pure-table th:first-child{border-left-width:0}.pure-table thead{background-color:#e0e0e0;color:#000;text-align:left;vertical-align:bottom}.pure-table td{background-color:transparent}.pure-table-odd td{background-color:#f2f2f2}.pure-table-striped tr:nth-child(2n-1) td{background-color:#f2f2f2}.pure-table-bordered td{border-bottom:1px solid #cbcbcb}.pure-table-bordered tbody>tr:last-child>td{border-bottom-width:0}.pure-table-horizontal td,.pure-table-horizontal th{border-width:0 0 1px;border-bottom:1px solid #cbcbcb}.pure-table-horizontal tbody>tr:last-child>td{border-bottom-width:0}		
+
+body {
+    color: #777;
+}
+
+.pure-img-responsive {
+    max-width: 100%;
+    height: auto;
+}
+
+/*
+Add transition to containers so they can push in and out.
+*/
+#layout,
+#menu,
+.menu-link {
+    -webkit-transition: all 0.2s ease-out;
+    -moz-transition: all 0.2s ease-out;
+    -ms-transition: all 0.2s ease-out;
+    -o-transition: all 0.2s ease-out;
+    transition: all 0.2s ease-out;
+}
+
+/*
+This is the parent `<div>` that contains the menu and the content area.
+*/
+#layout {
+    position: relative;
+    padding-left: 0;
+}
+    #layout.active #menu {
+        left: 150px;
+        width: 150px;
+    }
+
+    #layout.active .menu-link {
+        left: 150px;
+    }
+/*
+The content `<div>` is where all your content goes.
+*/
+.content {
+    margin: 0 auto;
+    padding: 0 2em;
+    max-width: 800px;
+    margin-bottom: 50px;
+    line-height: 1.6em;
+}
+
+.header {
+     margin: 0;
+     color: #333;
+     text-align: center;
+     padding: 1em 1em 0;
+     border-bottom: 1px solid #eee;
+ }
+    .header h1 {
+        margin: 0.2em 0;
+        font-size: 2em;
+        font-weight: 300;
+    }
+     .header h2 {
+        font-weight: 300;
+        color: #ccc;
+        padding: 0;
+        margin-top: 0;
+    }
+
+.content-subhead {
+    margin: 50px 0 20px 0;
+    font-weight: 300;
+    color: #888;
+}
+
+
+
+/*
+The `#menu` `<div>` is the parent `<div>` that contains the `.pure-menu` that
+appears on the left side of the page.
+*/
+
+#menu {
+    margin-left: -150px; /* "#menu" width */
+    width: 150px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 1000; /* so the menu or its navicon stays above all content */
+    background: #246068;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+    /*
+    All anchors inside the menu should be styled like this.
+    */
+    #menu a {
+        color: #74c7d3;
+        border: none;
+        padding: 0.6em 0 0.6em 0.6em;
+    }
+
+    /*
+    Remove all background/borders, since we are applying them to #menu.
+    */
+     #menu .pure-menu,
+     #menu .pure-menu ul {
+        border: none;
+        background: transparent;
+    }
+
+    /*
+    Add that light border to separate items into groups.
+    */
+    #menu .pure-menu ul,
+    #menu .pure-menu .menu-item-divided {
+        border-top: 1px solid #333;
+    }
+        /*
+        Change color of the anchor links on hover/focus.
+        */
+        #menu .pure-menu li a:hover,
+        #menu .pure-menu li a:focus {
+            background: #103A40;
+        }        
+    /*
+    This styles the selected menu item `<li>`.
+    */
+    #menu .pure-menu-selected,
+    #menu .pure-menu-heading {
+        background: #418790;
+    }
+        /*
+        This styles a link within a selected menu item `<li>`.
+        */
+        #menu .pure-menu-selected a {
+            color: #ECC267;
+        }
+
+    /*
+    This styles the menu heading.
+    */
+    #menu .pure-menu-heading {
+        font-size: 110%;
+        color: #ECC267;
+        margin: 0;
+    }
+
+/* -- Dynamic Button For Responsive Menu -------------------------------------*/
+
+/*
+The button to open/close the Menu is custom-made and not part of Pure. Here's
+how it works:
+*/
+
+/*
+`.menu-link` represents the responsive menu toggle that shows/hides on
+small screens.
+*/
+.menu-link {
+    position: fixed;
+    display: block; /* show this only on small screens */
+    top: 0;
+    left: 0; /* "#menu width" */
+    background: #246068;
+    background: rgba(0,0,0,0.7);
+    font-size: 10px; /* change this value to increase/decrease button size */
+    z-index: 10;
+    width: 2em;
+    height: auto;
+    padding: 2.1em 1.6em;
+}
+
+    .menu-link:hover,
+    .menu-link:focus {
+        background: #246068;
+    }
+
+    .menu-link span {
+        position: relative;
+        display: block;
+    }
+
+    .menu-link span,
+    .menu-link span:before,
+    .menu-link span:after {
+        background-color: #fff;
+        width: 100%;
+        height: 0.2em;
+    }
+
+        .menu-link span:before,
+        .menu-link span:after {
+            position: absolute;
+            margin-top: -0.6em;
+            content: " ";
+        }
+
+        .menu-link span:after {
+            margin-top: 0.6em;
+        }
+
+
+/* -- Responsive Styles (Media Queries) ------------------------------------- */
+
+/*
+Hides the menu at `48em`, but modify this based on your app's needs.
+*/
+@media (min-width: 48em) {
+
+    .header,
+    .content {
+        padding-left: 2em;
+        padding-right: 2em;
+    }
+
+    #layout {
+        padding-left: 150px; /* left col width "#menu" */
+        left: 0;
+    }
+    #menu {
+        left: 150px;
+    }
+
+    .menu-link {
+        position: fixed;
+        left: 150px;
+        display: none;
+    }
+
+    #layout.active .menu-link {
+        left: 150px;
+    }
+}
+
+@media (max-width: 48em) {
+    /* Only apply this when the window is small. Otherwise, the following
+    case results in extra padding on the left:
+        * Make the window small.
+        * Tap the menu to trigger the active state.
+        * Make the window large again.
+    */
+    #layout.active {
+        position: relative;
+        left: 150px;
+    }
+}
+
+.card {
+	background-color: #eee;
+	padding: 1em;
+	margin: 0.5em;
+	-moz-border-radius: 0.5em;
+	-webkit-border-radius: 0.5em;
+	border-radius: 0.5em;
+	border: 0px solid #000000;
+}
+
+#spinner {
+	position: absolute;
+	right: 10%;
+	top: 20;
+	z-index: 1000;
+	vertical-align: middle;
+}
+.spinner {
+  height: 50px;
+  width: 50px;
+  -webkit-animation: rotation 1s infinite linear;
+  -moz-animation: rotation 1s infinite linear;
+  -o-animation: rotation 1s infinite linear;
+  animation: rotation 1s infinite linear;
+  border-left: 10px solid rgba(204, 51, 0, 0.15);
+  border-right: 10px solid rgba(204, 51, 0, 0.15);
+  border-bottom: 10px solid rgba(204, 51, 0, 0.15);
+  border-top: 10px solid rgba(204, 51, 0, 0.8);
+  border-radius: 100%;
+  vertical-align: middle;
+}
+.spinner-small {
+	display: inline-block;
+	height: 1em;
+	width: 1em;
+	border-width: 4px;
+	vertical-align: middle;
+	margin-left: 5px;
+}
+
+@-webkit-keyframes rotation {
+  from {
+    -webkit-transform: rotate(0deg);
+  }
+  to {
+    -webkit-transform: rotate(359deg);
+  }
+}
+
+@-moz-keyframes rotation {
+  from {
+    -moz-transform: rotate(0deg);
+  }
+  to {
+    -moz-transform: rotate(359deg);
+  }
+}
+@-o-keyframes rotation {
+  from {
+    -o-transform: rotate(0deg);
+  }
+  to {
+    -o-transform: rotate(359deg);
+  }
+}
+
+@keyframes rotation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(359deg);
+  }
+}
+.icon {
+	background-image: url("icons_wifi.png");
+	background-color: transparent;
+	width: 32px;
+	height: 32px;
+	display: inline-block;
+}
+    
+.lock-icon {
+	background-image: url("icons_wifi.png");
+	background-color: transparent;
+	width: 32px;
+	height: 32px;
+	display: inline-block;
+}
+
+div#chv {
+ margin: auto;
+ width: 100%;
+}
+
+div#chv div.slider {
+  padding-left:0.5em;
+  padding-right:0.5em;
+  width: 100%;
+  clear: both;
+}
+
+div#chv div.slider label {
+    width: 5em;	
+  	display: block;
+	float: left;
+}
+
+div#chv div.slider div.input {
+    width: 4em;	
+  	display: block;
+	float: left;
+	margin: auto;
+}
+
+div#chv div.slider input[type=number] {;
+    width: 4em;
+   // margin-top: -5px;
+}
+
+div#chv div.slider div.range {
+    margin: auto;
+	margin-left: 10em;
+    padding-top: 8px;
+    vertical-align: middle;
+}
+
+
+
+input[type="range"] {
+  vertical-align: middle;
+  -webkit-appearance: none;
+  -webkit-tap-highlight-color: rgba(255, 255, 255, 0);
+  width: 100%;
+  height: 20px;
+  margin: 0;
+  border: none;
+  padding: 1px 2px;
+  border-radius: 14px;
+  background: #232528;
+  box-shadow: inset 0 1px 0 0 #0d0e0f, inset 0 -1px 0 0 #3a3d42;
+  -webkit-box-shadow: inset 0 1px 0 0 #0d0e0f, inset 0 -1px 0 0 #3a3d42;
+  outline: none; 
+}
+
+input[type="range"]::-moz-range-track {
+  border: inherit;
+  background: transparent;
+}
+
+input[type="range"]::-ms-track {
+  border: inherit;
+  color: transparent; 
+  background: transparent;
+}
+
+input[type="range"]::-ms-fill-lower,
+input[type="range"]::-ms-fill-upper {
+  background: transparent;
+}
+
+input[type="range"]::-ms-tooltip {
+  display: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 40px;
+  height: 18px;
+  border: none;
+  border-radius: 12px;
+  background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0%, #529de1), color-stop(100%, #245e8f));
+  background-image: -webkit-linear-gradient(top , #529de1 0, #245e8f 100%);
+  background-image: linear-gradient(to bottom, #529de1 0, #245e8f 100%); 
+}
+input[type="range"]::-moz-range-thumb {
+  width: 40px;
+  height: 18px;
+  border: none;
+  border-radius: 12px;
+  background-image: linear-gradient(to bottom, #529de1 0, #245e8f 100%); 
+}
+
+input[type="range"]::-ms-thumb {
+  width: 40px;
+  height: 18px;
+  border-radius: 12px;
+  border: 0;
+  background-image: linear-gradient(to bottom, #529de1 0, #245e8f 100%); 
+}
+
+input[type=range]#vch1 {
+background: #e8e8e8;
+}
+
+input[type=range]#vch2 {
+background: #ee82ee;
+}
+
+input[type=range]#vch3 {
+background: #4169e1;
+}
+
+input[type=range]#vch4 {
+ background: #0000ff;
+}
+
+input[type=range]#vch5 {
+background: #00ffff;
+}
+
+input[type=range]#vch6 {
+background: #ff0000;
+}
+
+input[type=range]#vch7 {
+background: #ffbf00;
+}
+
+
+/* end range */
+
+
+fieldset#wifi label{
+	width: 10em;
+}
+
+.pure-form-aligned .onoffswitch-checkbox {
+ width: 25; height: 25;
+.// -webkit-border-radius: 22px; -moz-border-radius: 22px; border-radius: 22px;
+}
+
+/*table*/
+table {
+	width: 100%;
+}
+@media screen and (max-width: 52em) {
+    .pure-table {
+        border: 0;
+    }
+
+    .pure-table thead {
+        display: none;
+    }
+
+    .pure-table tr {
+        margin-bottom: 10px;
+        display: block;
+    }
+
+    .pure-table tr:after {
+        content: "";
+        display: table;
+        clear: both;
+    }
+  
+    .pure-table tr:before {
+        display: block;
+        border-bottom: 2px solid #ddd;
+    }
+
+    .pure-table td {
+        background-color: #ffffff;
+        box-sizing: border-box;
+        display: block;
+        float: left;
+        clear: left;
+        width: 100%;
+        text-align: right;
+        font-size: 13px;
+        border-bottom: 1px dotted #ccc;
+    }
+
+    .pure-table td:last-child {
+        border-bottom: 0;
+    }
+
+    .pure-table td:before {
+        content: attr(data-label);
+        float: left;
+        text-transform: uppercase;
+        font-weight: bold;
+    }
+    .pure-table-bordered tbody>tr:last-child>td {
+      border-bottom-width:1px;
+    }
+    .pure-table td:first-child, .pure-table th:first-child {
+      border-left-width:1px;
+    }
+    
+    .pure-table td input {
+      float:right;
+      width: 4em;
+    }
+    
+    div.header {
+     height: auto;
+     padding-top: 0.5em;
+    }
+    
+    div.header h1 { 
+      font-size: 1em;
+      font-weight: bold;
+      margin: 0;
+    }
+    
+    div.header h2 {
+      font-size: 1em;
+      font-weight: bold;
+      margin: 0;
+    }    
+}
+
+.pure-form div.bl1 {
+	clear: both;
+}
+	
+.pure-form div.bl {
+	width: 50%; 	
+	display: block;
+	float:left;
+}
+
+/*------------------------------------------------*/
+/* Switch SECTION START*/
+/*------------------------------------------------*/
+div#autoOnOff {
+	display: inline-block;
+	vertical-align: middle;
+}
+
+.Switch {
+position: relative;
+display: inline-block;
+font-size: 1em;
+font-weight: bold;
+text-shadow: 0px 1px 1px rgba(255,255,255,0.8);
+height: 18px;
+padding: 6px 6px 5px 6px;
+border: 1px solid #ccc;
+border: 1px solid rgba(0,0,0,0.2);
+border-radius: 4px;
+background: #ececec;
+box-shadow: 0px 0px 4px rgba(0,0,0,0.1), inset 0px 1px 3px 0px rgba(0,0,0,0.1);
+cursor: pointer;
+}
+
+body.IE7 .Switch { width: 78px; }
+
+.Switch span { display: inline-block; width: 35px; }
+.Switch span.On { color: red; }
+
+.Switch .Toggle {
+position: absolute;
+top: 1px;
+width: 37px;
+height: 25px;
+border: 1px solid #ccc;
+border: 1px solid rgba(0,0,0,0.3);
+border-radius: 4px;
+background: #fff;
+background: -moz-linear-gradient(top,  #ececec 0%, #ffffff 100%);
+background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,#ececec), color-stop(100%,#ffffff));
+background: -webkit-linear-gradient(top,  #ececec 0%,#ffffff 100%);
+background: -o-linear-gradient(top,  #ececec 0%,#ffffff 100%);
+background: -ms-linear-gradient(top,  #ececec 0%,#ffffff 100%);
+background: linear-gradient(top,  #ececec 0%,#ffffff 100%);
+
+box-shadow: inset 0px 1px 0px 0px rgba(255,255,255,0.5);
+z-index: 999;
+
+-webkit-transition: all 0.15s ease-in-out;
+-moz-transition: all 0.15s ease-in-out;
+-o-transition: all 0.15s ease-in-out;
+-ms-transition: all 0.15s ease-in-out;
+}
+
+.Switch.On .Toggle { left: 2%; }
+.Switch.Off .Toggle { left: 54%; }
+
+
+/* Round Switch */
+.Switch.Round {
+padding: 0px 20px;
+border-radius: 40px;
+}
+
+body.IE7 .Switch.Round { width: 1px; }
+
+.Switch.Round .Toggle {
+border-radius: 40px;
+width: 14px;
+height: 14px;
+}
+
+.Switch.Round.On .Toggle { left: 3%; background: #33d2da; }
+.Switch.Round.Off .Toggle { left: 58%; }
+
+#cursor {
+	position: absolute;
+	background: yellow;
+	color: black;
+	font-size: 0.8em;
+	border: 1px solid black;
+	z-index: 1000;
+} 	
+
+div#mM{
+    /*border-bottom: 1px solid black;*/
+    padding-bottom: 0px;        
+}
+
+ul#ml li {
+    padding-bottom: 0px;
+    padding-top: 0px;
+}
+
+ul#ml li.pure-menu-selected {
+    border: 1px solid black;
+} 
+	
+		</style>
+	</head>
+<body>
+
+<div id="layout">
+    <!-- Menu toggle -->
+    <a href="#" id="menuLink" class="menu-link">
+        <span></span>
+    </a>
+
+    <div id="menu">
+        <div class="pure-menu">
+            <a class="pure-menu-heading" href="#">Nereus</a>			
+            <ul class="pure-menu-list">
+                <li class="pure-menu-item pure-menu-selected"><a href="#" id="home" class="pure-menu-link I18N">menu.status</a></li>
+                <li class="pure-menu-item"><a href="#" id="ledsetup" class="pure-menu-link I18N">menu.chansetings</a></li>
+                <li class="pure-menu-item"><a href="#" id="wifi" class="pure-menu-link I18N">menu.settings</a></li>
+                <!--li class="pure-menu-item"><a href="#" id="time" class="pure-menu-link I18N">menu.time</a></li-->
+                <!--li class="pure-menu-item"><a href="#" id="lang" class="pure-menu-link I18N">menu.language</a></li--> 
+                <li class="pure-menu-item"><a href="#" id="firmware" class="pure-menu-link I18N">menu.firmware</a></li> 
+                <li class="pure-menu-item"><a href="#" id="web" class="pure-menu-link I18N">menu.web</a></li>                  
+            </ul>
+        </div>
+    </div>
+
+	<div id="home">
+		<div class="header">
+            <h1>Nereus</h1>
+            <h2 class="I18N">header.status</h2>
+        </div> <!-- header -->
+        
+         <div class="pure-g">            
+         	<div class="pure-u-1-1">
+         	   <div class="card">
+                    <form class="pure-form pure-form-aligned">
+					<div class="pure-control-group" style="margin-top: 8px;">	
+					   <label for="showtime">led.time</label>
+					   <span style="display:inline-box" id="showtime"></span>
+					</div>
+
+                    <div class="pure-control-group">                              
+                        <label for="autoOnOff"><span class="I18N">led.manual</span></label>
+                        <div id="autoOnOff">                    
+                            <div class="Switch Off">
+                                <div class="Toggle"></div>
+                                <span class="Off">Off</span>
+                                <span class="On">On</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="pure-control-group">                              
+                        <label for="autoOnOff"><span class="I18N">led.profile</span></label>
+                         <span style="display:inline-box" id="ledprofile"></span>
+                    </div>    
+					</form>
+		       </div>     
+		    </div>
+		    
+		    <div class="pure-u-1-1"> 		        
+		        <div class="card">
+		           <div id="mM" class="pure-menu pure-menu-horizontal pure-menu-scrollable">
+                      <div class="pure-menu-link pure-menu-heading I18N">led.modules</div>
+                        <ul id="ml" class="pure-menu-list"></ul>                                       
+                    </div>		
+					<form class="pure-form pure-form-aligned" action="#">
+					<fieldset>
+					  <legend></legend> 
+					  <div id="chv">  
+						<div class="slider"><label class="I18N">led.ch1</label><div class="input"><input type="number" id="vch1" disabled></div><div class="range"><input type="range" min="0" max="1023" value="0" id="vch1" disabled></div></div>
+						<div class="slider"><label class="I18N">led.ch2</label><div class="input"><input type="number" id="vch2" disabled></div><div class="range"><input type="range" min="0" max="1023" value="0" id="vch2" disabled></div></div>
+						<div class="slider"><label class="I18N">led.ch3</label><div class="input"><input type="number" id="vch3" disabled></div><div class="range"><input type="range" min="0" max="1023" value="0" id="vch3" disabled></div></div>
+						<div class="slider"><label class="I18N">led.ch4</label><div class="input"><input type="number" id="vch4" disabled></div><div class="range"><input type="range" min="0" max="1023" value="0" id="vch4" disabled></div></div>
+						<div class="slider"><label class="I18N">led.ch5</label><div class="input"><input type="number" id="vch5" disabled></div><div class="range"><input type="range" min="0" max="1023" value="0" id="vch5" disabled></div></div>
+						<div class="slider"><label class="I18N">led.ch6</label><div class="input"><input type="number" id="vch6" disabled></div><div class="range"><input type="range" min="0" max="1023" value="0" id="vch6" disabled></div></div>
+						<div class="slider"><label class="I18N">led.ch7</label><div class="input"><input type="number" id="vch7" disabled></div><div class="range"><input type="range"  min="0" max="1023" value="0" id="vch7" disabled></div></div>				      
+					  </div>
+					  
+					   <div id="chv-submit" class="pure-controls" style="display:none; margin-top:1em;"><button type="submit" class="pure-button pure-button-primary I18N">led.send</button></div>
+					  					  
+					  </fieldset>	
+					</form>						    	
+				</div> <!-- card -->
+				
+				<div class="card">
+				    <div id="g0"></div>
+				</div> <!-- card -->        
+	        </div>
+        </div> 
+    </div><!-- home -->	
+	
+	<div id="ledsetup" style="display:none;">
+        <div class="header">
+            <h1>Nereus</h1>
+            <h2 class="I18N">header.channelsettings</h2>
+        </div> <!-- header -->
+        <div class="pure-g">
+			<div class="pure-u-1">
+				<div class="card" id="led-profile-sel">
+				  <div>  
+				    <form action="setProfile.cgi" id="setProfile" name="setProfile" class="pure-form pure-form-aligned"> 
+				    	<fieldset>
+						  <div class="pure-control-group"><label class='I18N'>led.profile</label><select name='profileName' id='profileList'></select></div>						  
+				    	</fieldset>						
+					</form>	
+				  </div>	
+				</div>
+				<div class="card" id="led-mod-sel">
+					<div>
+						<form action="#" id="ledstatus" name="ledstatus" class="pure-form">
+								<div class="bl">
+								<label for="ledsetup-filter-module" class="I18N">led.module</label>
+								<select id="ledsetup-filter-module" name="module">
+									<option value="0" selected="selected" class="I18N">led.all</option>
+								</select>
+								</div>
+								<div class="bl">
+								<label for="ledsetup-filter-ledchan" class="I18N">led.ch</label>
+								<select id="ledsetup-filter-ledchan">
+									<option value='0' selected="selected" class="I18N">All</option>
+									<option value='1'>CH1</option>
+									<option value='2'>CH2</option>
+									<option value='3'>CH3</option>
+									<option value='4'>CH4</option>
+									<option value='5'>CH5</option>
+									<option value='6'>CH6</option>
+									<option value='7'>CH7</option>
+							   </select>
+							   </div>
+							   <div class="bl1"></div>								
+						</form>
+				</div>
+			</div>
+
+			<div class="pure-u-1"> 
+				<div class="card">
+					<div id="g1" style="margin-top:1em;"></div>
+					<div id="lbls"></div>
+					<div class="pure-control-group"><label class='I18N'>led.load</label><button id="led-load-profile" type="submit" class="pure-button pure-button-primary I18N">led.load</button></div>
+				</div>
+			</div>
+
+		</div>	
+
+		<div class="pure-u-1">
+		<div class="card">			
+				<div class="I18N">led.channel</div>
+
+				<form action="#" id="ledform" name="ledform" class="pure-form">
+				<table class="pure-table pure-table-bordered" id="chvals">
+				  <thead>
+					<tr>
+					  <th>Modul</th>
+					  <th>Channel</th>
+					  <th>Time</th>
+					  <th>Value</th>
+					  <th>efect</th>
+					  <th></th>
+					 </tr>
+				   </thead>
+				   <tbody>
+					   <tr>
+						   <td data-label="Modul">	<select id="ledmodul" name="module">
+								<option value="0" selected="selected" class="I18N">led.all</option>
+							</select></td>
+							<td data-label="Channel">
+							<select id="ledchan">
+								<option value='0' selected="selected" class="I18N" >All</option>
+								<option value='1'>CH1</option>
+								<option value='2'>CH2</option>
+								<option value='3'>CH3</option>
+								<option value='4'>CH4</option>
+								<option value='5'>CH5</option>
+								<option value='6'>CH6</option>
+								<option value='7'>CH7</option>
+							</select></td>
+							<td data-label="Time"><select id="ledtime">
+								<option value='0'>00:00</option>
+								<option value='1'>00:15</option>
+								<option value='2'>00:30</option>
+								<option value='3'>00:45</option>
+								<option value='4'>01:00</option>
+								<option value='5'>01:15</option>
+								<option value='6'>01:30</option>
+								<option value='7'>01:45</option>
+								<option value='8'>02:00</option>
+								<option value='9'>02:15</option>
+								<option value='10'>02:30</option>
+								<option value='11'>02:45</option>
+								<option value='12'>03:00</option>
+								<option value='13'>03:15</option>
+								<option value='14'>03:30</option>
+								<option value='15'>03:45</option>
+								<option value='16'>04:00</option>
+								<option value='17'>04:15</option>
+								<option value='18'>04:30</option>
+								<option value='19'>04:45</option>
+								<option value='20'>05:00</option>
+								<option value='21'>05:15</option>
+								<option value='22'>05:30</option>
+								<option value='23'>05:45</option>
+								<option value='24'>06:00</option>
+								<option value='25'>06:15</option>
+								<option value='26'>06:30</option>
+								<option value='27'>06:45</option>
+								<option value='28'>07:00</option>
+								<option value='29'>07:15</option>
+								<option value='30'>07:30</option>
+								<option value='31'>07:45</option>
+								<option value='32'>08:00</option>
+								<option value='33'>08:15</option>
+								<option value='34'>08:30</option>
+								<option value='35'>08:45</option>
+								<option value='36'>09:00</option>
+								<option value='37'>09:15</option>
+								<option value='38'>09:30</option>
+								<option value='39'>09:45</option>
+								<option value='40'>10:00</option>
+								<option value='41'>10:15</option>
+								<option value='42'>10:30</option>
+								<option value='43'>10:45</option>
+								<option value='44'>11:00</option>
+								<option value='45'>11:15</option>
+								<option value='46'>11:30</option>
+								<option value='47'>11:45</option>
+								<option value='48'>12:00</option>
+								<option value='49'>12:15</option>
+								<option value='50'>12:30</option>
+								<option value='51'>12:45</option>
+								<option value='52'>13:00</option>
+								<option value='53'>13:15</option>
+								<option value='54'>13:30</option>
+								<option value='55'>13:45</option>
+								<option value='56'>14:00</option>
+								<option value='57'>14:15</option>
+								<option value='58'>14:30</option>
+								<option value='59'>14:45</option>
+								<option value='60'>15:00</option>
+								<option value='61'>15:15</option>
+								<option value='62'>15:30</option>
+								<option value='63'>15:45</option>
+								<option value='64'>16:00</option>
+								<option value='65'>16:15</option>
+								<option value='66'>16:30</option>
+								<option value='67'>16:45</option>
+								<option value='68'>17:00</option>
+								<option value='69'>17:15</option>
+								<option value='70'>17:30</option>
+								<option value='71'>17:45</option>
+								<option value='72'>18:00</option>
+								<option value='73'>18:15</option>
+								<option value='74'>18:30</option>
+								<option value='75'>18:45</option>
+								<option value='76'>19:00</option>
+								<option value='77'>19:15</option>
+								<option value='78'>19:30</option>
+								<option value='79'>19:45</option>
+								<option value='80'>20:00</option>
+								<option value='81'>20:15</option>
+								<option value='82'>20:30</option>
+								<option value='83'>20:45</option>
+								<option value='84'>21:00</option>
+								<option value='85'>21:15</option>
+								<option value='86'>21:30</option>
+								<option value='87'>21:45</option>
+								<option value='88'>22:00</option>
+								<option value='89'>22:15</option>
+								<option value='90'>22:30</option>
+								<option value='91'>22:45</option>
+								<option value='92'>23:00</option>
+								<option value='93'>23:15</option>
+								<option value='94'>23:30</option>
+								<option value='95'>23:45</option>					
+							</select></td>
+							<td data-label="Value"><input type="number" id="ledval" min="0" max="100" value="0"/></td>
+							<td data-label="Efect"></td>
+							<td><button id="addled" class="pure-button pure-button-primary I18N">add</button></td>
+						</tr>
+					</tbody>
+				</table>
+				</form>
+			</div>
+		</div>	
+		
+	</div> 
+	
+	</div><!-- ledsetup -->
+	
+	<div id="wifi" style="display:none;">
+		<div class="header">
+            <h1>Nereus</h1>
+            <h2 class="I18N">header.settings</h2>
+        </div> <!-- header -->
+        
+        <div class="pure-g">
+        	<div class="pure-u-1"> 
+        	
+        	    <div class="card"> <!-- card language -->   
+          	      <h2 class="I18N">header.language</h2>   	
+        	    	<form action="#" method="post" id="langform" name="langform" class="pure-form">		         		
+		         			<label><span class="I18N">lang.select</span></label>
+							<select	name="lang" id="lang">
+								<option value="en" class="I18N">lang.english</option>
+								<option value="de" class="I18N">lang.german</option>
+								<option value="pl" class="I18N">lang.polish</option>
+								<option value="cs" class="I18N">lang.czech</option>
+							</select>
+						</form>
+        	    </div>  <!-- card language --> 
+        	    
+	        	<div class="card">
+	        	  <h2 class='I18N'>wifi.wifistatus</h2>
+	        	  <div class="spinner spinner-small" id="wifi-spinner"></div>        	
+			          <div id="wifi-table" style="display:none;">
+				          <div><span class='I18N'>wifi.mode</span>&nbsp;<span id="wifi-mode"></span></div>
+						  <div><span class='I18N'>wifi.channel</span>&nbsp;<span id="wifi-chan"></span></div>
+				          <div><span class='I18N'>wifi.network</span>&nbsp;<span id="wifi-ssid"></span></div>
+				          <div><span class='I18N'>wifi.host</span>&nbsp;<span id="wifi-host"></span></div>
+				          <div><span class='I18N'>wifi.status</span>&nbsp;<span id="wifi-status"></span></div>
+				          <div><span class='I18N'>wifi.address1</span>&nbsp;<span id="wifi-localIp"></span></div>
+				          <div><span class='I18N'>wifi.address2</span>&nbsp;<span id="wifi-apIp"></span></div>
+				          <div><span class='I18N'>wifi.rssi</span>&nbsp;<span id="wifi-rssi"></span></div>
+				          <div><span class='I18N'>wifi.phy</span>&nbsp;<span id="wifi-phy"></span></div>
+				          <div><span class='I18N'>wifi.mac</span>&nbsp;<span id="wifi-mac"></span></div>				          
+				          <div id="wifi-warn" class='I18N'></div>
+					</div>	
+				</div>
+				
+				<div class="card">
+	          	  <h2 id="wifi-assoc" class='I18N'>wifi.assoc</h2>
+	          	  <p id="reconnect" style="color: #600" hidden="true"></p>
+		          <form action="wificonnect.cgi" method="get" id="wifiform" name="wifiform" class="pure-form pure-form-aligned">
+		                <div class="pure-control-group">
+						<label style="float:left" for="APmodeOnOff"><span class="I18N">wifi.apmode&nbsp;</span></label>
+						<div id="apmode">					
+							<div class="Switch Off">
+								<div class="Toggle"></div>
+								<span class="Off">AP</span>
+								<span class="On">STA</span>
+							</div>
+						</div>
+						</div>
+					  <input type="text" id="input-apmode" name='apmode' value='2' style="display:none;"/>
+	  		          <fieldset class="setwifi" style="display:none;">
+			            <legend class='I18N'>wifi.ssid_tip</legend>			            
+			            <div id="apscan"><span class='I18N'>wifi.scan</span><div class="spinner spinner-small"></div></div>
+			            <div id="aps" class="pure-control-group"></div>			            			            
+			            <div class="pure-control-group"><label class='I18N'>wifi.ssid</label>
+			            <input id="input-ssid" type="text" name="ssid" placeholder="ssid"></div>
+			            <div class="pure-control-group"><label class='I18N'>wifi.pwd</label>
+			            <input id="input-wifi-pwd" type="password" name="pwd" placeholder="password"></div>
+			          					
+  					    <div class="pure-control-group">
+  					    <label style="float:left" for="dhcpOnOff"><span class="I18N">wifi.dhcp&nbsp;</span></label>
+					    <div id="dhcpOnOff">					
+							<div class="Switch On">
+								<div class="Toggle"></div>
+								<span class="Off">Off</span>
+								<span class="On">On</span>
+							</div>
+						</div>
+						</div>
+						<input type="text" id="input-dhcponoff" name='dhcponoff' value='1' style="display:none;"/>	
+						</fieldset>
+					  <fieldset id="setip" style="display:none;">
+						<legend class='I18N'>wifi.ip_tip</legend>
+			            <div class="pure-control-group"><label class='I18N'>wifi.ip</label><input id="wifi-ip" type="text" name="ip" placeholder="xxx.xxx.xxx.xxx"/></div>
+			            <div class="pure-control-group"><label class='I18N'>wifi.mask</label><input id="wifi-mask" type="text" name="mask" placeholder="xxx.xxx.xxx.xxx"/></div>
+						<div class="pure-control-group"><label class='I18N'>wifi.gw</label><input id="wifi-gw" type="text" name="gw" placeholder="xxx.xxx.xxx.xxx"/></div>
+						<div class="pure-control-group"><label class='I18N'>wifi.dns1</label><input id="wifi-dns1" type="text" name="dns1" placeholder="xxx.xxx.xxx.xxx"/></div>
+						<div class="pure-control-group"><label class='I18N'>wifi.dns2</label><input id="wifi-dns2" type="text" name="dns2" placeholder="xxx.xxx.xxx.xxx"/></div>
+			          </fieldset> 
+			          <fieldset class="setwifi" style="display:none;"> 
+			          	<div class="pure-control-group"><label class='I18N'>wifi.set</label><button id="connect-button" type="submit" class="pure-button pure-button-primary I18N">wifi.connect</button></div>
+			          </fieldset>
+			          
+					  <fieldset id="setapip">
+						<legend class='I18N'>wifi.ap_tip</legend>
+						
+  					    <div class="pure-control-group">
+  					    <label style="float:left" for="apExt"><span class="I18N">wifi.apExt&nbsp;</span></label>
+					    <div id="apExt">					
+							<div class="Switch Off">
+								<div class="Toggle"></div>
+								<span class="Off">Off</span>
+								<span class="On">On</span>
+							</div>
+						</div>
+						</div>
+												
+						<div id='ap-ext' style="display:none;">
+							<div class="pure-control-group"><label class='I18N'>wifi.ap_channel</label><input id="wifi-ap-chan" type="text" name="apchannel"/></div>
+							<div class="pure-control-group"><label class='I18N'>wifi.ap_name</label><input id="wifi-ap-name" type="text" name="apname"/></div>
+							<div class="pure-control-group"><label class='I18N'>wifi.ap_pwd</label><input id="wifi-ap-pwd" type="text" name="appwd"/></div>
+				            <div class="pure-control-group"><label class='I18N'>wifi.ap_ip</label><input id="wifi-ap-ip" type="text" name="apip" placeholder="xxx.xxx.xxx.xxx"/></div>
+				            <div class="pure-control-group"><label class='I18N'>wifi.ap_mask</label><input id="wifi-ap-mask" type="text" name="apmask" placeholder="xxx.xxx.xxx.xxx"/></div>
+							<div class="pure-control-group"><label class='I18N'>wifi.set</label><button id="connect-button" type="submit" class="pure-button pure-button-primary I18N">wifi.set</button></div>
+						</div>
+			          </fieldset> 			          
+		          </form>			          				          	
+	        	</div> <!-- card -->
+	        	
+	        	<div class="card"> 	 <!-- card time--> 
+	        	    <h2 id="wifi-assoc" class='I18N'>header.time</h2> 
+	        		<form action="settime.cgi" method="post" id="timeform" name="timeform" class="pure-form pure-form-aligned">
+						<fieldset>
+						<legend class='I18N'>time.setdt</legend>
+                            <div class="pure-control-group">
+                                <label style="float:left" for="ntpOnOff"><span class="I18N">time.ntponoff &nbsp;</span></label>
+                                <div id="ntpOnOff">                 
+                                    <div class="Switch Off">
+                                        <div class="Toggle"></div>
+                                        <span class="Off">Off</span>
+                                        <span class="On">On</span>
+                                    </div>
+                                </div>
+                            </div>  
+                             <div id="time-setntp">
+                                <div class="pure-control-group">
+                                    <label for="ntpip" class="I18N">time.ntpserver</label>
+                                    <input name="ntpip" id="ntpip" type="text" placeholder="xxx.xxx.xxx.xxx">
+                                </div>  
+                             </div>						
+						    <div class="pure-control-group">
+						     	<label for="timezone" class="I18N">time.zone</label>
+						     	<select id="timezone" name="timezone">
+									<option timeZoneId="1" gmtAdjustment="GMT-12:00" useDaylightTime="0" value="-12">(GMT-12:00) International Date Line West</option>
+									<option timeZoneId="2" gmtAdjustment="GMT-11:00" useDaylightTime="0" value="-11">(GMT-11:00) Midway Island, Samoa</option>
+									<option timeZoneId="3" gmtAdjustment="GMT-10:00" useDaylightTime="0" value="-10">(GMT-10:00) Hawaii</option>
+									<option timeZoneId="4" gmtAdjustment="GMT-09:00" useDaylightTime="1" value="-9">(GMT-09:00) Alaska</option>
+									<option timeZoneId="5" gmtAdjustment="GMT-08:00" useDaylightTime="1" value="-8">(GMT-08:00) Pacific Time (US & Canada)</option>
+									<option timeZoneId="6" gmtAdjustment="GMT-08:00" useDaylightTime="1" value="-8">(GMT-08:00) Tijuana, Baja California</option>
+									<option timeZoneId="7" gmtAdjustment="GMT-07:00" useDaylightTime="0" value="-7">(GMT-07:00) Arizona</option>
+									<option timeZoneId="8" gmtAdjustment="GMT-07:00" useDaylightTime="1" value="-7">(GMT-07:00) Chihuahua, La Paz, Mazatlan</option>
+									<option timeZoneId="9" gmtAdjustment="GMT-07:00" useDaylightTime="1" value="-7">(GMT-07:00) Mountain Time (US & Canada)</option>
+									<option timeZoneId="10" gmtAdjustment="GMT-06:00" useDaylightTime="0" value="-6">(GMT-06:00) Central America</option>
+									<option timeZoneId="11" gmtAdjustment="GMT-06:00" useDaylightTime="1" value="-6">(GMT-06:00) Central Time (US & Canada)</option>
+									<option timeZoneId="12" gmtAdjustment="GMT-06:00" useDaylightTime="1" value="-6">(GMT-06:00) Guadalajara, Mexico City, Monterrey</option>
+									<option timeZoneId="13" gmtAdjustment="GMT-06:00" useDaylightTime="0" value="-6">(GMT-06:00) Saskatchewan</option>
+									<option timeZoneId="14" gmtAdjustment="GMT-05:00" useDaylightTime="0" value="-5">(GMT-05:00) Bogota, Lima, Quito, Rio Branco</option>
+									<option timeZoneId="15" gmtAdjustment="GMT-05:00" useDaylightTime="1" value="-5">(GMT-05:00) Eastern Time (US & Canada)</option>
+									<option timeZoneId="16" gmtAdjustment="GMT-05:00" useDaylightTime="1" value="-5">(GMT-05:00) Indiana (East)</option>
+									<option timeZoneId="17" gmtAdjustment="GMT-04:00" useDaylightTime="1" value="-4">(GMT-04:00) Atlantic Time (Canada)</option>
+									<option timeZoneId="18" gmtAdjustment="GMT-04:00" useDaylightTime="0" value="-4">(GMT-04:00) Caracas, La Paz</option>
+									<option timeZoneId="19" gmtAdjustment="GMT-04:00" useDaylightTime="0" value="-4">(GMT-04:00) Manaus</option>
+									<option timeZoneId="20" gmtAdjustment="GMT-04:00" useDaylightTime="1" value="-4">(GMT-04:00) Santiago</option>
+									<option timeZoneId="21" gmtAdjustment="GMT-03:30" useDaylightTime="1" value="-3.5">(GMT-03:30) Newfoundland</option>
+									<option timeZoneId="22" gmtAdjustment="GMT-03:00" useDaylightTime="1" value="-3">(GMT-03:00) Brasilia</option>
+									<option timeZoneId="23" gmtAdjustment="GMT-03:00" useDaylightTime="0" value="-3">(GMT-03:00) Buenos Aires, Georgetown</option>
+									<option timeZoneId="24" gmtAdjustment="GMT-03:00" useDaylightTime="1" value="-3">(GMT-03:00) Greenland</option>
+									<option timeZoneId="25" gmtAdjustment="GMT-03:00" useDaylightTime="1" value="-3">(GMT-03:00) Montevideo</option>
+									<option timeZoneId="26" gmtAdjustment="GMT-02:00" useDaylightTime="1" value="-2">(GMT-02:00) Mid-Atlantic</option>
+									<option timeZoneId="27" gmtAdjustment="GMT-01:00" useDaylightTime="0" value="-1">(GMT-01:00) Cape Verde Is.</option>
+									<option timeZoneId="28" gmtAdjustment="GMT-01:00" useDaylightTime="1" value="-1">(GMT-01:00) Azores</option>
+									<option timeZoneId="29" gmtAdjustment="GMT+00:00" useDaylightTime="0" value="0">(GMT+00:00) Casablanca, Monrovia, Reykjavik</option>
+									<option timeZoneId="30" gmtAdjustment="GMT+00:00" useDaylightTime="1" value="0">(GMT+00:00) Greenwich Mean Time : Dublin, Edinburgh, Lisbon, London</option>
+									<option timeZoneId="31" gmtAdjustment="GMT+01:00" useDaylightTime="1" value="1">(GMT+01:00) Amsterdam, Berlin, Bern, Rome, Stockholm, Vienna</option>
+									<option timeZoneId="32" gmtAdjustment="GMT+01:00" useDaylightTime="1" value="1">(GMT+01:00) Belgrade, Bratislava, Budapest, Ljubljana, Prague</option>
+									<option timeZoneId="33" gmtAdjustment="GMT+01:00" useDaylightTime="1" value="1">(GMT+01:00) Brussels, Copenhagen, Madrid, Paris</option>
+									<option timeZoneId="34" gmtAdjustment="GMT+01:00" useDaylightTime="1" value="1">(GMT+01:00) Sarajevo, Skopje, Warsaw, Zagreb</option>
+									<option timeZoneId="35" gmtAdjustment="GMT+01:00" useDaylightTime="1" value="1">(GMT+01:00) West Central Africa</option>
+									<option timeZoneId="36" gmtAdjustment="GMT+02:00" useDaylightTime="1" value="2">(GMT+02:00) Amman</option>
+									<option timeZoneId="37" gmtAdjustment="GMT+02:00" useDaylightTime="1" value="2">(GMT+02:00) Athens, Bucharest, Istanbul</option>
+									<option timeZoneId="38" gmtAdjustment="GMT+02:00" useDaylightTime="1" value="2">(GMT+02:00) Beirut</option>
+									<option timeZoneId="39" gmtAdjustment="GMT+02:00" useDaylightTime="1" value="2">(GMT+02:00) Cairo</option>
+									<option timeZoneId="40" gmtAdjustment="GMT+02:00" useDaylightTime="0" value="2">(GMT+02:00) Harare, Pretoria</option>
+									<option timeZoneId="41" gmtAdjustment="GMT+02:00" useDaylightTime="1" value="2">(GMT+02:00) Helsinki, Kyiv, Riga, Sofia, Tallinn, Vilnius</option>
+									<option timeZoneId="42" gmtAdjustment="GMT+02:00" useDaylightTime="1" value="2">(GMT+02:00) Jerusalem</option>
+									<option timeZoneId="43" gmtAdjustment="GMT+02:00" useDaylightTime="1" value="2">(GMT+02:00) Minsk</option>
+									<option timeZoneId="44" gmtAdjustment="GMT+02:00" useDaylightTime="1" value="2">(GMT+02:00) Windhoek</option>
+									<option timeZoneId="45" gmtAdjustment="GMT+03:00" useDaylightTime="0" value="3">(GMT+03:00) Kuwait, Riyadh, Baghdad</option>
+									<option timeZoneId="46" gmtAdjustment="GMT+03:00" useDaylightTime="1" value="3">(GMT+03:00) Moscow, St. Petersburg, Volgograd</option>
+									<option timeZoneId="47" gmtAdjustment="GMT+03:00" useDaylightTime="0" value="3">(GMT+03:00) Nairobi</option>
+									<option timeZoneId="48" gmtAdjustment="GMT+03:00" useDaylightTime="0" value="3">(GMT+03:00) Tbilisi</option>
+									<option timeZoneId="49" gmtAdjustment="GMT+03:30" useDaylightTime="1" value="3.5">(GMT+03:30) Tehran</option>
+									<option timeZoneId="50" gmtAdjustment="GMT+04:00" useDaylightTime="0" value="4">(GMT+04:00) Abu Dhabi, Muscat</option>
+									<option timeZoneId="51" gmtAdjustment="GMT+04:00" useDaylightTime="1" value="4">(GMT+04:00) Baku</option>
+									<option timeZoneId="52" gmtAdjustment="GMT+04:00" useDaylightTime="1" value="4">(GMT+04:00) Yerevan</option>
+									<option timeZoneId="53" gmtAdjustment="GMT+04:30" useDaylightTime="0" value="4.5">(GMT+04:30) Kabul</option>
+									<option timeZoneId="54" gmtAdjustment="GMT+05:00" useDaylightTime="1" value="5">(GMT+05:00) Yekaterinburg</option>
+									<option timeZoneId="55" gmtAdjustment="GMT+05:00" useDaylightTime="0" value="5">(GMT+05:00) Islamabad, Karachi, Tashkent</option>
+									<option timeZoneId="56" gmtAdjustment="GMT+05:30" useDaylightTime="0" value="5.5">(GMT+05:30) Sri Jayawardenapura</option>
+									<option timeZoneId="57" gmtAdjustment="GMT+05:30" useDaylightTime="0" value="5.5">(GMT+05:30) Chennai, Kolkata, Mumbai, New Delhi</option>
+									<option timeZoneId="58" gmtAdjustment="GMT+05:45" useDaylightTime="0" value="5.75">(GMT+05:45) Kathmandu</option>
+									<option timeZoneId="59" gmtAdjustment="GMT+06:00" useDaylightTime="1" value="6">(GMT+06:00) Almaty, Novosibirsk</option>
+									<option timeZoneId="60" gmtAdjustment="GMT+06:00" useDaylightTime="0" value="6">(GMT+06:00) Astana, Dhaka</option>
+									<option timeZoneId="61" gmtAdjustment="GMT+06:30" useDaylightTime="0" value="6.5">(GMT+06:30) Yangon (Rangoon)</option>
+									<option timeZoneId="62" gmtAdjustment="GMT+07:00" useDaylightTime="0" value="7">(GMT+07:00) Bangkok, Hanoi, Jakarta</option>
+									<option timeZoneId="63" gmtAdjustment="GMT+07:00" useDaylightTime="1" value="7">(GMT+07:00) Krasnoyarsk</option>
+									<option timeZoneId="64" gmtAdjustment="GMT+08:00" useDaylightTime="0" value="8">(GMT+08:00) Beijing, Chongqing, Hong Kong, Urumqi</option>
+									<option timeZoneId="65" gmtAdjustment="GMT+08:00" useDaylightTime="0" value="8">(GMT+08:00) Kuala Lumpur, Singapore</option>
+									<option timeZoneId="66" gmtAdjustment="GMT+08:00" useDaylightTime="0" value="8">(GMT+08:00) Irkutsk, Ulaan Bataar</option>
+									<option timeZoneId="67" gmtAdjustment="GMT+08:00" useDaylightTime="0" value="8">(GMT+08:00) Perth</option>
+									<option timeZoneId="68" gmtAdjustment="GMT+08:00" useDaylightTime="0" value="8">(GMT+08:00) Taipei</option>
+									<option timeZoneId="69" gmtAdjustment="GMT+09:00" useDaylightTime="0" value="9">(GMT+09:00) Osaka, Sapporo, Tokyo</option>
+									<option timeZoneId="70" gmtAdjustment="GMT+09:00" useDaylightTime="0" value="9">(GMT+09:00) Seoul</option>
+									<option timeZoneId="71" gmtAdjustment="GMT+09:00" useDaylightTime="1" value="9">(GMT+09:00) Yakutsk</option>
+									<option timeZoneId="72" gmtAdjustment="GMT+09:30" useDaylightTime="0" value="9.5">(GMT+09:30) Adelaide</option>
+									<option timeZoneId="73" gmtAdjustment="GMT+09:30" useDaylightTime="0" value="9.5">(GMT+09:30) Darwin</option>
+									<option timeZoneId="74" gmtAdjustment="GMT+10:00" useDaylightTime="0" value="10">(GMT+10:00) Brisbane</option>
+									<option timeZoneId="75" gmtAdjustment="GMT+10:00" useDaylightTime="1" value="10">(GMT+10:00) Canberra, Melbourne, Sydney</option>
+									<option timeZoneId="76" gmtAdjustment="GMT+10:00" useDaylightTime="1" value="10">(GMT+10:00) Hobart</option>
+									<option timeZoneId="77" gmtAdjustment="GMT+10:00" useDaylightTime="0" value="10">(GMT+10:00) Guam, Port Moresby</option>
+									<option timeZoneId="78" gmtAdjustment="GMT+10:00" useDaylightTime="1" value="10">(GMT+10:00) Vladivostok</option>
+									<option timeZoneId="79" gmtAdjustment="GMT+11:00" useDaylightTime="1" value="11">(GMT+11:00) Magadan, Solomon Is., New Caledonia</option>
+									<option timeZoneId="80" gmtAdjustment="GMT+12:00" useDaylightTime="1" value="12">(GMT+12:00) Auckland, Wellington</option>
+									<option timeZoneId="81" gmtAdjustment="GMT+12:00" useDaylightTime="0" value="12">(GMT+12:00) Fiji, Kamchatka, Marshall Is.</option>
+									<option timeZoneId="82" gmtAdjustment="GMT+13:00" useDaylightTime="0" value="13">(GMT+13:00) Nuku'alofa</option>					     	
+						     	</select>
+						     </div> 
+						     
+						     <div class="pure-controls">
+						        <label for="useDST" class=" pure-checkbox"> 
+						          <input name="useDST" id="useDST" type="checkbox"/>&nbsp;<span class="I18N">time.useDST</span>
+						        </label>
+						     </div>
+                    		 <div class="pure-control-group">		     
+                                <label for="dstStart" class="I18N">time.dstStart</label>
+                                <select name="dstStartMonth" id="dstStartMonth">
+                                </select>
+                                <select name="dstStartDay" id="dstStartDay">
+                                </select>
+                                <select name="dstStartWeek" id="dstStartWeek">
+                                </select>                                                                
+                             </div>
+                             <div class="pure-control-group">            
+                                <label for="dstEnd" class="I18N">time.dstEnd</label>
+                                <select name="dstEndMonth" id="dstEndMonth">
+                                </select>
+                                <select name="dstEndDay" id="dstEndDay">
+                                </select>
+                                <select name="dstEndWeek" id="dstEndWeek">
+                                </select>                                                                
+                             </div>                             
+            
+							 <div id="time-set">
+							 <div class="pure-control-group">
+								<label for="dd" class="I18N">time.date</label>
+								<input name="yy" id="yy" type="number"  min="0" max="30" placeholder="YY">
+                                <select name="mm" id="mm">
+                                </select>								
+								<input name="dd" id="dd" type="number" min="1" max="31" placeholder="DD">								
+							 </div>
+							 
+							 <div class="pure-control-group">
+							 	<label for="hh" class="I18N">time.time</label>
+							 	<input name="hh" id="hh" type="number" min="0" max="23" placeholder="HH24">
+							 	<input name="mi" id="mi" type="number" min="0" max="59" placeholder="MI"></div>
+							 </div>	
+							 
+                             <div class="pure-control-group">
+                                <label for="dateFormat" class="I18N">time.dtFormat</label>
+                                <select  name="dateFormat" id="dateFormat"></select>
+                                <select  name="timeFormat" id="timeFormat"></select>
+                             </div> 							 
+							 
+							<div class="pure-controls">
+								<button type="submit" class="pure-button pure-button-primary I18N">time.set</button>
+							</div>
+
+						</fieldset>  			  
+        			  
+			          </form>
+	        	</div>      	<!-- card time-->
+	        </div>					
+		</div> <!-- pure-g -->	
+	</div> <!-- wifisettings -->
+
+	
+	<div id="firmware" style="display:none;">
+		<div class="header">
+            <h1>Nereus</h1>
+            <h2 class="I18N">header.firmware</h2>
+        </div> <!-- header -->
+        
+        <div class="pure-g">
+        	<div class="pure-u-1">   
+		         <div class="card">
+	        	  <h2 class='I18N'>fw.info</h2>
+						  <div id="fw-table">
+							 <form enctype="multipart/form-data" action="/" method="POST" id="fwform" name="fwform" class="pure-form pure-form-aligned">
+								<fieldset>
+									<legend class='I18N'>fw.info</legend>
+									<div class="pure-control-group"><label for="fwUI" class="I18N">fw.web</label><span id="fwUI"></span></div>
+									<div class="pure-control-group"><label for="fwCTRL" class="I18N">fw.ctrl</label><span id="fwCTRL"></span></div>
+									<div class="pure-control-group"><label for="fwMDL" class="I18N">fw.modul</label><span id="fwMDL"></span></div>
+									<!--div class="pure-controls"><a class='pure-button I18N' href="#" id="fwcheck">fw.check</a></div-->
+									<div style="display:none;" class="spinner spinner-small" id="fw-spinner"></div>	
+									<input type="hidden" name="fwupdate" />
+									<div class="pure-control-group"><label for="datafile" class="I18N">fw.file</label><input type="file" id="datafile" name="datafile" /></div>
+									<div class="pure-controls"><button type="submit" class="pure-button pure-button-primary I18N">fw.upload</button></div>
+								</fieldset>	  
+							</form>	
+						</div>			         		         
+		         </div>
+		    </div>
+		</div>    
+	</div> <!-- firmware -->		
+
+</div> <!-- layout -->
+<div id="cursor" style="display:none;"></div>
+<script src="zepto.min.js"></script>
+<script src="dygraph-combined.js"></script>	
+<script src="j42r.js"></script>
+<script src="nereus.js"></script>
+</body>
+</html>

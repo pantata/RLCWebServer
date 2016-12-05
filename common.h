@@ -75,6 +75,8 @@
 #define WIFI_RETRY_COUNT 3
 #define WIFI_RETRY 5000
 
+#define LEDAUTO    0
+#define LEDMANUAL  1
 
 struct Config {
     String ssid; // par ssid

@@ -63,7 +63,7 @@ boolean stringComplete = false;
 
 uint8_t changed = 0;
 uint8_t lang = 0;
-uint8_t modulecount = 1;
+uint8_t modulecount = 4;
 uint8_t mode = 0;
 
 bool _is_static_ip = false;

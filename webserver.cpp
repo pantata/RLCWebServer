@@ -773,19 +773,59 @@ void webserver_begin() {
         request->send(200,"text/html",update_html);    
     });
     
-    server.on("/getInfo.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
+    server.on("/getinfo.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
          uint32_t startTime=millis();
-         DEBUG_MSG("%s\n","getInfo.cgi");
+         DEBUG_MSG("%s\n","getinfo.cgi");
          AsyncResponseStream *response = request->beginResponseStream("application/json");
-         response->printf("{\"modules\":%d,\n",modulecount);
-         response->printf("\"mode\":%d,\n",mode);    
-         response->printf("\"dst\":%d,\n",config.useDST);
-         response->printf("\"time\":%d}",millis()-startTime);
+         response->printf("{\"mode\":%d,\n",mode);
+         response->printf("\"modulescount\":%d,\n",modulecount);
+         if (mode == LEDAUTO) { //auto
+             response->print("\"timeSlotValues\":[");
+
+             for(int i=1;i<modulecount+1;i++)
+             {
+            	 response->printf("{\"id\":%d,", i-1);
+            	 response->printf("\"name\":\"%c\",", char(65+i-1));
+            	 response->printf("\"ch\":[");
+                 for(int j=1;j<8;j++)
+                 {
+                     uint16_t value=getSamplingValue(i,j,0);
+                     response->printf("{\"v\":%d}%s", value, j==7?"\n":",");
+                 }
+                 response->printf("]}%s",i==modulecount?"\n":",");
+             }
+         } else {    //manual
+
+         }
+         response->printf("],\"time\":%d}",millis()-startTime);
          request->send(response);
         //TODO: timezone, letni cas, aktualni cas, vybrany profil, timeserver, manual/auto
         
     });
     
+    server.on("/getconfig.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
+         uint32_t startTime=millis();
+         DEBUG_MSG("%s\n","getconfig.cgi");
+         AsyncResponseStream *response = request->beginResponseStream("application/json");
+         response->printf("{\"dst\":%d,\n",config.useDST);
+         response->printf("\"profileFileName\":\"%s\",\n",config.profileFileName.c_str());
+         response->printf("\"time\":%d}",millis()-startTime);
+         request->send(response);
+        //TODO: timezone, letni cas, aktualni cas, vybrany profil, timeserver, manual/auto
+
+    });
+
+    server.on("/gettime.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
+        time_t utc = now();    //current time from the Time Library
+        //String time = String(str_timestatus[timeStatus()])+ ": " +  String(hour(tz.toLocal(utc))) + ":" + String(minute(tz.toLocal(utc))) + ":" + String(second(tz.toLocal(utc))) +" " + String(tz.utcIsDST(now())?"CEST":"CET");
+        AsyncResponseStream *response = request->beginResponseStream("application/json");
+        response->printf("{\"utc\":%d }\n",utc);
+        //AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", String(utc));
+        //response->addHeader("refresh","1;url=/time.cgi");
+        request->send(response);
+    });
+
+
     server.begin();
     DEBUG_MSG("%s\n","HTTP server started");
 
