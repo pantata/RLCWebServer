@@ -5,7 +5,7 @@
 //  Created by Ludek Slouf on 14.11.16.
 //  Copyright © 2016 Ludek Slouf. All rights reserved.
 //
-//  @version v0.2-1-g519ac0c
+//  @version v0.2-10-gf4a3c71
 
 #include <Arduino.h>
 #include <MyTime.h>
@@ -20,7 +20,7 @@ void initSamplingValues() {
         samplings.sampling[x].timeSlot=SAMPLING_UINT8_MAX_VALUE;
     }
     samplings.usedSamplingCount=0;
-    DEBUG_MSG("%s\n","Sampling structure initialised");
+    DEBUG_MSG("Sampling structure initialised\n");
 }
 
 void copySamplingUp(int x)

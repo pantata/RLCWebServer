@@ -5,7 +5,7 @@
 //  Created by Ludek Slouf on 14.11.16.
 //  Copyright © 2016 Ludek Slouf. All rights reserved.
 //
-//  @version v0.2-1-g519ac0c
+//  @version v0.2-10-gf4a3c71
 
 #ifndef common_h
 #define common_h
@@ -15,9 +15,13 @@
 #define DEBUG 1
 
 #ifdef DEBUG
-#define DEBUG_MSG(fmt, ...) Serial.printf(fmt, __VA_ARGS__)
+#include <SoftwareSerial.h>
+
+extern SoftwareSerial DEBUGSER;
+
+#define DEBUG_MSG(...) DEBUGSER.printf(__VA_ARGS__)
 //#define PRINT_CONFIG(c) for(;0;)
-#define PRINT_CONFIG(c) Serial.printf("Config  ssid=%s,pwd=%s,hostname=%s,wifimode=%d,ntpServer=%s,localPort=%d,useNtp=%d,profileFileName=%s,wifidhcp=%d,wifiip=%s,wifimask=%s,wifigw=%s,wifidns1=%s,wifidns2=%s,appwd=%s,apchannel=%d,apip=%s,apmask=%s,apgw=%s,useDST=%d,tzRule.tzName=%s,tzRule.dstStart.day=%d, tzRule.dstStart.month=%d,tzRule.dstStart.hour=%d,tzRule.dstStart.offset=%d,tzRule.dstStart.week=%d,tzRule.dstEnd.day=%d,tzRule.dstEnd.month=%d,tzRule.dstEnd.hour=%d,tzRule.dstEnd.offset=%d,tzRule.dstEnd.week=%d, HEAP=%d\n",c.ssid.c_str(),c.pwd.c_str(),c.hostname.c_str(),c.wifimode,c.ntpServer.c_str(),c.localPort,c.useNtp,c.profileFileName.c_str(),c.wifidhcp,c.wifiip.c_str(),c.wifimask.c_str(),c.wifigw.c_str(),c.wifidns1.c_str(),c.wifidns2.c_str(),c.appwd.c_str(),c.apchannel,c.apip.c_str(),c.apmask.c_str(),c.apgw.c_str(),c.useDST,c.tzRule.tzName.c_str(),c.tzRule.dstStart.day,c.tzRule.dstStart.month,c.tzRule.dstStart.hour,c.tzRule.dstStart.offset,c.tzRule.dstStart.week,c.tzRule.dstEnd.day,c.tzRule.dstEnd.month,c.tzRule.dstEnd.hour,c.tzRule.dstEnd.offset,c.tzRule.dstEnd.week,ESP.getFreeHeap())
+#define PRINT_CONFIG(c) DEBUGSER.printf("Config  ssid=%s,pwd=%s,hostname=%s,wifimode=%d,ntpServer=%s,localPort=%d,useNtp=%d,profileFileName=%s,wifidhcp=%d,wifiip=%s,wifimask=%s,wifigw=%s,wifidns1=%s,wifidns2=%s,appwd=%s,apchannel=%d,apip=%s,apmask=%s,apgw=%s,useDST=%d,tzRule.tzName=%s,tzRule.dstStart.day=%d, tzRule.dstStart.month=%d,tzRule.dstStart.hour=%d,tzRule.dstStart.offset=%d,tzRule.dstStart.week=%d,tzRule.dstEnd.day=%d,tzRule.dstEnd.month=%d,tzRule.dstEnd.hour=%d,tzRule.dstEnd.offset=%d,tzRule.dstEnd.week=%d, HEAP=%d\n",c.ssid.c_str(),c.pwd.c_str(),c.hostname.c_str(),c.wifimode,c.ntpServer.c_str(),c.localPort,c.useNtp,c.profileFileName.c_str(),c.wifidhcp,c.wifiip.c_str(),c.wifimask.c_str(),c.wifigw.c_str(),c.wifidns1.c_str(),c.wifidns2.c_str(),c.appwd.c_str(),c.apchannel,c.apip.c_str(),c.apmask.c_str(),c.apgw.c_str(),c.useDST,c.tzRule.tzName.c_str(),c.tzRule.dstStart.day,c.tzRule.dstStart.month,c.tzRule.dstStart.hour,c.tzRule.dstStart.offset,c.tzRule.dstStart.week,c.tzRule.dstEnd.day,c.tzRule.dstEnd.month,c.tzRule.dstEnd.hour,c.tzRule.dstEnd.offset,c.tzRule.dstEnd.week,ESP.getFreeHeap())
 #else
 #define DEBUG_MSG(fmt, ...) for(;0;)
 #define PRINT_CONFIG(c) for(;0;)
@@ -138,6 +142,7 @@ extern union Unixtime unixtime;
 extern bool shouldReconnect;
 extern bool shouldReboot;
 extern byte modulecount;
+extern bool arduinoFlash;
 
 extern const char* str_wifistatus[];
 extern const char* str_wifimode[];

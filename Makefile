@@ -42,7 +42,7 @@ PROJECT_NAME_AS_IDENTIFIER = RlcWebFw
 SKETCH_EXTENSION = cpp
 
 #knihovny
-APP_LIBS_LIST    = ArduinoOTA esp8266 ESP8266mDNS ESP8266WiFi Hash DNSServer
+APP_LIBS_LIST    = ArduinoOTA esp8266 ESP8266mDNS ESP8266WiFi Hash DNSServer SoftwareSerial
 USER_LIBS_LIST   = ArduinoJson NTPClient MyTime ESPAsyncTCP ESPAsyncWebServer
 LOCAL_LIBS_LIST  = 
 

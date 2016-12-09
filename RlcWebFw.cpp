@@ -6,7 +6,7 @@
 /// @n
 ///
 /// @date		21.10.16 15:51
-/// @version v0.2-1-g519ac0c
+/// @version v0.2-10-gf4a3c71
 ///
 ///
 /// @see		ReadMe.txt for references
@@ -30,9 +30,12 @@
 #include <MyTimeLib.h>
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
+#include <SoftwareSerial.h>
 
 #include "common.h"
 #include "RlcWebFw.h"
+
+#include "avrUpdate.h"
 #include "webserver.h"
 #include "sampling.h"
 #include "serial.h"
@@ -57,6 +60,7 @@ bool shouldReconnect = false;
 bool startUpdate=false;
 bool updateExited=false;
 bool isDNSStarted = false;
+bool arduinoFlash = false;
 
 String inputString="" ;
 boolean stringComplete = false;
@@ -106,7 +110,7 @@ const char* str_timestatus[] = {
 
 union Unixtime unixtime;
 
-
+SoftwareSerial DEBUGSER(14, 12, false, 256);
 
 // SKETCH BEGIN
 
@@ -350,10 +354,10 @@ bool loadConfig(Config *conf)
 
 bool saveSamplingStruct(String filename)
 {
-
-  File f = SPIFFS.open(filename.c_str(), "w");
+  String fn = "/" + filename;
+  File f = SPIFFS.open(fn.c_str(), "w");
   if (!f) {
-        DEBUG_MSG("Failed to open file %s for writing\n",filename.c_str());
+        DEBUG_MSG("Failed to open file %s for writing\n",fn.c_str());
         return false;
   }
   if (f.write((const uint8_t *)&samplings,sizeof(samplings)))
@@ -370,9 +374,11 @@ bool saveSamplingStruct(String filename)
   return false;    
 }
 
-bool loadSamplingStruct(String filename,Samplings *s )
+bool loadSamplingStruct(String filename, Samplings *s )
 {
-    File f = SPIFFS.open(filename.c_str(), "r");
+  String fn = "/" + filename;
+  DEBUG_MSG("Opening samplig file: %s\n",fn.c_str());
+  File f = SPIFFS.open(fn.c_str(), "r");
 
   if (f.read((uint8_t *)s,sizeof(samplings))!=-1)
   {
@@ -397,7 +403,7 @@ bool saveConfig()
     
     if (loadConfig(&confsaved))
     {
-        DEBUG_MSG("%s","Load config.json to comparing\n\n");
+        DEBUG_MSG("Load config.json to comparing\n\n");
         DEBUG_MSG("config.ssid=%s  confsaved.ssid=%s\n",config.ssid.c_str(),confsaved.ssid.c_str());
         DEBUG_MSG("config.pwd=%s  confsaved.pwd=%s\n",config.pwd.c_str(),confsaved.pwd.c_str());
         DEBUG_MSG("config.hostname=%s  confsaved.hostname=%s\n",config.hostname.c_str(),confsaved.hostname.c_str());
@@ -567,10 +573,11 @@ void setup() {
     WiFi.persistent(false);
     WiFi.setAutoConnect(false);
     WiFi.setAutoReconnect(false);
-    
+    pinMode(ARDUINO_RESET_PIN,OUTPUT);
+    digitalWrite(ARDUINO_RESET_PIN,HIGH);
     connectedEventHandler = WiFi.onStationModeConnected([](const WiFiEventStationModeConnected& event)
     {
-        DEBUG_MSG("%s","Connected ... \n");
+        DEBUG_MSG("Connected ... \n");
         if (_wifi_is_connected == 4) {
             if (saveConfig()) {
                 DEBUG_MSG("%s\n","file config.json has been saved");
@@ -590,39 +597,42 @@ void setup() {
     disconnectedEventHandler = WiFi.onStationModeDisconnected([](const WiFiEventStationModeDisconnected& event)
     {
        if (_wifi_is_connected == 1) _wifi_is_connected = 0;
-       DEBUG_MSG("%s","Disconnected ... \n");
+       DEBUG_MSG("Disconnected ... \n");
     });
     
     // initialize serial:
-    Serial.begin(115200);
-    
+    Serial.begin(57600);
+
 #ifdef DEBUG
-    Serial.setDebugOutput(true);
+
+    Serial1.begin(115200);
+    DEBUGSER.begin(57600);
+    Serial1.setDebugOutput(true);
     
     ArduinoOTA.onStart([]() {
-        Serial.println("Start");
+    	DEBUGSER.println("Start");
     });
     
     ArduinoOTA.onEnd([]() {
-        Serial.println("\nEnd");
+    	DEBUGSER.println("\nEnd");
     });
     
     ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-        Serial.printf("Progress: %u%%\r\n", (progress / (total / 100)));
+    	DEBUGSER.printf("Progress: %u%%\r\n", (progress / (total / 100)));
     });
     
     ArduinoOTA.onError([](ota_error_t error) {
-        Serial.printf("Error[%u]: ", error);
-        if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-        else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-        else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-        else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-        else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    	DEBUGSER.printf("Error[%u]: ", error);
+        if (error == OTA_AUTH_ERROR) DEBUGSER.println("Auth Failed");
+        else if (error == OTA_BEGIN_ERROR) DEBUGSER.println("Begin Failed");
+        else if (error == OTA_CONNECT_ERROR) DEBUGSER.println("Connect Failed");
+        else if (error == OTA_RECEIVE_ERROR) DEBUGSER.println("Receive Failed");
+        else if (error == OTA_END_ERROR) DEBUGSER.println("End Failed");
     });
     
     ArduinoOTA.begin();
     
-    Serial.printf("Verze: %s\n",version);
+    DEBUGSER.printf("Verze: %s\n",version);
 #endif
     
     initSamplingValues();
@@ -752,7 +762,7 @@ void loop() {
     }
     
     //TODO: Time sync test
-        
+
     if (stringComplete) {
         //Serial.println(inputString);
         // clear the string:
@@ -775,28 +785,45 @@ void loop() {
             break;
             case CODE9:   process9(inputString);
             break;
-            default:      Serial.printf("default -%c-\n",inputString.charAt(0));
+            default:      DEBUG_MSG("default -%c-\n",inputString.charAt(0));
             break;
             
         }
-        /*Serial.printf("String input : %s\n",inputString.c_str());*/
+        DEBUG_MSG("String input : %s\n",inputString.c_str());
         inputString = "";
         stringComplete = false;
         Serial.flush();
     }
-    
-    while (Serial.available()) {
-        
-        // get the new byte:
-        char inChar = (char)Serial.read();
-        
-        // add it to the inputString:
-        inputString += inChar;
-        // if the incoming character is a newline, set a flag
-        // so the main loop can do something about it:
-        if (inChar == BREAK) {
-            stringComplete = true;
-        }
+    if (arduinoFlash) {
+    	arduinoFlash = false;
+    	if(arduinoBeginUpdate()){
+    		DEBUG_MSG("%s\n","Begin Flashing Arduino\n");
+    	}
+
+    	/*resetTest
+    	DEBUG_MSG("%s\n","Test reset\n");
+    	digitalWrite(13,0);
+    	delay(100);
+    	digitalWrite(13,1);
+    	*/
+
     }
+    while (Serial.available()) {
+    	char inChar = (char)Serial.read();
+    	DEBUG_MSG("%02x",inChar);
+    	if(arduinoUpdating()) {
+    		arduinoHandleData(inChar);
+    	} else {
+			// get the new byte:
+			// add it to ,the inputString:
+			inputString += inChar;
+			// if the incoming character is a newline, set a flag
+			// so the main loop can do something about it:
+			if (inChar == BREAK) {
+				stringComplete = true;
+			}
+    	}
+    }
+    delay(10);
     
 }

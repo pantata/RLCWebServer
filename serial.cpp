@@ -5,7 +5,7 @@
 //  Created by Ludek Slouf on 15.11.16.
 //  Copyright © 2016 Ludek Slouf. All rights reserved.
 //
-//  @version v0.2-1-g519ac0c
+//  @version v0.2-10-gf4a3c71
 
 #include <Esp.h>
 #include <Arduino.h>
@@ -36,6 +36,7 @@ void process2()
     /*WiFi.softAP(ssid, password);*/
     if (/*ESP.eraseConfig()*/true)
     {
+    	// TODO: opravit
         WiFi.softAP(config.hostname.c_str(),config.pwd.c_str());
         DEBUG_MSG("%s","Wifi AP has been reset");
     }

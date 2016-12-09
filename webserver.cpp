@@ -4,7 +4,7 @@
 //
 //  Created by Ludek Slouf on 14.11.16.
 //  Copyright © 2016 Ludek Slouf. All rights reserved.
-//  @version v0.2-1-g519ac0c
+//  @version v0.2-10-gf4a3c71
 
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -19,6 +19,8 @@
 #include "RlcWebFw.h"
 #include "sampling.h"
 #include "webserver.h"
+
+#include "avrUpdate.h"
 
 AsyncWebServer server(80);
 time_t utc;
@@ -222,52 +224,52 @@ void setTimeCgi(AsyncWebServerRequest *request) {
 }
 
 void webserver_begin() {
+
     server.addHandler(new CaptiveRequestHandler()).setFilter(ON_AP_FILTER);
-    
     server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html").setCacheControl("no-cache, must-revalidate");
     
     server.onNotFound([](AsyncWebServerRequest *request){
 #ifdef DEBUG
-        Serial.printf("NOT_FOUND: ");
+    	DEBUG_MSG("NOT_FOUND: ");
         if(request->method() == HTTP_GET)
-            Serial.printf("GET");
+        	DEBUG_MSG("GET");
         else if(request->method() == HTTP_POST)
-            Serial.printf("POST");
+        	DEBUG_MSG("POST");
         else if(request->method() == HTTP_DELETE)
-            Serial.printf("DELETE");
+        	DEBUG_MSG("DELETE");
         else if(request->method() == HTTP_PUT)
-            Serial.printf("PUT");
+        	DEBUG_MSG("PUT");
         else if(request->method() == HTTP_PATCH)
-            Serial.printf("PATCH");
+        	DEBUG_MSG("PATCH");
         else if(request->method() == HTTP_HEAD)
-            Serial.printf("HEAD");
+        	DEBUG_MSG("HEAD");
         else if(request->method() == HTTP_OPTIONS)
-            Serial.printf("OPTIONS");
+        	DEBUG_MSG("OPTIONS");
         else
             Serial.printf("UNKNOWN");
-        Serial.printf(" http://%s%s\n", request->host().c_str(), request->url().c_str());
+        DEBUG_MSG(" http://%s%s\n", request->host().c_str(), request->url().c_str());
         
         if(request->contentLength()){
-            Serial.printf("_CONTENT_TYPE: %s\n", request->contentType().c_str());
-            Serial.printf("_CONTENT_LENGTH: %u\n", request->contentLength());
+        	DEBUG_MSG("_CONTENT_TYPE: %s\n", request->contentType().c_str());
+        	DEBUG_MSG("_CONTENT_LENGTH: %u\n", request->contentLength());
         }
         
         int headers = request->headers();
         int i;
         for(i=0;i<headers;i++){
             AsyncWebHeader* h = request->getHeader(i);
-            Serial.printf("_HEADER[%s]: %s\n", h->name().c_str(), h->value().c_str());
+            DEBUG_MSG("_HEADER[%s]: %s\n", h->name().c_str(), h->value().c_str());
         }
         
         int params = request->params();
         for(i=0;i<params;i++){
             AsyncWebParameter* p = request->getParam(i);
             if(p->isFile()){
-                Serial.printf("_FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
+            	DEBUG_MSG("_FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
             } else if(p->isPost()){
-                Serial.printf("_POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
+            	DEBUG_MSG("_POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
             } else {
-                Serial.printf("_GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
+            	DEBUG_MSG("_GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
             }
         }
 #endif
@@ -289,9 +291,8 @@ void webserver_begin() {
     
     server.onRequestBody([](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
 #ifdef DEBUG
-        if(!index) Serial.printf("BodyStart: %u\n", total);
-        //Serial.printf("%s", (const char*)data);
-        if(index + len == total) Serial.printf("BodyEnd: %u\n", total);
+        if(!index) DEBUG_MSG("BodyStart: %u\n", total);
+        if(index + len == total) DEBUG_MSG("BodyEnd: %u\n", total);
 #endif
     });
     
@@ -579,7 +580,7 @@ void webserver_begin() {
     
     server.on("/savesampl.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
         
-        String filename="/"+request->arg("filename");
+        String filename= request->arg("filename");
         
         DEBUG_MSG("/savesampl.cgi request started with parameters filename=%s  \n",filename.c_str());
         PRINT_CONFIG(config);
@@ -596,7 +597,7 @@ void webserver_begin() {
     
     server.on("/loadsampl.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
         
-        String filename="/"+request->arg("filename");
+        String filename= request->arg("filename");
         
         DEBUG_MSG("/loadsampl.cgi request started with parameters filename=%s  \n",filename.c_str());
         PRINT_CONFIG(config);
@@ -651,7 +652,7 @@ void webserver_begin() {
     server.on("/allTimeSlotValuesFromFile.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
         uint32_t startTime=millis();
         
-        String filename="/"+request->arg("filename")+".pjs";
+        String filename = request->arg("filename")+".pjs";
         DEBUG_MSG("/allTimeSlotValuesFromFile.cgi request started with parameters filename=%s  \n",filename.c_str());
         Samplings s;
         if (loadSamplingStruct(filename,&s)) {
@@ -677,7 +678,7 @@ void webserver_begin() {
         
         uint32_t startTime=millis();
         
-        String filename="/"+request->arg("filename")+".pjs";
+        String filename= request->arg("filename")+".pjs";
         
         
         DEBUG_MSG("/saveTimeSlotValues.cgi request started with parameters filename=%s  \n",filename.c_str());
@@ -820,6 +821,31 @@ void webserver_begin() {
         //String time = String(str_timestatus[timeStatus()])+ ": " +  String(hour(tz.toLocal(utc))) + ":" + String(minute(tz.toLocal(utc))) + ":" + String(second(tz.toLocal(utc))) +" " + String(tz.utcIsDST(now())?"CEST":"CET");
         AsyncResponseStream *response = request->beginResponseStream("application/json");
         response->printf("{\"utc\":%d }\n",utc);
+        //AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", String(utc));
+        //response->addHeader("refresh","1;url=/time.cgi");
+        request->send(response);
+    });
+
+    server.on("/avr.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
+        time_t utc = now();    //current time from the Time Library
+        //String time = String(str_timestatus[timeStatus()])+ ": " +  String(hour(tz.toLocal(utc))) + ":" + String(minute(tz.toLocal(utc))) + ":" + String(second(tz.toLocal(utc))) +" " + String(tz.utcIsDST(now())?"CEST":"CET");
+        AsyncResponseStream *response = request->beginResponseStream("application/json");
+        response->printf("{\"utc\":%d }\n",utc);
+        DEBUG_MSG("%s\n","CGI Flashing Arduino\n");
+        arduinoFlash = true;
+
+        //AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", String(utc));
+        //response->addHeader("refresh","1;url=/time.cgi");
+        request->send(response);
+    });
+
+    server.on("/avrstatus.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
+        time_t utc = now();    //current time from the Time Library
+        //String time = String(str_timestatus[timeStatus()])+ ": " +  String(hour(tz.toLocal(utc))) + ":" + String(minute(tz.toLocal(utc))) + ":" + String(second(tz.toLocal(utc))) +" " + String(tz.utcIsDST(now())?"CEST":"CET");
+        AsyncResponseStream *response = request->beginResponseStream("application/json");
+        response->printf("{\"status\":%d }\n",arduinoGetStatus());
+        DEBUG_MSG("%s\n","CGI Flashing Arduino\n");
+
         //AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", String(utc));
         //response->addHeader("refresh","1;url=/time.cgi");
         request->send(response);
