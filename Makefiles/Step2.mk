@@ -625,7 +625,8 @@ $(DEP_FILE):	$(OBJDIR) $(DEPS)
 upload:	
 		@echo "==== Upload ===="				
 		$(call SHOW,"10.25-UPLOAD",$(UPLOADER))
-		@$(COMMAND_UPLOAD)
+		@echo $(COMMAND_UPLOAD)
+		$(COMMAND_UPLOAD)
 		@echo "==== upload done ==== "
 				
 size:

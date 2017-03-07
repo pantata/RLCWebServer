@@ -10,13 +10,19 @@
 #ifndef serial_h
 #define serial_h
 
-void process255();
-void process1();
-void process2();
-void process3();
-void process4();
-void process5(String data);
-void process6(String data);
+bool incomingLedValues = false;
+
+void uartGetPing();
+void uartIsChanged();
+void uartGetTime();
+void uartGetConfig(String data);
+void sendLedVal() ;
+
+
+void getNetValues(String data);
+void setManual(String data);
 void process9(String data);
+
+void saveManualLedValues(char chr);
 
 #endif /* serial_h */

@@ -8,7 +8,7 @@
 //  @version v0.2-10-gf4a3c71
 //
 // STK500 implementation
-// read hex file from SPIFS and programming avr over serial
+// read bin file from SPIFS and programming avr over serial
 //
 
 
@@ -30,16 +30,19 @@ static ETSTimer commsTimeout;
 
 int errCount = 0;
 
-void ICACHE_FLASH_ATTR arduinoCommsTimeout(void *){
+void arduinoCommsTimeout(void *){
   avrUpdateState.state = TIMEOUT;
   rcvBufferCounter = 0;
+  if (avrUpdateState.fwFile) avrUpdateState.fwFile.close();
+  avrUpdateState.in_progress = false;
+  DEBUG_MSG("handle IDLE, ERROR, TIMEOUT and other\n");
 }
 
-void ICACHE_FLASH_ATTR setTimeout(){
+static void setTimeout(int t=5000){
   //Schedule disconnect/connect
   os_timer_disarm(&commsTimeout);
   os_timer_setfn(&commsTimeout, arduinoCommsTimeout, NULL);
-  os_timer_arm(&commsTimeout, 500, 0);
+  os_timer_arm(&commsTimeout, t, 0);
 }
 
 void  arduinoConnect(void *){
@@ -153,6 +156,8 @@ void  arduinoUpdate(){
 
 
 bool  arduinoBeginUpdate(){
+
+
   //test firmware file
 
   avrUpdateState.fwFile = SPIFFS.open("/firmware.bin", "r");
@@ -167,6 +172,14 @@ bool  arduinoBeginUpdate(){
   DEBUG_MSG("FW file open, size: %d, pages %d\n",avrUpdateState.fwFile.size(), avrUpdateState.pagesmax);
 
   if( avrUpdateState.state == IDLE ) {
+
+	//DEBUG_MSG("Set serial 115200\n");
+	Serial.flush();
+	delay(5);
+    Serial.end();
+    delay(5);
+	Serial.begin(BAUD_RATE_A);
+
 	DEBUG_MSG("Last state IDLE\n");
     avrUpdateState.page = 0;
     avrUpdateState.state = CONNECT;
@@ -185,10 +198,6 @@ bool  arduinoBeginUpdate(){
 void avrEndUpdate() {
 	// Send the "leave programming mode" command
 	  // q
-	  // len & 0xFF
-	  // (len >> 8) & 0xFF
-	  // 'F'
-	  // data
 	  // ' '
 	  uint8 temp[] = "\x51\x20";
 	  Serial.write(temp, 2);
@@ -197,7 +206,7 @@ void avrEndUpdate() {
 arduinoState_t  arduinoGetStatus(){
   arduinoState_t ret;
   ret = avrUpdateState.state;
-  if ((avrUpdateState.state == SUCCESS) || (avrUpdateState.state == ERROR)) avrUpdateState.state = IDLE;
+  if ((avrUpdateState.state == SUCCESS) || (avrUpdateState.state == ERROR) || (avrUpdateState.state == TIMEOUT)) avrUpdateState.state = IDLE;
   return ret;
 }
 
@@ -207,6 +216,10 @@ bool  arduinoUpdating() {
 
 int  arduinoPagesFlashed(){
   return avrUpdateState.page;
+}
+
+int  arduinoPages(){
+  return avrUpdateState.pagesmax;
 }
 
 bool  okMsg(){
@@ -219,50 +232,27 @@ void  arduinoHandleData(uint8 incoming){
   switch (avrUpdateState.state){
   case CONNECT:
 	DEBUG_MSG("handle CONNECT\n");
+	//timeout
+	setTimeout(2000);
     if(okMsg()){
       DEBUG_MSG("handle CONNECT OK\n");
       avrUpdateState.state = LOAD_PROG_ADDRESS;
       rcvBufferCounter = 0;
       arduinoUpdate();
-    } else {
-    	if (rcvBufferCounter >= 2) {
-    		rcvBufferCounter = 0;
-        	errCount++;
-        	if (errCount > 3) {
-        		errCount = 0;
-                avrUpdateState.state = ERROR;
-                //? avr reset
-        		return;
-        	}
-    	}
     }
     break;
   case LOAD_PROG_ADDRESS:
+	  setTimeout();
 	  DEBUG_MSG("handle LOAD_PROG_ADDRESS\n");
     if(okMsg()){
       errCount = 0;
       avrUpdateState.state = PROGRAM_PAGE;
       rcvBufferCounter = 0;
       arduinoUpdate();
-    } else {
-    	if (rcvBufferCounter >= 2) {
-    		rcvBufferCounter = 0;
-
-        	//TODO: error response??
-        	errCount++;
-        	if (errCount > 3) {
-        		errCount = 0;
-                os_timer_disarm(&commsTimeout);
-                avrUpdateState.state = IDLE;
-        		return;
-        	}
-        	avrUpdateState.state = LOAD_PROG_ADDRESS;
-        	rcvBufferCounter = 0;
-        	arduinoUpdate();
-    	}
     }
     break;
   case PROGRAM_PAGE:
+	  setTimeout();
 	  DEBUG_MSG("handle PROGRAM_PAGE\n");
     if(okMsg()){
       errCount = 0;
@@ -272,32 +262,17 @@ void  arduinoHandleData(uint8 incoming){
     }
     break;
   case LOAD_READ_ADDRESS:
+	  setTimeout();
     if(okMsg()){
       errCount = 0;
       DEBUG_MSG("handle LOAD_READ_ADDRESS OK\n");
       avrUpdateState.state = READ_PAGE;
       rcvBufferCounter = 0;
       arduinoUpdate();
-    } else {
-    	if (rcvBufferCounter >= 2) {
-    		rcvBufferCounter = 0;
-
-        	//TODO: error response??
-        	errCount++;
-        	if (errCount > 3) {
-        		errCount = 0;
-                os_timer_disarm(&commsTimeout);
-                avrUpdateState.state = IDLE;
-        		return;
-        	}
-        	avrUpdateState.state = LOAD_READ_ADDRESS;
-        	rcvBufferCounter = 0;
-        	arduinoUpdate();
-    	}
-
     }
     break;
   case READ_PAGE:
+	setTimeout();
     if (rcvBufferCounter >= (2 + ARDUINO_PAGE_SIZE) && rcvBuffer[0] == 20 && rcvBuffer[1 + ARDUINO_PAGE_SIZE] == 16) {
       //it's a full packet with a page worth of data, let's check it matches what's in the buffer we sent
       DEBUG_MSG("handle FULL READ_PAGE\n");
@@ -317,6 +292,7 @@ void  arduinoHandleData(uint8 incoming){
         }
       } else {
     	//ERROR
+    	DEBUG_MSG("\nERROR\n");
         os_timer_disarm(&commsTimeout);
         avrUpdateState.fwFile.close();
         avrUpdateState.state = ERROR;
@@ -335,6 +311,12 @@ void  arduinoHandleData(uint8 incoming){
 		os_timer_disarm(&commsTimeout);
 		avrUpdateState.in_progress = false;
 		delay(500);
+		//DEBUG_MSG("Set serial 115200\n");
+		Serial.flush();
+		delay(5);
+	    Serial.end();
+	    delay(5);
+		Serial.begin(BAUD_RATE);
 		avrReset();
 	  } else {
 		 //TODO: error

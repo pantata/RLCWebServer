@@ -7,11 +7,12 @@
 //  @version v0.2-10-gf4a3c71
 
 #include <Arduino.h>
-#include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <FS.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <AsyncJson.h>
+#include <ArduinoJson.h>
 #include <MyTimeLib.h>
 
 #include "tz.h"
@@ -54,30 +55,15 @@ public:
     }
 };
 
-void samplingRequest(AsyncWebServerRequest *request)
-{
-    AsyncResponseStream *response = request->beginResponseStream("text/html");
-    
-    
-    
-    response->print("<html><body>");
-    response->print("<h1>Sampling Array</h1>");
-    response->print("<table><tr><td align=\"right\">Index</td><td align=\"right\">Modul</td><td align=\"right\">Channel</td><td align=\"right\">TimeSlot</td><td align=\"right\">Value</td><td align=\"right\">Efect</td><td>Delete</td></tr>");
-    for(int i=0;i<samplings.usedSamplingCount;i++)
-    {
-        response->printf("<tr><td align=\"right\">%d</td><td align=\"right\">%d</td><td align=\"right\">%d</td><td align=\"right\">%d</td><td align=\"right\">%d</td><td align=\"right\">%d</td><td><a href=\"/delsampl.cgi?modul=%d&channel=%d&timeSlot=%d\">Del</a></td></tr>",i,samplings.sampling[i].modul,samplings.sampling[i].channel,samplings.sampling[i].timeSlot,samplings.sampling[i].value,samplings.sampling[i].efect,samplings.sampling[i].modul,samplings.sampling[i].channel,samplings.sampling[i].timeSlot);
-    }
-    response->print("</table></body></html>");
-    
-    request->send(response);
-    
-}
 
 
-void sendJsonResultResponse(AsyncWebServerRequest *request,bool cond,String okResultText,String errorResultText,uint32_t processedTime)
-{
-    AsyncResponseStream *response = request->beginResponseStream("application/json");
-    response->printf("{\"result\":\"%s\",\"time\":%d}",(cond)?okResultText.c_str():errorResultText.c_str(),processedTime);
+void sendJsonResultResponse(AsyncWebServerRequest *request, bool cond, String okResultText, String errorResultText,uint32_t processedTime) {
+    AsyncResponseStream *response = request->beginResponseStream("text/json");
+    DynamicJsonBuffer jsonBuffer;
+    JsonObject &root = jsonBuffer.createObject();
+    root["result"] = (cond)?okResultText:errorResultText;
+    root["time"] = processedTime;
+    root.printTo(*response);
     request->send(response);
 }
 
@@ -131,6 +117,44 @@ void printDirectory(Dir dir, int numTabs,AsyncResponseStream *response) {
     
     response->print("</table>");
 }
+//Handle upload sampling file
+void onSaveSampling(AsyncWebServerRequest *request, String filename, size_t index,
+              uint8_t *data, size_t len, bool final) {
+
+    File f;
+    String name="/"+filename;
+
+    DEBUG_MSG("File: %s, Size: %d\n",name.c_str(), index);
+
+    if(!index) {
+        DEBUG_MSG("UploadStart: %s\n", filename.c_str());
+        f=SPIFFS.open(name.c_str(),"w");
+    } else {
+        f=SPIFFS.open(name.c_str(),"a");
+    }
+
+    DEBUG_MSG("Upload: %d - %d\n", index, len);
+
+    for(size_t i=0;i<len;i++)
+        f.write(data[i]);
+
+    if(final) {
+        DEBUG_MSG("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
+        request->send_P(200, "text/html", "File was successfully uploaded");
+
+        //reload sampling
+        config.profileFileName = filename;
+        saveConfig();
+        bool lok=loadSamplingStruct(config.profileFileName,&samplings);
+        if (lok==true) {
+          DEBUG_MSG("loadSamplingStruct from file %s loaded successfully, size: %d, pocet:%d\n",config.profileFileName.c_str(),sizeof(samplings),(sizeof(samplings)-2)/sizeof(Sampling));
+        } else {
+          DEBUG_MSG("loadSamplingStruct from file %s loaded with error\n",config.profileFileName.c_str());
+        }
+    }
+    f.close();
+    changed = LED;
+}
 
 //Handle upload file
 void onUpload(AsyncWebServerRequest *request, String filename, size_t index,
@@ -154,7 +178,7 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index,
     
     if(final) {
         DEBUG_MSG("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
-        request->send_P(200, "text/html", "File was successfully uploaded");
+        request->send_P(200, "text/html", "File was successfully uploaded\n");
     }
     f.close();
 }
@@ -189,34 +213,90 @@ void onUpdate(AsyncWebServerRequest *request, String filename, size_t index,
     }
 }
 
+size_t findIndex( const char *a[], size_t size, const char *value ) {
+    size_t index = 0;
+    while ( index < size && (strcmp(a[index], value) != 0)) {
+    	DEBUG_MSG("F: %s - %s\n", a[index], value);
+    	++index;
+    }
+    return ( index == size ? -1 : index );
+}
+
+
+void setLang (AsyncWebServerRequest *request)  {
+	String lang=request->arg("lang");
+	int size = sizeof(str_lang) / sizeof(str_lang[0]);
+	DEBUG_MSG("Lang: %s - LANG ID: %d  SIZE: %d\n",lang.c_str(), findIndex(str_lang,4,lang.c_str() ), size);
+	config.lang = findIndex(str_lang,size,lang.c_str());
+	request->send_P(200, "text/html", "OK");
+	saveConfig();
+}
+
 void setTimeCgi(AsyncWebServerRequest *request) {
     String useNtp=request->arg("use-ntp");
     String ntpip=request->arg("ntpip");
-    String curtime=request->arg("curtime");
+    String useDST=request->arg("useDST");
+    String dstStartMonth=request->arg("dstStartMonth");
+    String dstStartDay=request->arg("dstStartDay");
+    String dstStartWeek=request->arg("dstStartWeek");
+    String dstStartOffset=request->arg("dstStartOffset");
+    String dstEndMonth=request->arg("dstEndMonth");
+    String dstEndDay=request->arg("dstEndDay");
+    String dstEndWeek=request->arg("dstEndWeek");
+    String dstEndOffset=request->arg("dstEndOffset");
+    String yy=request->arg("yy");
+    String mm=request->arg("mm");
+    String dd=request->arg("dd");
+    String hh=request->arg("hh");
+    String mi=request->arg("mi");
+    String dateFormat=request->arg("dateFormat");
+    String timeFormat=request->arg("timeFormat");
     
-    DEBUG_MSG("setTime.cgi started with parameters use-ntp=%s, ntpip=%s ,curtime=%s \n",useNtp.c_str(),ntpip.c_str(),curtime.c_str());
-    if (useNtp.toInt())
-    {
+    DEBUG_MSG("setTime.cgi started with parameters use-ntp=%s, ntpip=%s  \n",useNtp.c_str(),ntpip.c_str());
+
+    if (useDST.compareTo(String("on"))) {
+    	config.useDST = true;
+
+		config.tzRule.dstStart.day = atoi(dstStartDay.c_str());
+		config.tzRule.dstStart.month = atoi(dstStartMonth.c_str());
+		config.tzRule.dstStart.week = atoi(dstStartWeek.c_str());
+		config.tzRule.dstStart.offset = dstOffset[atoi(dstStartOffset.c_str())];
+
+		config.tzRule.dstEnd.day = atoi(dstEndDay.c_str());
+		config.tzRule.dstEnd.month = atoi(dstEndMonth.c_str());
+		config.tzRule.dstEnd.week = atoi(dstEndWeek.c_str());
+		config.tzRule.dstEnd.offset = dstOffset[atoi(dstEndOffset.c_str())];
+
+		DEBUG_MSG("Timezone set\n");
+
+    }
+
+    if (useNtp.toInt()) {
         config.useNtp=true;
         config.ntpServer=String(ntpip);
         DEBUG_MSG("setTime.cgi saved config.useNtp=%s, config.ntpServer=%s \n","true",config.ntpServer.c_str());
-    }
-    else
-    {
+        syncTime = true;
+    } else {
         config.useNtp=false;
-        time_t ct=atoi(curtime.c_str());
-        if (config.useDST)
-        {
-        	Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
-        	time_t ct1=tzlocal.toUTC(ct);
-        	ct=ct1;
-
-        }
-
-        setTime(ct);
-        DEBUG_MSG("setTime.cgi saved config.useNtp=%s, time set to %s \n","false",String(ct).c_str());
-        DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n",day(),month(),year(),hour(),minute(),second());
+        Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
+        tmElements_t t;
+        t.Day = atoi(dd.c_str());
+        t.Month = atoi(mm.c_str());
+        t.Year = atoi(yy.c_str()+2000);
+        t.Hour = atoi(hh.c_str());
+        t.Minute = atoi(mi.c_str());
+        t.Second = 0;
+        time_t tt = makeTime(t);
+        setTime(tzlocal.toUTC(tt));
     }
+
+    DEBUG_MSG("Time set\n");
+
+    config.tmFormat = atoi(timeFormat.c_str());
+    config.dtFormat = atoi(dateFormat.c_str());
+    DEBUG_MSG("Format set\n");
+
+    normalizeConfig();
     saveConfig();
     
     request->send_P(200, "text/html", "OK");
@@ -276,7 +356,7 @@ void webserver_begin() {
         request->send(404);
     });
     
-    server.on("/uploader.html", HTTP_POST, [](AsyncWebServerRequest *request){
+    server.on("/upload", HTTP_POST, [](AsyncWebServerRequest *request){
         request->send(200);
     }, onUpload);
     
@@ -363,79 +443,74 @@ void webserver_begin() {
         {
             String arg = request->arg("select");
             bool ok=SPIFFS.remove(arg);
-            if (ok)
-            {
+            if (ok) {
                 request->send_P(200, "text/html", "File was successfully deleted");
-            }
-            else
-            {
+            } else {
                 request->send_P(200, "text/html", "File was not deleted");
             }
-        }
-        else
-        {
+        } else {
             request->send_P(200, "text/html", "Unknown parameter");
         }
     });
     
+    server.on("/upload",HTTP_GET,[](AsyncWebServerRequest *request) {
+        DEBUG_MSG("%s\n","/upload started");
+        AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", upload_html);
+        request->send(response);
+    });
+
+    server.on("/update",HTTP_GET,[](AsyncWebServerRequest *request) {
+        DEBUG_MSG("%s\n","/update started");
+        request->send(200,"text/html",update_html);
+    });
+
+    server.on("/formatfs",HTTP_GET,[](AsyncWebServerRequest *request) {
+
+        uint32_t startTime=millis();
+
+        DEBUG_MSG("%s\n","/formatfs.cgi request started ");
+        PRINT_CONFIG(config);
+
+        bool ok=SPIFFS.format();
+
+        DEBUG_MSG("/formatfs.cgi request finished with result %s \n",(ok)?"OK":"ERROR");
+
+        sendJsonResultResponse(request,ok,"OK","ERROR",millis()-startTime);
+    });
+
     /*
      *  WiFi scan handler
      */
     server.on("/wifiscan.cgi",HTTP_GET,[](AsyncWebServerRequest *request){
-        static boolean wifiscanStarted = false;
-        static int8_t scanInProgress = -1;
-        static int wifiscanCount = 0;
-        
+
         PRINT_CONFIG(config);
-        if (!wifiscanStarted) {
-            WiFi.scanDelete();
-            WiFi.scanNetworksAsync([](int pocet) {
-                for(int i=0;i<16;i++) wifinetworks[i].exist=false;
-                for(int i=0;i<pocet&&i<16;i++)
-                {
-                    wifinetworks[i].essid=String(WiFi.SSID(i));
-                    wifinetworks[i].rssi=WiFi.RSSI(i);
-                    wifinetworks[i].enc=WiFi.encryptionType(i);
-                    wifinetworks[i].channel=WiFi.channel(i);
-                    wifinetworks[i].exist=true;
-                }
-                
-                wifiscanCount = pocet;
-                scanInProgress = WiFi.scanComplete();
-            });
-            
-            wifiscanStarted=true;
-            scanInProgress = WiFi.scanComplete();
-        }
-        
+        int count = WiFi.scanComplete();
         //send result
         AsyncResponseStream *response = request->beginResponseStream("application/json");
-        response->print("{\n\"result\": {\n");
-        response->printf("\"inProgress\": \"%d\",\n",(scanInProgress>=0)?0:scanInProgress);
+        response->print("{\"result\": {\n");
+        response->printf("\"inProgress\": \"%d\",\n",count>=0?0:-1);
         response->print("\"APs\": [\n");
-        for(int i=0;i<wifiscanCount&&i<16;i++)
-        {
-            if (wifinetworks[i].exist)
-            {
-                response->printf("{\n\"essid\": \"%s\", \"rssi\": \"%d\", \"enc\": \"%d\", \"ch\": \"%d\"}",wifinetworks[i].essid.c_str(),wifinetworks[i].rssi,wifinetworks[i].enc,wifinetworks[i].channel);
-                if (i<wifiscanCount-1&&i<15) response->printf(",\n"); else response->printf("\n");
-            }
+
+        for(int i=0;i<count;i++) {
+        	if (i>0) response->printf(",\n");
+        	response->printf("{\"essid\": \"%s\", \"rssi\": \"%d\", \"enc\": \"%d\", \"ch\": \"%d\"}",WiFi.SSID(i).c_str(),WiFi.RSSI(i),WiFi.encryptionType(i),WiFi.channel(i));
         }
+		response->printf("\n");
+
         response->print("]\n");
         response->print("}\n}\n");
         request->send(response);
-        
-        //enable scan on next request
-        if (WiFi.scanComplete() > 0) {
-            wifiscanStarted = false;
+
+        if ( WiFi.scanComplete() != WIFI_SCAN_RUNNING ) {
+            WiFi.scanDelete();
+            WiFi.scanNetworks(true);
         }
-        
     });
     
     server.on("/wifistatus.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
         DEBUG_MSG("%s\n","WifiStatus started");
         
-        AsyncResponseStream *response = request->beginResponseStream("application/json");
+        AsyncResponseStream *response = request->beginResponseStream("text/json");
         PRINT_CONFIG(config);
         DEBUG_MSG("%s\n","WifiStatus response stream created");
         
@@ -524,154 +599,22 @@ void webserver_begin() {
         
         DEBUG_MSG("Wificonnect.cgi started , Params ssid=%s , pwd=%s\n",config.ssid.c_str(),config.pwd.c_str());
         shouldReconnect = true;
-        
+        changed = WIFI;
         AsyncWebServerResponse *response = request->beginResponse(200);
         response->addHeader("refresh","20;url=http://"+config.hostname+".local");
         PRINT_CONFIG(config);
         request->send(response);
     });
     
-    
-    
-#ifdef DEBUG
-    server.on("/ntp.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
-        String time = "" + String(getNtpTime()) + " - " + String(millis());
-        request->send(200, "text/plain",time);
-    });
-    
-    server.on("/time.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
-        time_t utc = now();    //current time from the Time Library        
-        String time = String(str_timestatus[timeStatus()])+ ": " +  String(hour(tz.toLocal(utc))) + ":" + String(minute(tz.toLocal(utc))) + ":" + String(second(tz.toLocal(utc))) +" " + String(tz.utcIsDST(now())?"CEST":"CET");
-        AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", time);
-        response->addHeader("refresh","1;url=/time.cgi");
-        request->send(response);
-    });
-    
-    
-    server.on("/insupdsampl.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
-        
-        String modul=request->arg("modul");
-        String channel=request->arg("channel");
-        String timeSlot=request->arg("timeSlot");
-        String value=request->arg("value");
-        String efect=request->arg("efect");
-        
-        DEBUG_MSG("/ïnsupdsampl.cgi request started with parameters modul=%s , channel=%s, timeSlot=%s , value=%s, efect=%s\n",modul.c_str(),channel.c_str(),timeSlot.c_str(),value.c_str(),efect.c_str());
-        PRINT_CONFIG(config);
-        
-        bool inOk=insertOrUpdateSampling(StringToUint8_t(modul)/*modul.toInt()*/,StringToUint8_t(channel)/*channel.toInt()*/,StringToUint8_t(timeSlot)/*timeSlot.toInt()*/,StringToUint16_t(value)/*value.toInt()*/,StringToUint8_t(efect)/*efect.toInt()*/);
-        
-        samplingRequest(request);
-    });
-    
-    server.on("/delsampl.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
-        
-        String modul=request->arg("modul");
-        String channel=request->arg("channel");
-        String timeSlot=request->arg("timeSlot");
-        
-        DEBUG_MSG("/delsampl.cgi request started with parameters modul=%s , channel=%s, timeSlot=%s \n",modul.c_str(),channel.c_str(),timeSlot.c_str());
-        PRINT_CONFIG(config);
-        
-        bool delOk=deleteSampling(StringToUint8_t(modul)/*modul.toInt()*/,StringToUint8_t(channel)/*channel.toInt()*/,StringToUint8_t(timeSlot)/*timeSlot.toInt()*/);
-        
-        samplingRequest(request);
-    });
-    
-    server.on("/savesampl.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
-        
-        String filename= request->arg("filename");
-        
-        DEBUG_MSG("/savesampl.cgi request started with parameters filename=%s  \n",filename.c_str());
-        PRINT_CONFIG(config);
-        
-        if (saveSamplingStruct(filename))
-        {
-            request->send_P(200, "text/html", "File has been successfully saved");
-        }
-        else
-        {
-            request->send_P(200, "text/html", "Error on saving file");
-        }
-    });
-    
-    server.on("/loadsampl.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
-        
-        String filename= request->arg("filename");
-        
-        DEBUG_MSG("/loadsampl.cgi request started with parameters filename=%s  \n",filename.c_str());
-        PRINT_CONFIG(config);
-        
-        if (loadSamplingStruct(filename,&samplings))
-        {
-            samplingRequest(request);
-        }
-        else
-        {
-            request->send_P(200, "text/html", "Error on loading file");
-        }
-    });
-    
-    server.on("/formatfs.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
-        
-        uint32_t startTime=millis();
-        
-        DEBUG_MSG("%s\n","/formatfs.cgi request started ");
-        PRINT_CONFIG(config);
-        
-        bool ok=SPIFFS.format();
-        
-        DEBUG_MSG("/formatfs.cgi request finished with result %s \n",(ok)?"OK":"ERROR");
-        
-        sendJsonResultResponse(request,ok,"OK","ERROR",millis()-startTime);
-        
-        
-    });
-    
-#endif
-    
-    server.on("/setTime.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
+
+    server.on("/settime.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
         setTimeCgi(request);
+        changed = TIME;
     });
     
-    
-    server.on("/allTimeSlotValues.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
-        AsyncResponseStream *response = request->beginResponseStream("application/json");
-        uint32_t startTime=millis();
-        DEBUG_MSG("/allTimeSlotValues.cgi request started%s\n","");
-        response->print("{\n\"timeSlotValues\":[");
-        for(int i=0;i<samplings.usedSamplingCount;i++)
-        {
-            response->printf("{\"modul\":%d,\"channel\":%d,\"timeSlot\":%d,\"value\":%d,\"efect\":%d}%s",samplings.sampling[i].modul,samplings.sampling[i].channel,samplings.sampling[i].timeSlot,samplings.sampling[i].value,samplings.sampling[i].efect,(i<samplings.usedSamplingCount-1)?",\n":"");
-        };
-        response->printf("],\n\"time\":%d\n}",millis()-startTime);
-        PRINT_CONFIG(config);
-        request->send(response);
-    });
-    
-    server.on("/allTimeSlotValuesFromFile.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
-        uint32_t startTime=millis();
-        
-        String filename = request->arg("filename")+".pjs";
-        DEBUG_MSG("/allTimeSlotValuesFromFile.cgi request started with parameters filename=%s  \n",filename.c_str());
-        Samplings s;
-        if (loadSamplingStruct(filename,&s)) {
-            AsyncResponseStream *response = request->beginResponseStream("application/json");
-            
-            response->print("{\n\"timeSlotValues\":[");
-            for(int i=0;i<s.usedSamplingCount;i++)
-            {
-                response->printf("{\"modul\":%d,\"channel\":%d,\"timeSlot\":%d,\"value\":%d,\"efect\":%d}%s",s.sampling[i].modul,s.sampling[i].channel,s.sampling[i].timeSlot,s.sampling[i].value,s.sampling[i].efect,(i<s.usedSamplingCount-1)?",\n":"");
-            };
-            response->printf("],\n\"time\":%d\n}",millis()-startTime);
-            request->send(response);
-        }
-        else
-        {
-            sendJsonResultResponse(request,false,"OK","ERROR",millis()-startTime);
-        }
-        
-        
+    server.on("/setlang.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
+        setLang(request);
+        changed = LANG;
     });
     
     server.on("/saveTimeSlotValues.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
@@ -685,32 +628,9 @@ void webserver_begin() {
         PRINT_CONFIG(config);
         bool ok=saveSamplingStruct(filename);
         sendJsonResultResponse(request,ok,"OK","ERROR",millis()-startTime);
-        
+        changed = LED;
     });
-    
-    server.on("/getTimeSlotValues.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
-        uint32_t startTime=millis();
-        AsyncResponseStream *response = request->beginResponseStream("application/json");
-        DEBUG_MSG("/getTimeSlotValues.cgi request started modulecount=%d  \n",modulecount);
-        response->print("{\"timeSlotValues\":[");
-        
-        for(int i=1;i<modulecount+1;i++)
-        {
-            for(int j=1;j<8;j++)
-            {
-                uint16_t value=getSamplingValue(i,j,0);
-                DEBUG_MSG("modul=%d, channel=%d, value=%d\n",i,j,value);
-                response->printf("{\"modul\":%d,\"\channel\":%d,\"value\":%d}%s",i,j,value,(i<modulecount||j<7)?",\n":"");
-                
-            }
-        }
-        response->printf("],\n\"time\":%d}",millis()-startTime);
-        PRINT_CONFIG(config);
-        request->send(response);
-        
-        
-    });
-    
+
     server.on("/getTimeSlotProfiles.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
         uint32_t startTime=millis();
         
@@ -738,7 +658,7 @@ void webserver_begin() {
     });
     
     server.on("/setTimeSlotProfile.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
-        // TO DO - vybrany profil natahnout do pameti a ulozit do centr konfigurace
+
         uint32_t startTime=millis();
         String filename=request->arg("filename");
         String nfilename;
@@ -760,97 +680,146 @@ void webserver_begin() {
         }
         PRINT_CONFIG(config);
         sendJsonResultResponse(request,ok,"OK","ERROR",millis()-startTime);
+        changed = LED;
     });
     
-    server.on("/upload",HTTP_GET,[](AsyncWebServerRequest *request) {
-        DEBUG_MSG("%s\n","/upload started");
-        AsyncWebServerResponse *response = request->beginResponse_P(200, "text/html", upload_html);
-        response->addHeader("Server","ESP Async Web Server");
-        request->send(response);
-    });
-    
-    server.on("/update",HTTP_GET,[](AsyncWebServerRequest *request) {
-        DEBUG_MSG("%s\n","/update started");
-        request->send(200,"text/html",update_html);    
-    });
     
     server.on("/getinfo.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
-         uint32_t startTime=millis();
-         DEBUG_MSG("%s\n","getinfo.cgi");
-         AsyncResponseStream *response = request->beginResponseStream("application/json");
-         response->printf("{\"mode\":%d,\n",mode);
-         response->printf("\"modulescount\":%d,\n",modulecount);
-         if (mode == LEDAUTO) { //auto
-             response->print("\"timeSlotValues\":[");
 
-             for(int i=1;i<modulecount+1;i++)
-             {
-            	 response->printf("{\"id\":%d,", i-1);
-            	 response->printf("\"name\":\"%c\",", char(65+i-1));
-            	 response->printf("\"ch\":[");
-                 for(int j=1;j<8;j++)
-                 {
-                     uint16_t value=getSamplingValue(i,j,0);
-                     response->printf("{\"v\":%d}%s", value, j==7?"\n":",");
-                 }
-                 response->printf("]}%s",i==modulecount?"\n":",");
-             }
-         } else {    //manual
+    	PRINT_CONFIG();
+    	DEBUG_MSG("%s\n","getinfo.cgi");
 
-         }
-         response->printf("],\"time\":%d}",millis()-startTime);
-         request->send(response);
-        //TODO: timezone, letni cas, aktualni cas, vybrany profil, timeserver, manual/auto
-        
+    	uint32_t startTime=millis();
+
+    	 AsyncJsonResponse * response = new AsyncJsonResponse();
+    	 JsonObject& root = response->getRoot();
+    	 root["mode"] = mode;
+    	 root["modulescount"] = modulesCount;
+    	 JsonArray& tsv = root.createNestedArray("timeSlotValues");
+
+
+		 for(uint8_t i=1;i<modulesCount+1;i++) {
+			 JsonArray& led = tsv.createNestedArray();
+			 for(uint8_t j=1;j<8;j++) {
+				 if (config.manual == true) {
+					 led.add((int)config.manualValues[i-1][j-1]);
+				 } else {
+					 led.add((int)getSamplingValue(i,j));
+				 }
+			 }
+
+		 }
+
+    	 root["time"] = millis()-startTime;
+    	 response->setLength();
+    	 request->send(response);
+         PRINT_CONFIG();
     });
     
     server.on("/getconfig.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
          uint32_t startTime=millis();
          DEBUG_MSG("%s\n","getconfig.cgi");
-         AsyncResponseStream *response = request->beginResponseStream("application/json");
-         response->printf("{\"dst\":%d,\n",config.useDST);
-         response->printf("\"profileFileName\":\"%s\",\n",config.profileFileName.c_str());
-         response->printf("\"time\":%d}",millis()-startTime);
-         request->send(response);
-        //TODO: timezone, letni cas, aktualni cas, vybrany profil, timeserver, manual/auto
+         AsyncJsonResponse * response = new AsyncJsonResponse();
 
+    	 JsonObject& root = response->getRoot();
+    	 root["modulescount"] = modulesCount;
+    	 root["lang"]         = str_lang[config.lang];
+    	 root["dst"]          = config.useDST;
+    	 root["useNTP"]       = config.useNtp;
+    	 root["ntpServer"]    = config.ntpServer.c_str();
+    	 root["timeZone"]     = config.tzRule.tzName.c_str();
+    	 root["dtFormat"]     = config.dtFormat;
+    	 root["tmFormat"]     = config.tmFormat;
+    	 root["dstStartDay"]  = config.tzRule.dstStart.day;
+    	 root["dstStartWeek"] = config.tzRule.dstStart.week;
+    	 root["dstStartMonth"]= config.tzRule.dstStart.month;
+    	 root["dstStartHour"] = config.tzRule.dstStart.hour;
+    	 root["dstStartOffset"]= config.tzRule.dstStart.offset;
+    	 root["dstEndDay"]    = config.tzRule.dstEnd.day;
+    	 root["dstEndWeek"]    = config.tzRule.dstEnd.week;
+    	 root["dstEndMonth"]    = config.tzRule.dstEnd.month;
+    	 root["dstEndHour"]    = config.tzRule.dstEnd.hour;
+    	 root["dstEndOffset"]    = config.tzRule.dstEnd.offset;
+    	 root["isManual"]  = config.manual;
+    	 root["profileFileName"]  = config.profileFileName.c_str();
+    	 root["lcdTimeout"] = config.lcdTimeout;
+    	 root["menuTimeout"] = config.menuTimeout;
+    	 root["time"] = millis()-startTime;
+    	 response->setLength();
+    	 request->send(response);
     });
 
     server.on("/gettime.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
         time_t utc = now();    //current time from the Time Library
         //String time = String(str_timestatus[timeStatus()])+ ": " +  String(hour(tz.toLocal(utc))) + ":" + String(minute(tz.toLocal(utc))) + ":" + String(second(tz.toLocal(utc))) +" " + String(tz.utcIsDST(now())?"CEST":"CET");
-        AsyncResponseStream *response = request->beginResponseStream("application/json");
-        response->printf("{\"utc\":%d }\n",utc);
-        //AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", String(utc));
-        //response->addHeader("refresh","1;url=/time.cgi");
+        AsyncResponseStream *response = request->beginResponseStream("text/json");
+
+        DynamicJsonBuffer jsonBuffer;
+        JsonObject &root = jsonBuffer.createObject();
+        root["utc"] = utc;
+        root.printTo(*response);
         request->send(response);
+
     });
 
     server.on("/avr.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
-        time_t utc = now();    //current time from the Time Library
-        //String time = String(str_timestatus[timeStatus()])+ ": " +  String(hour(tz.toLocal(utc))) + ":" + String(minute(tz.toLocal(utc))) + ":" + String(second(tz.toLocal(utc))) +" " + String(tz.utcIsDST(now())?"CEST":"CET");
-        AsyncResponseStream *response = request->beginResponseStream("application/json");
-        response->printf("{\"utc\":%d }\n",utc);
         DEBUG_MSG("%s\n","CGI Flashing Arduino\n");
         arduinoFlash = true;
-
-        //AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", String(utc));
-        //response->addHeader("refresh","1;url=/time.cgi");
-        request->send(response);
+        sendJsonResultResponse(request,true);
     });
 
     server.on("/avrstatus.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
-        time_t utc = now();    //current time from the Time Library
-        //String time = String(str_timestatus[timeStatus()])+ ": " +  String(hour(tz.toLocal(utc))) + ":" + String(minute(tz.toLocal(utc))) + ":" + String(second(tz.toLocal(utc))) +" " + String(tz.utcIsDST(now())?"CEST":"CET");
-        AsyncResponseStream *response = request->beginResponseStream("application/json");
-        response->printf("{\"status\":%d }\n",arduinoGetStatus());
-        DEBUG_MSG("%s\n","CGI Flashing Arduino\n");
-
-        //AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", String(utc));
-        //response->addHeader("refresh","1;url=/time.cgi");
+        AsyncResponseStream *response = request->beginResponseStream("text/json");
+        DynamicJsonBuffer jsonBuffer;
+        JsonObject &root = jsonBuffer.createObject();
+        root["status"] = arduinoGetStatus();
+        root["pages"] = arduinoPages();
+        root["pagesFlashed"] = arduinoPagesFlashed();
+        root.printTo(*response);
         request->send(response);
     });
 
+    server.on("/saveSampling.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {}, onSaveSampling);
+
+    server.on("/setmanual.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
+    	 DEBUG_MSG("%s\n","setmanual.cgi");
+    	 int m = StringToInt((String)request->arg("m"));
+    	 config.manual = m==0?false:true;
+    	 sendJsonResultResponse(request,true);
+    	 saveConfig();
+    	 changed = MANUAL;
+    });
+
+    server.on("/setled.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
+    	 DEBUG_MSG("%s\n","setled.cgi");
+
+    	 String json = (String)request->arg("body");
+    	 DEBUG_MSG("\n%s\n", json.c_str());
+    	 DynamicJsonBuffer jsonBuffer;
+    	 JsonObject& root = jsonBuffer.parseObject(json);
+
+    	 if (!root.success()) {
+    	   Serial.println("parseObject() failed");
+    	   sendJsonResultResponse(request,false);
+    	   return;
+    	 }
+
+
+    	 int m = root["0"];
+
+		 for (uint8_t i=(m>0?m-1:0); i < (m==0?MAX_MODULES:m); i++) {
+			 config.manualValues[i][0] = (uint16_t)root["1"];
+			 config.manualValues[i][1] = (uint16_t)root["2"];
+			 config.manualValues[i][2] = (uint16_t)root["3"];
+			 config.manualValues[i][3] = (uint16_t)root["4"];
+			 config.manualValues[i][4] = (uint16_t)root["5"];
+			 config.manualValues[i][5] = (uint16_t)root["6"];
+			 config.manualValues[i][6] = (uint16_t)root["7"];
+		 }
+		 saveConfig();
+    	 sendJsonResultResponse(request,true);
+    	 changed = MANUAL;
+    });
 
     server.begin();
     DEBUG_MSG("%s\n","HTTP server started");

@@ -18,7 +18,8 @@ bool deleteSampling(uint8_t modul,uint8_t channel,uint8_t timeSlot);
 
 uint8_t StringToUint8_t(String s);
 uint16_t StringToUint16_t(String s);
-uint16_t getSamplingValue(uint8_t modul,uint8_t channel,uint32_t timedelay);
+int16_t StringToInt(String s);
+uint16_t getSamplingValue(uint8_t modul,uint8_t channel);
 bool saveSamplingStruct(String filename);
 bool loadSamplingStruct(String filename,Samplings *s );
 

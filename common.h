@@ -21,51 +21,44 @@ extern SoftwareSerial DEBUGSER;
 
 #define DEBUG_MSG(...) DEBUGSER.printf(__VA_ARGS__)
 //#define PRINT_CONFIG(c) for(;0;)
-#define PRINT_CONFIG(c) DEBUGSER.printf("Config  ssid=%s,pwd=%s,hostname=%s,wifimode=%d,ntpServer=%s,localPort=%d,useNtp=%d,profileFileName=%s,wifidhcp=%d,wifiip=%s,wifimask=%s,wifigw=%s,wifidns1=%s,wifidns2=%s,appwd=%s,apchannel=%d,apip=%s,apmask=%s,apgw=%s,useDST=%d,tzRule.tzName=%s,tzRule.dstStart.day=%d, tzRule.dstStart.month=%d,tzRule.dstStart.hour=%d,tzRule.dstStart.offset=%d,tzRule.dstStart.week=%d,tzRule.dstEnd.day=%d,tzRule.dstEnd.month=%d,tzRule.dstEnd.hour=%d,tzRule.dstEnd.offset=%d,tzRule.dstEnd.week=%d, HEAP=%d\n",c.ssid.c_str(),c.pwd.c_str(),c.hostname.c_str(),c.wifimode,c.ntpServer.c_str(),c.localPort,c.useNtp,c.profileFileName.c_str(),c.wifidhcp,c.wifiip.c_str(),c.wifimask.c_str(),c.wifigw.c_str(),c.wifidns1.c_str(),c.wifidns2.c_str(),c.appwd.c_str(),c.apchannel,c.apip.c_str(),c.apmask.c_str(),c.apgw.c_str(),c.useDST,c.tzRule.tzName.c_str(),c.tzRule.dstStart.day,c.tzRule.dstStart.month,c.tzRule.dstStart.hour,c.tzRule.dstStart.offset,c.tzRule.dstStart.week,c.tzRule.dstEnd.day,c.tzRule.dstEnd.month,c.tzRule.dstEnd.hour,c.tzRule.dstEnd.offset,c.tzRule.dstEnd.week,ESP.getFreeHeap())
+#define PRINT_CONFIG(...) DEBUGSER.printf("HEAP = %d\n",ESP.getFreeHeap())
 #else
 #define DEBUG_MSG(fmt, ...) for(;0;)
 #define PRINT_CONFIG(c) for(;0;)
 #endif
 
-#ifdef DEBUG
+#define BAUD_RATE 250000
+#define BAUD_RATE_A 115200
 
-#define CODE255 '0'/*char(255) */
-#define CODE1 '1' /*char(1) */
-#define CODE2 '2'/* char(2) */
-#define CODE3 '3'/* char(3) */
-#define CODE4 '4'/* char(4) */
-#define CODE5 '5'/* char(5) */
-#define CODE6 '6'/* char(6) */
+#define PING '0'/*char(255) */
+#define GETCHANGE '1' /*char(1) */
+#define GETTIME '2'/* char(2) */
+#define GETCONFIG '3'/* char(3) */
+#define GETLEDVALUES '4'/* char(4) */
+#define GETNETVALUES '5'/* char(5) */
+#define SETMANUAL '6'/* char(6) */
 #define CODE61 '1'
 #define CODE9 '9'/* char(9) */
 #define BREAK '\n'
 
-#define CODE255_RETURN_OK "OK\n"
+#define PING_OK   "\x0OK\x0\x0\x0\x0\x0"
+#define CHANGE_OK "\x1%c\x0\x0\x0\x0\x0\x0"
+#define TIME_OK   "\x2%c%c%c%c%c\x0\x0"
+#define _OK       "\x0OK\x0\x0\x0\x0\x0"
 
-#else
 
-#define CODE255 char(255)
-#define CODE1 char(1)
-#define CODE2 char(2)
-#define CODE3 char(3)
-#define CODE4 char(4)
-#define CODE5 char(5)
-#define CODE6 char(6)
-#define CODE61 char(1)
-#define CODE9 char(9)
-#define BREAK '\n'
-
-#define CODE255_RETURN_OK char(0)
-#endif
+#define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
+#define MAX_PWM 1024
+#define MAX_MODULES 16
 
 #define AP_IP   String("192.168.4.1")
 #define AP_MASK String("255.255.255.0")
-#define HOSTNAME String("ESP") + String(ESP.getChipId(), HEX);
+#define HOSTNAME String("NEREUS") + String(ESP.getChipId(), HEX);
 #define DNS_PORT 53
 #define TIMESERVER "pool.ntp.org"
 
 #define WIFITIMEOUT  15
-#define SAMPLING_MAX 896
+#define SAMPLING_MAX 896 //max 8 bodu na kanal
 #define SAMPLING_UINT8_MAX_VALUE 255
 #define TIMEDELAY 10UL
 
@@ -104,15 +97,24 @@ struct Config {
     String apgw; // par apgw
     bool useDST;
     TzRule tzRule;
+    uint8_t dtFormat;
+    uint8_t tmFormat;
+    uint8_t lcdTimeout;
+    uint8_t menuTimeout;
+    bool manual;
+    uint8_t lang;
+    uint16_t manualValues[MAX_MODULES][7];
 };
 
+//var dateFormat = ["DD.MM.YY","DD/MM/YY","DD-MM-YY","YY/MM/DD","YY-MM-DD"];
+//var timeFormat = ["HH:MI:SS P","HH.MI:SS P","HH24:MI:SS","HH24.MI:SS","HH:MI P","HH.MI P","HH24:MI","HH24.MI"];
 
 struct Sampling {
-    uint8_t modul;
-    uint8_t channel;
+    uint8_t modul;   //4bit TODO: sloucit
+    uint8_t channel; //4bit
     uint8_t timeSlot;
-    uint16_t value;
     uint8_t efect;
+    uint16_t value;
 };
 
 struct Samplings {
@@ -134,6 +136,7 @@ union Unixtime {
 };
 
 extern struct Samplings samplings;
+
 extern struct Config config;
 extern struct WifiNetworks wifinetworks[];
 
@@ -141,7 +144,7 @@ extern union Unixtime unixtime;
 
 extern bool shouldReconnect;
 extern bool shouldReboot;
-extern byte modulecount;
+extern byte modulesCount;
 extern bool arduinoFlash;
 
 extern const char* str_wifistatus[];
@@ -149,10 +152,19 @@ extern const char* str_wifimode[];
 extern const char* str_wifiauth[];
 extern const char* str_timestatus[];
 
-extern uint8_t changed;
+enum t_changed  {NONE, LED, MANUAL, TIME, WIFI, IP, LANG} ;
+
+extern t_changed changed;
 extern uint8_t lang;
-extern uint8_t modulecount;
+extern uint8_t modulesCount;
 extern uint8_t mode;
+
+extern int dstOffset[];
+extern bool syncTime;
+extern const char *str_lang[4];
+
+#define LOW_BYTE(x)        	(x & 0xff)
+#define HIGH_BYTE(x)       	((x >> 8) & 0xff)
 
 
 

@@ -56,14 +56,17 @@ EXTENSA_RELEASE  = 1.20.0-26-gb404fb9-2
 MAX_FLASH_SIZE    := 761840
 MAX_RAM_SIZE      := 81920
 F_CPU		      := 80000000L
-BUILD_FLASH_SIZE  := 1M
+#BUILD_FLASH_SIZE  := 1M
+BUILD_FLASH_SIZE  := 4M
 BUILD_FLASH_FREQ  := 40
-LDSCRIPT 		  := eagle.flash.1m256.ld
+#LDSCRIPT 		  := eagle.flash.1m256.ld
+LDSCRIPT 		  := eagle.flash.4m.ld
 FLASH_MODE        := qio
 RESET_MODE        := ck 
 
 BOARD_TAG  = generic
-BOARD_TAG1 = generic.menu.FlashSize.1M256
+#BOARD_TAG1 = generic.menu.FlashSize.1M256
+BOARD_TAG1 = generic.menu.FlashSize.4M3M
 BOARD_TAG2 = generic.menu.FlashFreq.40
 GCC_PREPROCESSOR_DEFINITIONS = ESP8266 ARDUINO
 

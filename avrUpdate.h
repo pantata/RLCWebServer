@@ -41,5 +41,6 @@ arduinoState_t arduinoGetStatus();
 void arduinoHandleData(uint8 incoming);
 bool arduinoUpdating();
 int arduinoPagesFlashed();
+int  arduinoPages();
 
 #endif /* AVRUPDATE_H_ */

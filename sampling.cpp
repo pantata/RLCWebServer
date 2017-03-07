@@ -220,90 +220,74 @@ bool deleteSampling(uint8_t modul,uint8_t channel,uint8_t timeSlot)
     return false;
 }
 
-uint16_t getSamplingValue(uint8_t modul,uint8_t channel,uint32_t timedelay)
+uint16_t getSamplingValue(uint8_t modul,uint8_t channel)
 {
     uint16_t ret = 0;
     uint32_t currentTime = (uint32_t)hour()*3600+(uint32_t)minute()*60+(uint32_t)second();
 
-    if (config.useDST)
-    {
+    if (config.useDST) {
     	Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
     	time_t ct=tzlocal.toLocal(currentTime);
     	currentTime=ct;
-
     }
-    DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n",day(),month(),year(),hour(),minute(),second());
+
     uint32_t startTime = 0;
     uint32_t endTime = 0;
     uint16_t startval = 0;
     uint16_t endval = 0;
-    uint8_t minidx = 255;
-    uint8_t maxidx = 255;
     
+    /*
+     * for modul and channel find min, max and compute curr val
+     */
+
     for (int i=0; i<SAMPLING_MAX;i++) {
-        
-        if (samplings.sampling[i].modul==SAMPLING_UINT8_MAX_VALUE||
-            samplings.sampling[i].channel==SAMPLING_UINT8_MAX_VALUE||
-            samplings.sampling[i].timeSlot==SAMPLING_UINT8_MAX_VALUE)
-        {
-            endval=startval;
-            endTime=startTime;
+        if (samplings.sampling[i].modul==SAMPLING_UINT8_MAX_VALUE) {
+            endval = 0;
+            endTime = 0;
             break;
         }
         
-        if (samplings.sampling[i].modul==modul&&samplings.sampling[i].channel==channel&&(currentTime+timedelay>=(uint32_t)(samplings.sampling[i].timeSlot*900)))
-        {
+        //find start val
+        if ( (samplings.sampling[i].modul==modul) &&
+        	 (samplings.sampling[i].channel==channel) &&
+			 (currentTime >= (uint32_t)(samplings.sampling[i].timeSlot*900))
+		   ) {
+
             startTime=(uint32_t)(samplings.sampling[i].timeSlot*900);
             startval=samplings.sampling[i].value;
         }
         
-        if (samplings.sampling[i].modul==modul&&samplings.sampling[i].channel==channel&&(currentTime+timedelay<=(uint32_t)(samplings.sampling[i].timeSlot*900)))
-        {
+        //find end val
+        if ( (samplings.sampling[i].modul==modul) &&
+        	 (samplings.sampling[i].channel==channel) &&
+			 (currentTime<=(uint32_t)(samplings.sampling[i].timeSlot*900))
+		   ) {
+
             endTime=(uint32_t)(samplings.sampling[i].timeSlot*900);
             endval=samplings.sampling[i].value;
             break;
         }
-        if (startval!=0&&(samplings.sampling[i].modul!=modul||samplings.sampling[i].channel!=channel))
-        {
-            endval=startval;
-            endTime=startTime;
-            break;
-        }
     }
     
-    if (channel == 3) {
-#ifdef DEBUG
-        Serial.print("CT");Serial.print("=");Serial.println(currentTime);
-        Serial.print("ST");Serial.print("=");Serial.println(startTime);
-        Serial.print("ET");Serial.print("=");Serial.println(endTime);
-        Serial.print("SV");Serial.print("=");Serial.println(startval);
-        Serial.print("EV");Serial.print("=");Serial.println(endval);
-#endif
+    //TODO: revize
+    if (startTime != endTime) {
+        ret = map(currentTime, startTime , endTime, startval ,endval);
+    }    else {
+        return startval;
     }
-    DEBUG_MSG("ret before map, currentTime=%d, startTime=%d, endTime=%d,startval=%d, endval=%d\n",currentTime+timedelay, startTime , endTime, startval ,endval);
-    if ((startTime!=0)&&(endTime!=0)) 
-    {
-        if (startTime!=endTime)
-        {
-            ret = map(currentTime+timedelay, startTime , endTime, startval ,endval);
-        }    
-        else
-        {
-            return startval;
-        }    
-    }    
-    
-    
-    if (ret < 0) ret = 0;
-    if (ret > 1023) ret = 1023;
-    
-    
-    return ret;
+
+    return constrain(ret, 0, 1000);
+
 }
 
 uint8_t StringToUint8_t(String s)
 {
     return (uint8_t)atoi(s.c_str());
+}
+
+int16_t StringToInt(String s)
+{
+    return (int16_t)atoi(s.c_str());
 }
 
 uint16_t StringToUint16_t(String s)

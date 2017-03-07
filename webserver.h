@@ -12,21 +12,20 @@
 
 void webserver_begin();
 void setTimeCgi(AsyncWebServerRequest *request);
-void sendJsonResultResponse(AsyncWebServerRequest *request,bool cond,String okResultText,String errorResultText,uint32_t processedTime);
+void sendJsonResultResponse(AsyncWebServerRequest *request,bool cond = true,String okResultText = "OK",String errorResultText = "Error",uint32_t processedTime = 0);
 void samplingRequest(AsyncWebServerRequest *request);
-
+void printSampligs(AsyncResponseStream *response, Samplings *p_s, int mc);
 
 const char upload_html[] PROGMEM = R"html(
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html>
 <head>
 <meta http-equiv="content-type" content="text/html; charset=utf-8">
-<meta name="generator" content="PSPad editor, www.pspad.com">
 <title></title>
 </head>
 <body>
 <h1>File uploader</h1>
-<form enctype="multipart/form-data" action="/uploader.html" method="POST">
+<form enctype="multipart/form-data" action="/upload" method="POST">
 <input type="file" name="datafile" />
 <input type="submit" value="Upload"/>
 </form>
@@ -38,7 +37,6 @@ const char update_html[] PROGMEM = R"html(
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
 <html><head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
-<meta name="generator" content="PSPad editor, www.pspad.com">
 <title></title>
 </head>
 <body>
