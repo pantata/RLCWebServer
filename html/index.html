@@ -458,10 +458,11 @@ table {
 /*------------------------------------------------*/
 /* Switch SECTION START*/
 /*------------------------------------------------*/
-div#autoOnOff {
+div.sw  {
 	display: inline-block;
 	vertical-align: middle;
 }
+
 
 .Switch {
 position: relative;
@@ -572,7 +573,7 @@ font-size: 80%;
 }
 
 .ledValLbl {
-width: 4.5em;
+width: 5em;
 float:left;
  font-size: 80%;
 margin-top:-5px; 
@@ -629,7 +630,7 @@ margin-top:-5px;
 
                     <div class="pure-control-group">                              
                         <label for="autoOnOff"><span class="I18N">led.manual</span></label>
-                        <div id="autoOnOff">                    
+                        <div id="autoOnOff" class="sw">                    
                             <div class="Switch Off">
                                 <div class="Toggle"></div>
                                 <span class="Off">Off</span>
@@ -652,7 +653,7 @@ margin-top:-5px;
                       <div class="pure-menu-link pure-menu-heading I18N">led.modules</div>
                         <ul id="ml" class="pure-menu-list"></ul>                                       
                     </div>		
-					<form class="pure-form pure-form-aligned" action="#">
+					<form class="pure-form" action="#">
 					<fieldset>
 					  <legend></legend>
 											  
@@ -665,18 +666,19 @@ margin-top:-5px;
 						  <div><input type="number" name="va5" id="va5" class="ledValLbl"><div class="slider a" id="a5"></div></div>
 						  <div><input type="number" name="va6" id="va6" class="ledValLbl"><div class="slider a" id="a6"></div></div>
 					  </div>
+					  </fieldset>
 					  <div id="chv-submit" style="display:none; margin-top:1em;" >
-					    <div class="pure-control-group">
-					       <label for="led-man-send" class='I18N'>led.send</label>
+					  <div class="pure-control-group">
+					        	<label for="led-cp-man-val" class='I18N'>led.cp-manual</label>
+                            <input type="checkbox" name="led-cp-man-val" id="led-cp-man-val">
+					  </div>
+					    <div class="pure-control-group">		
+					        <label for="led-man-send" class='I18N'>led.send-txt</label>
 					       	<button type="submit" id="led-man-send" class="pure-button pure-button-primary I18N">led.send</button>
 					       	<span class="result" id="led-man-result"></span>
 					   	</div>
-                        <div class="pure-control-group">
-                            <label for="led-cp-man-val" class='I18N'>led.profileName</label>
-                            <input type="checkbox" name="led-cp-man-val" id="led-cp-man-val">
-                        </div>					   	
 					  </div>					  
-					  </fieldset>	
+					  
 					</form>						    	
 				</div> <!-- card -->
 				
@@ -696,9 +698,12 @@ margin-top:-5px;
 			<div class="pure-u-1">
 				<div class="card" id="led-profile-sel">
 				  <div>  
-				    <form action="setProfile.cgi" id="setProfile" name="setProfile" class="pure-form pure-form-aligned"> 
+				    <form action="none" id="setProfile" name="setProfile" class="pure-form pure-form-aligned"> 
 				    	<fieldset>
-						  <div class="pure-control-group"><label class='I18N'>led.profile</label><select name='profileName' id='profileList'></select></div>						  
+						  <div class="pure-control-group"><label class='I18N'>led.profile</label>
+						  <select name='profileName' id='profileList'></select>
+						  <button type="submit" id="led-profile-set" class="pure-button pure-button-primary I18N">led.profile-set</button>
+						  </div>						  
 				    	</fieldset>						
 					</form>	
 				  </div>	
@@ -706,196 +711,46 @@ margin-top:-5px;
 				<div class="card" id="led-mod-sel">
 					<div>
 						<form action="#" id="ledstatus" name="ledstatus" class="pure-form">
+						
 								<div class="bl">
 								<label for="ledsetup-filter-module" class="I18N">led.module</label>
-								<select id="ledsetup-filter-module" name="module"></select>
+									<select id="ledsetup-filter-module" name="module"></select>
 								</div>
 								<div class="bl">
-								<label for="ledsetup-filter-ledchan" class="I18N">led.ch</label>
-								<select id="ledsetup-filter-ledchan">
-									<option value='0' selected="selected" class="I18N">All</option>
-									<option value='1'>CH1</option>
-									<option value='2'>CH2</option>
-									<option value='3'>CH3</option>
-									<option value='4'>CH4</option>
-									<option value='5'>CH5</option>
-									<option value='6'>CH6</option>
-									<option value='7'>CH7</option>
-							   </select>
+									<label for="ledsetup-filter-ledchan" class="I18N">led.ch</label>
+									<select id="ledsetup-filter-ledchan">
+										<option value='0' selected="selected" class="I18N">All</option>
+										<option value='1' class='I18N'>led.ch1</option>
+										<option value='2' class='I18N'>led.ch2</option>
+										<option value='3' class='I18N'>led.ch3</option>
+										<option value='4' class='I18N'>led.ch4</option>
+										<option value='5' class='I18N'>led.ch5</option>
+										<option value='6' class='I18N'>led.ch6</option>
+										<option value='7' class='I18N'>led.ch7</option>
+								   </select>
 							   </div>
-							   <div class="bl1"></div>								
-						</form>
-				</div>
-			</div>
-
-			<div class="pure-u-1"> 
-				<div class="card">
+							    <div class="bl1"></div>								
 					<div id="g1" style="margin-top:1em;"></div>
-					<div><div id="lbls" style="float:right;"></div><div style="clear:both"></div></div>
-					<form class="pure-form pure-form-aligned">
-						<div class="pure-control-group">
-							<label for="led-save-profile" class='I18N'>led.profileName</label>
-							<input type="text" name="profilename" id="profilename">
-							<button id="led-save-profile" class="pure-button pure-button-primary I18N">led.saveAs</button>
-							<span class="result" id="led-save-result"></span>
-						</div>
-                        <div class="pure-control-group">
-                            <label for="led-cp-profile" class='I18N'>led.cpMod</label>
-                            <input type="checkbox" name="led-cp-profile" id="led-cp-profile">
-                        </div>						
-					</form>
-				</div>
-			</div>
-
-		</div>	
-
-		<div class="pure-u-1">
-		<div class="card">			
-				<div class="I18N">led.channel</div>
-
-				<form action="#" id="ledform" name="ledform" class="pure-form">
-				<table class="pure-table pure-table-bordered" id="chvals">
-				  <thead>
-					<tr>
-					  <th>Modul</th>
-					  <th>Channel</th>
-					  <th>Time</th>
-					  <th>Value</th>
-					  <th>efect</th>
-					  <th></th>
-					 </tr>
-				   </thead>
-				   <tbody>
-					   <tr>
-						    <td data-label="Modul">	
-						      <select id="ledmodul" name="modul">
-								<option value="0" selected="selected" class="I18N">led.all</option>
-							   </select>
-							</td>
-							<td data-label="Channel">
-							<select id="ledchan" name="channel">
-								<option value='0' selected="selected" class="I18N" >All</option>
-								<option value='1'>CH1</option>
-								<option value='2'>CH2</option>
-								<option value='3'>CH3</option>
-								<option value='4'>CH4</option>
-								<option value='5'>CH5</option>
-								<option value='6'>CH6</option>
-								<option value='7'>CH7</option>
-							</select>
-							</td>
-							<td data-label="Time">
-							<select id="ledtime" name="timeSlot">
-								<option value='0'>00:00</option>
-								<option value='1'>00:15</option>
-								<option value='2'>00:30</option>
-								<option value='3'>00:45</option>
-								<option value='4'>01:00</option>
-								<option value='5'>01:15</option>
-								<option value='6'>01:30</option>
-								<option value='7'>01:45</option>
-								<option value='8'>02:00</option>
-								<option value='9'>02:15</option>
-								<option value='10'>02:30</option>
-								<option value='11'>02:45</option>
-								<option value='12'>03:00</option>
-								<option value='13'>03:15</option>
-								<option value='14'>03:30</option>
-								<option value='15'>03:45</option>
-								<option value='16'>04:00</option>
-								<option value='17'>04:15</option>
-								<option value='18'>04:30</option>
-								<option value='19'>04:45</option>
-								<option value='20'>05:00</option>
-								<option value='21'>05:15</option>
-								<option value='22'>05:30</option>
-								<option value='23'>05:45</option>
-								<option value='24'>06:00</option>
-								<option value='25'>06:15</option>
-								<option value='26'>06:30</option>
-								<option value='27'>06:45</option>
-								<option value='28'>07:00</option>
-								<option value='29'>07:15</option>
-								<option value='30'>07:30</option>
-								<option value='31'>07:45</option>
-								<option value='32'>08:00</option>
-								<option value='33'>08:15</option>
-								<option value='34'>08:30</option>
-								<option value='35'>08:45</option>
-								<option value='36'>09:00</option>
-								<option value='37'>09:15</option>
-								<option value='38'>09:30</option>
-								<option value='39'>09:45</option>
-								<option value='40'>10:00</option>
-								<option value='41'>10:15</option>
-								<option value='42'>10:30</option>
-								<option value='43'>10:45</option>
-								<option value='44'>11:00</option>
-								<option value='45'>11:15</option>
-								<option value='46'>11:30</option>
-								<option value='47'>11:45</option>
-								<option value='48'>12:00</option>
-								<option value='49'>12:15</option>
-								<option value='50'>12:30</option>
-								<option value='51'>12:45</option>
-								<option value='52'>13:00</option>
-								<option value='53'>13:15</option>
-								<option value='54'>13:30</option>
-								<option value='55'>13:45</option>
-								<option value='56'>14:00</option>
-								<option value='57'>14:15</option>
-								<option value='58'>14:30</option>
-								<option value='59'>14:45</option>
-								<option value='60'>15:00</option>
-								<option value='61'>15:15</option>
-								<option value='62'>15:30</option>
-								<option value='63'>15:45</option>
-								<option value='64'>16:00</option>
-								<option value='65'>16:15</option>
-								<option value='66'>16:30</option>
-								<option value='67'>16:45</option>
-								<option value='68'>17:00</option>
-								<option value='69'>17:15</option>
-								<option value='70'>17:30</option>
-								<option value='71'>17:45</option>
-								<option value='72'>18:00</option>
-								<option value='73'>18:15</option>
-								<option value='74'>18:30</option>
-								<option value='75'>18:45</option>
-								<option value='76'>19:00</option>
-								<option value='77'>19:15</option>
-								<option value='78'>19:30</option>
-								<option value='79'>19:45</option>
-								<option value='80'>20:00</option>
-								<option value='81'>20:15</option>
-								<option value='82'>20:30</option>
-								<option value='83'>20:45</option>
-								<option value='84'>21:00</option>
-								<option value='85'>21:15</option>
-								<option value='86'>21:30</option>
-								<option value='87'>21:45</option>
-								<option value='88'>22:00</option>
-								<option value='89'>22:15</option>
-								<option value='90'>22:30</option>
-								<option value='91'>22:45</option>
-								<option value='92'>23:00</option>
-								<option value='93'>23:15</option>
-								<option value='94'>23:30</option>
-								<option value='95'>23:45</option>					
-							</select>
-							</td>
-							<td data-label="Value"><input type="number" name="value" id="ledval" min="0" max="100" value="0"/></td>
-							<td data-label="Efect"></td>
-							<td><button id="addled" class="pure-button pure-button-primary I18N">add</button></td>
-						</tr>
-					</tbody>
-				</table>
+					<div>
+						<div id="lbls" style="float:right;"></div>
+						<div style="clear:both"></div>
+					</div>
+                    <div class="pure-control-group">
+                         <label for="led-cp-profile" class='I18N'>led.cpMod</label>
+                         <input type="checkbox" name="led-cp-profile" id="led-cp-profile">                            
+                    </div>						
+					
+				    <div class="pure-control-group">
+						<label for="led-save-profile" class='I18N'>led.profileName</label>
+						<input type="text" name="profilename" id="profilename">
+						<button id="led-save-profile" class="pure-button pure-button-primary I18N">led.saveAs</button>
+						<span class="result" id="led-save-result"></span>
+					</div>
 				</form>
 			</div>
+		  </div>
 		</div>	
-		
-	</div> 
-	
+	  </div> 
 	</div><!-- ledsetup -->
 	
 	<div id="wifi" style="display:none;">
@@ -938,13 +793,14 @@ margin-top:-5px;
 					</div>	
 				</div>
 				
-				<div class="card">
+			<div class="card">
 	          	  <h2 id="wifi-assoc" class='I18N'>wifi.assoc</h2>
 	          	  <p id="reconnect" style="color: #600" hidden="true"></p>
 		          <form action="wificonnect.cgi" method="get" id="wifiform" name="wifiform" class="pure-form pure-form-aligned">
-		                <div class="pure-control-group">
-						<label style="float:left" for="APmodeOnOff"><span class="I18N">wifi.apmode&nbsp;</span></label>
-						<div id="apmode">					
+		           		                		                
+		           <div class="pure-control-group">
+						<label for="apmode"><span class="I18N">wifi.apmode</span></label>
+						<div id="apmode" class="sw">					
 							<div class="Switch Off">
 								<div class="Toggle"></div>
 								<span class="Off">AP</span>
@@ -952,9 +808,9 @@ margin-top:-5px;
 							</div>
 						</div>
 						</div>
+						
 					  <input type="text" id="input-apmode" name='apmode' value='2' style="display:none;"/>
-	  		          <fieldset class="setwifi" style="display:none;">
-			            <legend class='I18N'>wifi.ssid_tip</legend>			            
+	  		          <fieldset class="setwifi" style="display:none;">	            
 			            <div id="apscan"><span class='I18N'>wifi.scan</span><div class="spinner spinner-small"></div></div>
 			            <div id="aps" class="pure-control-group"></div>			            			            
 			            <div class="pure-control-group"><label class='I18N'>wifi.ssid</label>
@@ -963,8 +819,8 @@ margin-top:-5px;
 			            <input id="input-wifi-pwd" type="password" name="pwd" placeholder="password"></div>
 			          					
   					    <div class="pure-control-group">
-  					    <label style="float:left" for="dhcpOnOff"><span class="I18N">wifi.dhcp&nbsp;</span></label>
-					    <div id="dhcpOnOff">					
+  					    <label for="dhcpOnOff"><span class="I18N">wifi.dhcp</span></label>
+					    <div id="dhcpOnOff" class="sw">					
 							<div class="Switch On">
 								<div class="Toggle"></div>
 								<span class="Off">Off</span>
@@ -975,7 +831,6 @@ margin-top:-5px;
 						<input type="text" id="input-dhcponoff" name='dhcponoff' value='1' style="display:none;"/>	
 						</fieldset>
 					  <fieldset id="setip" style="display:none;">
-						<legend class='I18N'>wifi.ip_tip</legend>
 			            <div class="pure-control-group"><label class='I18N'>wifi.ip</label><input id="wifi-ip" type="text" name="ip" placeholder="xxx.xxx.xxx.xxx"/></div>
 			            <div class="pure-control-group"><label class='I18N'>wifi.mask</label><input id="wifi-mask" type="text" name="mask" placeholder="xxx.xxx.xxx.xxx"/></div>
 						<div class="pure-control-group"><label class='I18N'>wifi.gw</label><input id="wifi-gw" type="text" name="gw" placeholder="xxx.xxx.xxx.xxx"/></div>
@@ -986,12 +841,10 @@ margin-top:-5px;
 			          	<div class="pure-control-group"><label class='I18N'>wifi.set</label><button id="connect-button" type="submit" class="pure-button pure-button-primary I18N">wifi.connect</button></div>
 			          </fieldset>
 			          
-					  <fieldset id="setapip">
-						<legend class='I18N'>wifi.ap_tip</legend>
-						
+					  <fieldset id="setapip">					
   					    <div class="pure-control-group">
-  					    <label style="float:left" for="apExt"><span class="I18N">wifi.apExt&nbsp;</span></label>
-					    <div id="apExt">					
+  					    <label for="apExt"><span class="I18N">wifi.apExt</span></label>
+					    <div id="apExt" class="sw">					
 							<div class="Switch Off">
 								<div class="Toggle"></div>
 								<span class="Off">Off</span>
@@ -1016,10 +869,9 @@ margin-top:-5px;
 	        	    <h2 id="wifi-assoc" class='I18N'>header.time</h2> 
 	        		<form action="settime.cgi" method="post" id="timeform" name="timeform" class="pure-form pure-form-aligned">
 						<fieldset>
-						<legend class='I18N'>time.setdt</legend>
                             <div class="pure-control-group">
-                                <label style="float:left" for="ntpOnOff"><span class="I18N">time.ntponoff &nbsp;</span></label>
-                                <div id="ntpOnOff">                 
+                                <label for="ntpOnOff"><span class="I18N">time.ntponoff</span></label>
+                                <div id="ntpOnOff" class="sw">                 
                                     <div class="Switch Off">
                                         <div class="Toggle"></div>
                                         <span class="Off">Off</span>
@@ -1086,6 +938,7 @@ margin-top:-5px;
 							 
 							<div class="pure-controls">
 								<button type="submit" class="pure-button pure-button-primary I18N">time.set</button>
+								<span class="result" id="time-save-result"></span>
 							</div>
 
 						</fieldset>  			  
@@ -1129,6 +982,6 @@ margin-top:-5px;
 
 </div> <!-- layout -->
 <div id="cursor" style="display:none;"></div>
-<script type="text/javascript" src="nereus.js"></script>
+<!script type="text/javascript" src="nereus.js"></script-->
 </body>
 </html>

@@ -1,0 +1,16 @@
+{"mode":"AP",
+"chan":"7",
+"ssid":"ESPTEST",
+"status":"WL_CONNECTED",
+"localIp":"192.168.168.105",
+"localMask":"255.255.255.0",
+"localGw":"192.168.168.2",
+"apIp":"192.168.1.4",
+"rssi":"-64",
+"phy":"3",
+"mac":"5C:CF:7F:04:C4:B6",
+"psk":"hesloheslo",
+"bssid":"90:F6:52:6C:9B:27",
+"host":"esp-async",
+"warn":""
+}

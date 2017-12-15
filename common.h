@@ -27,7 +27,7 @@ extern SoftwareSerial DEBUGSER;
 #define PRINT_CONFIG(c) for(;0;)
 #endif
 
-#define BAUD_RATE 250000
+#define BAUD_RATE 230400
 #define BAUD_RATE_A 115200
 
 #define PING '0'/*char(255) */
@@ -40,20 +40,21 @@ extern SoftwareSerial DEBUGSER;
 #define CODE61 '1'
 #define CODE9 '9'/* char(9) */
 #define BREAK '\n'
+#define TEMPERATURE '8'
 
 #define PING_OK   "\x0OK\x0\x0\x0\x0\x0"
-#define CHANGE_OK "\x1%c\x0\x0\x0\x0\x0\x0"
-#define TIME_OK   "\x2%c%c%c%c%c\x0\x0"
+#define CHANGE_OK "\x1%c\xff\xff\xff\xff\xff\xff"
+#define TIME_OK   "\x6%c%c%c%c%c\xff\xff"
 #define _OK       "\x0OK\x0\x0\x0\x0\x0"
 
 
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
-#define MAX_PWM 1024
+#define MAX_PWM 4000
 #define MAX_MODULES 16
 
 #define AP_IP   String("192.168.4.1")
 #define AP_MASK String("255.255.255.0")
-#define HOSTNAME String("NEREUS") + String(ESP.getChipId(), HEX);
+#define HOSTNAME String("NEREUS") + String(ESP.getChipId(), HEX)
 #define DNS_PORT 53
 #define TIMESERVER "pool.ntp.org"
 
@@ -62,18 +63,21 @@ extern SoftwareSerial DEBUGSER;
 #define SAMPLING_UINT8_MAX_VALUE 255
 #define TIMEDELAY 10UL
 
-#ifdef DEBUG
 #define NTPSYNCINTERVAL  3600
-#else
-#define NTPSYNCINTERVAL  60
-#endif
 
 #define WAIT_FOR_WIFI 10000
-#define WIFI_RETRY_COUNT 3
-#define WIFI_RETRY 5000
+#define WIFI_RETRY_COUNT 10  //10 pokusu po 60 sec = 10 minut
+#define WIFI_RETRY_TIMEOUT 60000
 
 #define LEDAUTO    0
 #define LEDMANUAL  1
+
+
+typedef enum {
+    W_DISCONNECT       =  0,
+    W_CONNECTED        =  1,
+    W_AP_STARTED   	   =  2
+} wifi_is_connected_t;
 
 struct Config {
     String ssid; // par ssid
@@ -128,7 +132,7 @@ struct WifiNetworks {
     int32_t channel;
     uint8_t enc;
     bool exist=false;
-} ;
+};
 
 union Unixtime {
     uint32_t time;
@@ -147,12 +151,15 @@ extern bool shouldReboot;
 extern byte modulesCount;
 extern bool arduinoFlash;
 
+
 extern const char* str_wifistatus[];
 extern const char* str_wifimode[];
 extern const char* str_wifiauth[];
 extern const char* str_timestatus[];
 
-enum t_changed  {NONE, LED, MANUAL, TIME, WIFI, IP, LANG} ;
+extern int8_t modulesTemperature[];
+
+enum t_changed  {NONE, LED, MANUAL, TIME, TIME_CONFIG, WIFI, IP, LANG} ;
 
 extern t_changed changed;
 extern uint8_t lang;
@@ -165,6 +172,10 @@ extern const char *str_lang[4];
 
 #define LOW_BYTE(x)        	(x & 0xff)
 #define HIGH_BYTE(x)       	((x >> 8) & 0xff)
+
+extern String inputString;
+extern boolean stringComplete;
+extern bool incomingLedValues;
 
 
 

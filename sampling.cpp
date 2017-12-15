@@ -276,7 +276,7 @@ uint16_t getSamplingValue(uint8_t modul,uint8_t channel)
         return startval;
     }
 
-    return constrain(ret, 0, 1000);
+    return constrain(ret, 0, MAX_PWM);
 
 }
 
@@ -293,4 +293,9 @@ int16_t StringToInt(String s)
 uint16_t StringToUint16_t(String s)
 {
     return (uint16_t)atoi(s.c_str());
+
+
 }
+
+
+

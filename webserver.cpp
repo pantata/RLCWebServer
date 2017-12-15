@@ -23,7 +23,50 @@
 
 #include "avrUpdate.h"
 
+extern "C" void system_set_os_print(uint8 onoff);
+extern "C" void ets_install_putc1(void* routine);
+
+// Maximum number of simultaned clients connected (WebSocket)
+#define MAX_WS_CLIENT 5
+
+#define CLIENT_NONE     0
+#define CLIENT_ACTIVE   1
+
+#define HELP_TEXT "[[b;green;]WebSocket2Serial HELP]\n" \
+                  "---------------------\n" \
+                  "[[b;cyan;]?] or [[b;cyan;]help] show this help\n" \
+                  "[[b;cyan;]swap]      swap serial UART pin to GPIO15/GPIO13\n" \
+                  "[[b;cyan;]ping]      send ping command\n" \
+                  "[[b;cyan;]heap]      show free RAM\n" \
+                  "[[b;cyan;]whoami]    show client # we are\n" \
+                  "[[b;cyan;]who]       show all clients connected\n" \
+                  "[[b;cyan;]fw]        show firmware date/time\n"  \
+                  "[[b;cyan;]baud n]    set serial baud rate to n\n" \
+                  "[[b;cyan;]reset p]   reset gpio pin number p\n" \
+                  "[[b;cyan;]ls]        list SPIFFS files\n" \
+                  "[[b;cyan;]read file] send SPIFFS file to serial (read)"
+
+bool serialSwapped = false;
+
+// Web Socket client state
+typedef struct {
+  uint32_t  id;
+  uint8_t   state;
+} _ws_client;
+
+//Use the internal hardware buffer
+static void _u0_putc(char c){
+  while(((U0S >> USTXC) & 0x7F) == 0x7F);
+  U0F = c;
+}
+
 AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
+
+// State Machine for WebSocket Client;
+_ws_client ws_client[MAX_WS_CLIENT];
+
+
 time_t utc;
 
 DstRule cest = { Mar, Second, Sun, 2, 120};  //UTC + 2 hours
@@ -55,7 +98,106 @@ public:
     }
 };
 
+void execCommand(AsyncWebSocketClient * client, char * msg) {
+  uint16_t l = strlen(msg);
+  uint8_t index=MAX_WS_CLIENT;
 
+  // Search if w're known client
+  if (client) {
+    for (index=0; index<MAX_WS_CLIENT ; index++) {
+      // Exit for loop if we are there
+      if (ws_client[index].id == client->id() )
+        break;
+    } // for all clients
+  }
+
+
+}
+
+void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventType type, void * arg, uint8_t *data, size_t len){
+  if(type == WS_EVT_CONNECT){
+    uint8_t index;
+    os_printf("ws[%s][%u] connect\n", server->url(), client->id());
+
+    for (index=0; index<MAX_WS_CLIENT ; index++) {
+      if (ws_client[index].id == 0 ) {
+        ws_client[index].id = client->id();
+        ws_client[index].state = CLIENT_ACTIVE;
+        os_printf("added #%u at index[%d]\n", client->id(), index);
+        client->printf("[[b;green;]Hello Client #%u, added you at index %d]", client->id(), index);
+        client->ping();
+        break; // Exit for loop
+      }
+    }
+    if (index>=MAX_WS_CLIENT) {
+      os_printf("not added, table is full");
+      client->printf("[[b;red;]Sorry client #%u, Max client limit %d reached]", client->id(), MAX_WS_CLIENT);
+      client->ping();
+    }
+
+  } else if(type == WS_EVT_DISCONNECT){
+    os_printf("ws[%s][%u] disconnect: %u\n", server->url(), client->id());
+    for (uint8_t i=0; i<MAX_WS_CLIENT ; i++) {
+      if (ws_client[i].id == client->id() ) {
+        ws_client[i].id = 0;
+        ws_client[i].state = CLIENT_NONE;
+        os_printf("freed[%d]\n", i);
+        break; // Exit for loop
+      }
+    }
+  } else if(type == WS_EVT_ERROR){
+    os_printf("ws[%s][%u] error(%u): %s\n", server->url(), client->id(), *((uint16_t*)arg), (char*)data);
+  } else if(type == WS_EVT_PONG){
+    os_printf("ws[%s][%u] pong[%u]: %s\n", server->url(), client->id(), len, (len)?(char*)data:"");
+  } else if(type == WS_EVT_DATA){
+    //data packet
+    AwsFrameInfo * info = (AwsFrameInfo*) arg;
+    char * msg = NULL;
+    size_t n = info->len;
+    uint8_t index;
+
+    // Size of buffer needed
+    // String same size +1 for \0
+    // Hex size*3+1 for \0 (hex displayed as "FF AA BB ...")
+    n = info->opcode == WS_TEXT ? n+1 : n*3+1;
+
+    msg = (char*) calloc(n, sizeof(char));
+    if (msg) {
+      // Grab all data
+      for(size_t i=0; i < info->len; i++) {
+        if (info->opcode == WS_TEXT ) {
+          msg[i] = (char) data[i];
+        } else {
+          sprintf_P(msg+i*3, PSTR("%02x "), (uint8_t) data[i]);
+        }
+      }
+    }
+
+    os_printf("ws[%s][%u] message %s\n", server->url(), client->id(), msg);
+
+    // Search if it's a known client
+    for (index=0; index<MAX_WS_CLIENT ; index++) {
+      if (ws_client[index].id == client->id() ) {
+        os_printf("known[%d] '%s'\n", index, msg);
+        os_printf("client #%d info state=%d\n", client->id(), ws_client[index].state);
+
+        // Received text message
+        if (info->opcode == WS_TEXT) {
+          execCommand(client, msg);
+        } else {
+          os_printf("Binary 0x:%s", msg);
+        }
+        // Exit for loop
+        break;
+      } // if known client
+    } // for all clients
+
+    // Free up allocated buffer
+    if (msg)
+      free(msg);
+
+  } // EVT_DATA
+}
 
 void sendJsonResultResponse(AsyncWebServerRequest *request, bool cond, String okResultText, String errorResultText,uint32_t processedTime) {
     AsyncResponseStream *response = request->beginResponseStream("text/json");
@@ -141,7 +283,7 @@ void onSaveSampling(AsyncWebServerRequest *request, String filename, size_t inde
     if(final) {
         DEBUG_MSG("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
         request->send_P(200, "text/html", "File was successfully uploaded");
-
+//TODO: odstranit a nechat pouze u setProfile
         //reload sampling
         config.profileFileName = filename;
         saveConfig();
@@ -820,6 +962,14 @@ void webserver_begin() {
     	 sendJsonResultResponse(request,true);
     	 changed = MANUAL;
     });
+
+     ws.onEvent(onEvent);
+     server.addHandler(&ws);
+
+     server.on("/heap", HTTP_GET, [](AsyncWebServerRequest *request){
+       request->send(200, "text/plain", String(ESP.getFreeHeap()));
+     });
+
 
     server.begin();
     DEBUG_MSG("%s\n","HTTP server started");

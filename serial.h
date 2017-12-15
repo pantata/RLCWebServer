@@ -10,19 +10,21 @@
 #ifndef serial_h
 #define serial_h
 
-bool incomingLedValues = false;
+uint16_t checkCrc(char *data);
 
 void uartGetPing();
 void uartIsChanged();
 void uartGetTime();
 void uartGetConfig(String data);
 void sendLedVal() ;
+void sendTimeConfig();
 
-
-void getNetValues(String data);
+void sendNetValues();
 void setManual(String data);
 void process9(String data);
 
 void saveManualLedValues(char chr);
+
+void processIncomingSerial();
 
 #endif /* serial_h */

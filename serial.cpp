@@ -92,10 +92,8 @@ bool sendSerialPacket(char *data) {
     data[6] = LOW_BYTE(crc);
 	data[7] = HIGH_BYTE(crc);
 	Serial.write(data,8);
-	if (waitForRespond() == false) {
-	    Serial.flush();
-	    return 1;
-	}
+	Serial.flush();
+	waitForRespond();
 	memset(data,0,8);
 	return 0;
 }
@@ -106,8 +104,8 @@ void uartGetPing() {
 	tmpbuff[6] = LOW_BYTE(crc);
 	tmpbuff[7] = HIGH_BYTE(crc);
     Serial.write(tmpbuff,8);
-    waitForRespond();
     Serial.flush();
+    waitForRespond();
 }
 
 void uartIsChanged() {
@@ -117,8 +115,8 @@ void uartIsChanged() {
 	tmpbuff[6] = LOW_BYTE(crc);
 	tmpbuff[7] = HIGH_BYTE(crc);
     Serial.write(tmpbuff,8);
-    waitForRespond();
     Serial.flush();
+    waitForRespond();
 }
 
 void uartGetTime() {  // get time
@@ -134,9 +132,38 @@ void uartGetTime() {  // get time
 	tmpbuff[6] = LOW_BYTE(crc);
 	tmpbuff[7] = HIGH_BYTE(crc);
     Serial.write(tmpbuff,8);
-    waitForRespond();
     Serial.flush();
+    waitForRespond();
 	DEBUG_MSG("Time: %c %02x %02x %02x %02x 000\n",timeStatus()+48,unixtime.btime[0],unixtime.btime[1],unixtime.btime[2],unixtime.btime[3]);
+}
+
+void sendTimeConfig() {
+	  char tmpbuff[9] =  {0,0,0,0,0,0,0,0};
+	  char databuff[8] = {0,0,0,0,0,0,0,0};
+	  //nejdrive hlavicka
+	  tmpbuff[0] = 3; //typ odpovedi
+	  tmpbuff[1] = 6; //delka dat, minimalni delka paketu dat je 6 byte
+	  tmpbuff[2] = 0;
+	  uint16_t crc = getCrc(tmpbuff);
+	  tmpbuff[6] = LOW_BYTE(crc);
+	  tmpbuff[7] = HIGH_BYTE(crc);
+	  Serial.write(tmpbuff,8);
+	  Serial.flush();
+	  if (waitForRespond() == false) return;
+
+	  //vlastni data
+	  databuff[0] = config.lcdTimeout; //timeout lcd
+	  databuff[1] = config.menuTimeout; //timeout menu
+	  databuff[2] = config.dtFormat; //format date
+	  databuff[3] = config.tmFormat; //format time
+	  databuff[4] = config.useDST; //useDST
+	  crc = getCrc(databuff);
+	  databuff[6] = LOW_BYTE(crc);
+	  databuff[7] = HIGH_BYTE(crc);
+
+	  Serial.write(databuff,8);
+	  Serial.flush();
+	  waitForRespond();
 }
 
 void uartGetConfig(String data) {
@@ -170,10 +197,9 @@ void uartGetConfig(String data) {
   tmpbuff[6] = LOW_BYTE(crc);
   tmpbuff[7] = HIGH_BYTE(crc);
   Serial.write(tmpbuff,8);
-  if (waitForRespond() == false) {
-	  Serial.flush();
-	  return;
-  }
+  Serial.flush();
+  if (waitForRespond() == false) return;
+
   //vlastni data
   databuff[0] = config.lcdTimeout; //timeout lcd
   databuff[1] = config.menuTimeout; //timeout menu
@@ -185,6 +211,7 @@ void uartGetConfig(String data) {
   databuff[7] = HIGH_BYTE(crc);
 
   Serial.write(databuff,8);
+  Serial.flush();
   waitForRespond();
 
   //nactena data zpracujeme
@@ -215,26 +242,29 @@ void sendLedVal() {
 	tmpbuff[0] = config.manual?12:10; //typ odpovedi
 	tmpbuff[1] = LOW_BYTE(LEN); //delka dat
 	tmpbuff[2] = HIGH_BYTE(LEN);
-	uint16_t crc = getCrc(tmpbuff);
-	tmpbuff[6] = LOW_BYTE(crc);
-	tmpbuff[7] = HIGH_BYTE(crc);
-	Serial.write(tmpbuff,8);
-	if (waitForRespond() == false) {
-	  Serial.flush();
-	  return;
-	}
+	sendSerialPacket(tmpbuff);
+	//uint16_t crc = getCrc(tmpbuff);
+	//tmpbuff[6] = LOW_BYTE(crc);
+	//tmpbuff[7] = HIGH_BYTE(crc);
+	//Serial.write(tmpbuff,8);
+	//Serial.flush();
+	//if (waitForRespond() == false) {
+	  //return;
+	//}
 	for (int x=0;x<MAX_MODULES;x++) {
 		for (int i=0;i<7;i++) {
 			if (b > 5) { //calc crc, send
-				crc = getCrc(databuff);
-				databuff[6] = LOW_BYTE(crc);
-				databuff[7] = HIGH_BYTE(crc);
-				Serial.write(databuff,8);
-				if (waitForRespond() == false) {
-				  Serial.flush();
-				  return;
-				}
-				memset(databuff,0,8);
+
+				sendSerialPacket(databuff);
+				//crc = getCrc(databuff);
+				//databuff[6] = LOW_BYTE(crc);
+				//databuff[7] = HIGH_BYTE(crc);
+				//Serial.write(databuff,8);
+				//Serial.flush();
+				//if (waitForRespond() == false) {
+				  //return;
+				//}
+				//memset(databuff,0,8);
 				b = 0;
 				c++;
 			}
@@ -252,12 +282,14 @@ void sendLedVal() {
 		//DEBUG_MSG("\n");
 	}
 	c++;
-	crc = getCrc(databuff);
-	databuff[6] = LOW_BYTE(crc);
-	databuff[7] = HIGH_BYTE(crc);
-	Serial.write(databuff,8);
-	waitForRespond();
-	Serial.flush();
+	sendSerialPacket(databuff);
+	//crc = getCrc(databuff);
+	//databuff[6] = LOW_BYTE(crc);
+	//databuff[7] = HIGH_BYTE(crc);
+	//Serial.write(databuff,8);
+	//Serial.flush();
+	//waitForRespond();
+
 	startTime =  millis() - startTime;
 	DEBUG_MSG("\nTIME:%ld\n",startTime);
 }
@@ -282,58 +314,73 @@ void process4()
     DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n",day(),month(),year(),hour(),minute(),second());
 }
 
-void getNetValues(String data) {
+void sendNetValues() {
 	  char tmpbuff[9] =  {0,0,0,0,0,0,0,0};
 	  char databuff[8] = {0,0,0,0,0,0,0,0};
 	  //nejdrive hlavicka
 	  tmpbuff[0] = 14; //typ odpovedi
 	  //4 byte IP + delka ssid + delka pwd ...
-	  uint8_t LEN = (4 + 1) + (config.appwd.length +1) + (config.appwd.length + 1);
-	  tmpbuff[1] = LOW_BYTE(LEN); //delka dat
-	  tmpbuff[2] = HIGH_BYTE(LEN);
+	  uint8_t dt_len = 4 + 2 + config.ssid.length() + 1 +config.hostname.length() + 1 + config.appwd.length() + 1;
+	  tmpbuff[1] = LOW_BYTE(dt_len); //delka dat
+	  tmpbuff[2] = HIGH_BYTE(dt_len);
 
-	  if (sendSerialPacket(tmpbuff)) return;
+	  sendSerialPacket(tmpbuff);
 
 	  //vlastni data
-	  databuff[0] = 0; //ip1
-	  databuff[1] = 0; //ip2
-	  databuff[2] = 0; //ip3
-	  databuff[3] = 0; //ip4
-	  databuff[4] = 0; //reserved
-	  if (sendSerialPacket(databuff)) return;
+	  //nejdrive IP adresa, 6byte +kontrolni soucet
+	  IPAddress addr;
+	  if (WiFi.getMode() == WIFI_AP)
+		  addr = WiFi.softAPIP();
+	  else
+		  addr = WiFi.localIP();
+	  databuff[0] = addr[0];
+	  databuff[1] = addr[1]; //ip2
+	  databuff[2] = addr[2]; //ip3
+	  databuff[3] = addr[3]; //ip4
+	  databuff[4] = 0xff; //reserved
+	  databuff[5] = 0xff; //reserved
+	  sendSerialPacket(databuff);
 
+	  //ssid a pwd
 	  uint8_t b = 0;
-	  //ssid
-	  for ( uint8_t i = 0; i<config.ssid.length; i++) {
+	  for ( uint8_t i = 0; i<WiFi.hostname().length(); i++) {
+	  		  if (b > 5) {
+	  			  if (sendSerialPacket(databuff)) return;
+	  			  b = 0;
+	  		  }
+	  		  databuff[b] = WiFi.hostname().charAt(i);
+	  		  b = b + 1;
+	  }
+	  databuff[b] = 0xff; //oddelovac
+	  b++;
+	  for ( uint8_t i = 0; i<WiFi.psk().length(); i++) {
 		  if (b > 5) {
 			  if (sendSerialPacket(databuff)) return;
 			  b = 0;
 		  }
-		  databuff[b] = config.ssid.charAt(i);
+		  databuff[b] = WiFi.psk().charAt(i);
 		  b = b + 1;
 	  }
-	  databuff[b] = 0; //oddelovac
+	  databuff[b] = 0xff; //oddelovac
 	  b++;
-	  //pwd
-	  for ( uint8_t i = 0; i<config.pwd.length; i++) {
+	  for ( uint8_t i = 0; i<WiFi.SSID().length(); i++) {
 		  if (b > 5) {
-			  //send paket
 			  if (sendSerialPacket(databuff)) return;
 			  b = 0;
 		  }
-		  databuff[b] = config.pwd.charAt(i);
+		  databuff[b] = WiFi.SSID().charAt(i);
 		  b = b + 1;
 	  }
 
 
 	  //zbytek, na konci je vzdy 0
 	  if (b > 5) {
-		  if (sendSerialPacket(databuff)) return;
+		  sendSerialPacket(databuff);
 		  databuff[0] = 0;
-		  if (sendSerialPacket(databuff)) return;
+		  sendSerialPacket(databuff);
 	  } else {
 		  databuff[b] = 0;
-		  if (sendSerialPacket(databuff)) return;
+		  sendSerialPacket(databuff);
 	  }
 
 }
@@ -354,6 +401,8 @@ void setManual(String data) {
 	tmpbuff[7] = HIGH_BYTE(crc);
     Serial.write(tmpbuff,8);
     Serial.flush();
+	waitForRespond();
+
 }
 
 void process9(String data)
@@ -408,4 +457,55 @@ void saveManualLedValues(char chr) {
 		count = 0; b = 0; lv.l = 0;
 		incomingLedValues = false;
 	}
+}
+
+void processTemperature(String data) {
+
+ 	 static bool startProcessTemp = false;
+     static uint8_t modulesCnt = 0;
+	 static uint8_t pckt_cnt = 0;
+	 uint8_t inc_pckt = 0;
+	 static uint8_t i = 0;
+
+	 if (startProcessTemp) {
+		 for (uint8_t x=2;x< 6;x++) {
+			 if (data.charAt(x) != 255) {
+				 modulesTemperature[i++] = data.charAt(x);
+				 modulesCnt--;
+			 }
+		 }
+		 if (modulesCnt == 0) {
+			 startProcessTemp = false;
+			 i = 0;
+			 pckt_cnt = 0;
+			 modulesCnt = 0;
+		 }
+
+	 } else {
+		 //prvni paket
+		 startProcessTemp = true;
+		 modulesCnt = data.charAt(2);;
+		 pckt_cnt = data.charAt(3);
+	 }
+}
+
+void processIncomingSerial() {
+
+        switch(inputString.charAt(0)) {
+            case PING: uartGetPing(); break;
+            case GETCHANGE:   uartIsChanged(); break;
+            case GETTIME:   uartGetTime(); break;
+            case GETCONFIG:   uartGetConfig(inputString); break;
+            case GETLEDVALUES:   sendLedVal(); break;
+            case GETNETVALUES:   sendNetValues(); break;
+            case SETMANUAL:   setManual(inputString); break;
+            case CODE9:   process9(inputString); break;
+            case TEMPERATURE: processTemperature(inputString); break;
+            default:
+            	DEBUG_MSG("default -%x-\n",inputString.charAt(0));
+            break;
+
+        }
+        DEBUG_MSG("String input : %s\n",inputString.c_str());
+        //Serial.flush();
 }
