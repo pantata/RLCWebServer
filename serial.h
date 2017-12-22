@@ -14,15 +14,16 @@ uint16_t checkCrc(char *data);
 
 void uartGetPing();
 void uartIsChanged();
-void uartGetTime();
+void uartSendTime();
 void uartGetConfig(String data);
 void sendLedVal() ;
-void sendTimeConfig();
+void uartSendTimeConfig();
 
-void sendNetValues();
+void uartSendNetValues();
 void setManual(String data);
-void process9(String data);
-
+void setVersionInfo(String data);
+void uartGetVersionInfo();
+void uartGetTemperatureInfo();
 void saveManualLedValues(char chr);
 
 void processIncomingSerial();

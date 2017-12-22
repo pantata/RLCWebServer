@@ -703,6 +703,7 @@ margin-top:-5px;
 						  <div class="pure-control-group"><label class='I18N'>led.profile</label>
 						  <select name='profileName' id='profileList'></select>
 						  <button type="submit" id="led-profile-set" class="pure-button pure-button-primary I18N">led.profile-set</button>
+						  <span id="set-profile-result"></span>
 						  </div>						  
 				    	</fieldset>						
 					</form>	
@@ -794,7 +795,8 @@ margin-top:-5px;
 				</div>
 				
 			<div class="card">
-	          	  <h2 id="wifi-assoc" class='I18N'>wifi.assoc</h2>
+	          	  <h2 id="wifi-title" class='I18N'>wifi.title</h2>
+	          	  <h3 id="wifi-assoc" class='I18N'>wifi.assoc</h3>
 	          	  <p id="reconnect" style="color: #600" hidden="true"></p>
 		          <form action="wificonnect.cgi" method="get" id="wifiform" name="wifiform" class="pure-form pure-form-aligned">
 		           		                		                
@@ -879,6 +881,7 @@ margin-top:-5px;
                                     </div>
                                 </div>
                             </div>  
+                            
                             <input name="use-ntp" id="use-ntp" type="text" value="1" style="display:none;">
                              <div id="time-setntp">
                                 <div class="pure-control-group">
@@ -886,49 +889,69 @@ margin-top:-5px;
                                     <input name="ntpip" id="ntpip" type="text" placeholder="xxx.xxx.xxx.xxx">
                                 </div>  
                              </div>						
-						     
-						     <div class="pure-controls">
-						        <label for="useDST" class=" pure-checkbox"> 
-						          <input name="useDST" id="useDST" type="checkbox"/>&nbsp;<span class="I18N">time.useDST</span>
-						        </label>
-						     </div>
-                    		 <div class="pure-control-group">		     
-                                <label for="dstStart" class="I18N">time.dstStart</label>
-                                <select name="dstStartMonth" id="dstStartMonth">
-                                </select>
-                                <select name="dstStartDay" id="dstStartDay">
-                                </select>
-                                <select name="dstStartWeek" id="dstStartWeek">
-                                </select>
-                                <select name="dstStartOffset" id="dstStartOffset">
-                                </select>
-                             </div>
-                             <div class="pure-control-group">            
-                                <label for="dstEnd" class="I18N">time.dstEnd</label>
-                                <select name="dstEndMonth" id="dstEndMonth">
-                                </select>
-                                <select name="dstEndDay" id="dstEndDay">
-                                </select>
-                                <select name="dstEndWeek" id="dstEndWeek">
-                                </select>
-                                <select name="dstEndOffset" id="dstEndOffset">
-                                </select>
-                             </div>                             
-            
+
 							 <div id="time-set">
-							 <div class="pure-control-group">
-								<label for="dd" class="I18N">time.date</label>
-								<input name="yy" id="yy" type="number"  min="0" max="30" placeholder="YY">
-                                <select name="mm" id="mm">
-                                </select>								
-								<input name="dd" id="dd" type="number" min="1" max="31" placeholder="DD">								
-							 </div>
+								 <div class="pure-control-group">
+									<label for="dd" class="I18N">time.date</label>
+									<input name="yy" id="yy" type="number"  min="0" max="30" placeholder="YY">
+									<select name="mm" id="mm">
+									</select>								
+									<input name="dd" id="dd" type="number" min="1" max="31" placeholder="DD">								
+								 </div>
 							 
-							 <div class="pure-control-group">
-							 	<label for="hh" class="I18N">time.time</label>
-							 	<input name="hh" id="hh" type="number" min="0" max="23" placeholder="HH24">
-							 	<input name="mi" id="mi" type="number" min="0" max="59" placeholder="MI"></div>
+								 <div class="pure-control-group">
+									<label for="hh" class="I18N">time.time</label>
+									<input name="hh" id="hh" type="number" min="0" max="23" placeholder="HH24">
+									<input name="mi" id="mi" type="number" min="0" max="59" placeholder="MI">
+								 </div>
 							 </div>	
+						
+
+						     
+						     <div class="pure-control-group">
+                                <label for="dstOnOff"><span class="I18N">time.useDST</span></label>
+                                <div id="dstOnOff" class="sw">                 
+                                    <div class="Switch Off">
+                                        <div class="Toggle"></div>
+                                        <span class="Off">Off</span>
+                                        <span class="On">On</span>
+                                    </div>
+                                </div>
+						     </div>
+						     
+							 <div id="timezone-set">								
+								 <div class="pure-control-group">
+									<label for="dd" class="I18N">time.timezone</label>
+									<select name="timezone" id="timezone"></select>								
+								 </div>
+							 </div>	 						     
+						     
+						     <input name="use-dst" id="use-dst" type="text" value="1" style="display:none;">
+						     <div id="set-dst">
+								 <div class="pure-control-group">		     
+									<label for="dstStart" class="I18N">time.dstStart</label>
+									<select name="dstStartMonth" id="dstStartMonth">
+									</select>
+									<select name="dstStartDay" id="dstStartDay">
+									</select>
+									<select name="dstStartWeek" id="dstStartWeek">
+									</select>
+									<select name="dstStartOffset" id="dstStartOffset">
+									</select>
+								 </div>
+								 <div class="pure-control-group">            
+									<label for="dstEnd" class="I18N">time.dstEnd</label>
+									<select name="dstEndMonth" id="dstEndMonth">
+									</select>
+									<select name="dstEndDay" id="dstEndDay">
+									</select>
+									<select name="dstEndWeek" id="dstEndWeek">
+									</select>
+									<select name="dstEndOffset" id="dstEndOffset">
+									</select>
+								 </div>                             
+            				 </div>
+
 							 
                              <div class="pure-control-group">
                                 <label for="dateFormat" class="I18N">time.dtFormat</label>
@@ -982,6 +1005,6 @@ margin-top:-5px;
 
 </div> <!-- layout -->
 <div id="cursor" style="display:none;"></div>
-<!script type="text/javascript" src="nereus.js"></script-->
+<script type="text/javascript" src="nereus.js"></script>
 </body>
 </html>

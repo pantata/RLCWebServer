@@ -61,11 +61,14 @@ static void _u0_putc(char c){
 }
 
 AsyncWebServer server(80);
+
+#ifdef DEBUG
 AsyncWebSocket ws("/ws");
+
 
 // State Machine for WebSocket Client;
 _ws_client ws_client[MAX_WS_CLIENT];
-
+#endif
 
 time_t utc;
 
@@ -98,6 +101,7 @@ public:
     }
 };
 
+#ifdef DEBUG
 void execCommand(AsyncWebSocketClient * client, char * msg) {
   uint16_t l = strlen(msg);
   uint8_t index=MAX_WS_CLIENT;
@@ -198,6 +202,7 @@ void onEvent(AsyncWebSocket * server, AsyncWebSocketClient * client, AwsEventTyp
 
   } // EVT_DATA
 }
+#endif
 
 void sendJsonResultResponse(AsyncWebServerRequest *request, bool cond, String okResultText, String errorResultText,uint32_t processedTime) {
     AsyncResponseStream *response = request->beginResponseStream("text/json");
@@ -283,19 +288,8 @@ void onSaveSampling(AsyncWebServerRequest *request, String filename, size_t inde
     if(final) {
         DEBUG_MSG("UploadEnd: %s (%u)\n", filename.c_str(), index+len);
         request->send_P(200, "text/html", "File was successfully uploaded");
-//TODO: odstranit a nechat pouze u setProfile
-        //reload sampling
-        config.profileFileName = filename;
-        saveConfig();
-        bool lok=loadSamplingStruct(config.profileFileName,&samplings);
-        if (lok==true) {
-          DEBUG_MSG("loadSamplingStruct from file %s loaded successfully, size: %d, pocet:%d\n",config.profileFileName.c_str(),sizeof(samplings),(sizeof(samplings)-2)/sizeof(Sampling));
-        } else {
-          DEBUG_MSG("loadSamplingStruct from file %s loaded with error\n",config.profileFileName.c_str());
-        }
     }
     f.close();
-    changed = LED;
 }
 
 //Handle upload file
@@ -377,7 +371,7 @@ void setLang (AsyncWebServerRequest *request)  {
 void setTimeCgi(AsyncWebServerRequest *request) {
     String useNtp=request->arg("use-ntp");
     String ntpip=request->arg("ntpip");
-    String useDST=request->arg("useDST");
+    String useDST=request->arg("use-dst");
     String dstStartMonth=request->arg("dstStartMonth");
     String dstStartDay=request->arg("dstStartDay");
     String dstStartWeek=request->arg("dstStartWeek");
@@ -386,6 +380,7 @@ void setTimeCgi(AsyncWebServerRequest *request) {
     String dstEndDay=request->arg("dstEndDay");
     String dstEndWeek=request->arg("dstEndWeek");
     String dstEndOffset=request->arg("dstEndOffset");
+    String timezone=request->arg("timezone");
     String yy=request->arg("yy");
     String mm=request->arg("mm");
     String dd=request->arg("dd");
@@ -396,9 +391,8 @@ void setTimeCgi(AsyncWebServerRequest *request) {
     
     DEBUG_MSG("setTime.cgi started with parameters use-ntp=%s, ntpip=%s  \n",useNtp.c_str(),ntpip.c_str());
 
-    if (useDST.compareTo(String("on"))) {
-    	config.useDST = true;
-
+    if (useDST.toInt()) {
+    		config.useDST = true;
 		config.tzRule.dstStart.day = atoi(dstStartDay.c_str());
 		config.tzRule.dstStart.month = atoi(dstStartMonth.c_str());
 		config.tzRule.dstStart.week = atoi(dstStartWeek.c_str());
@@ -408,19 +402,17 @@ void setTimeCgi(AsyncWebServerRequest *request) {
 		config.tzRule.dstEnd.month = atoi(dstEndMonth.c_str());
 		config.tzRule.dstEnd.week = atoi(dstEndWeek.c_str());
 		config.tzRule.dstEnd.offset = dstOffset[atoi(dstEndOffset.c_str())];
-
-		DEBUG_MSG("Timezone set\n");
-
+    } else {
+    		config.tzRule.dstEnd.offset = dstOffset[atoi(timezone.c_str())];
     }
 
     if (useNtp.toInt()) {
         config.useNtp=true;
         config.ntpServer=String(ntpip);
-        DEBUG_MSG("setTime.cgi saved config.useNtp=%s, config.ntpServer=%s \n","true",config.ntpServer.c_str());
         syncTime = true;
     } else {
         config.useNtp=false;
-        Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
+
         tmElements_t t;
         t.Day = atoi(dd.c_str());
         t.Month = atoi(mm.c_str());
@@ -429,7 +421,12 @@ void setTimeCgi(AsyncWebServerRequest *request) {
         t.Minute = atoi(mi.c_str());
         t.Second = 0;
         time_t tt = makeTime(t);
-        setTime(tzlocal.toUTC(tt));
+        if (config.useDST == true) {
+        		Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
+        		setTime(tzlocal.toUTC(tt));
+        } else {
+        		setTime(tt+(config.tzRule.dstEnd.offset*60));
+        }
     }
 
     DEBUG_MSG("Time set\n");
@@ -518,8 +515,40 @@ void webserver_begin() {
 #endif
     });
     
+    server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request){
+    	AsyncResponseStream *response = request->beginResponseStream("text/html");
+    	        response->print("<html><body>");
+    	        response->print("<h1>Restarting ...</h1>\n");
+    	        response->print("</body></html>");
+    	        request->send(response);
+    		ESP.restart();
+    });
     
-    
+    server.on("/meminfo", HTTP_GET, [](AsyncWebServerRequest *request){
+    		uint32_t startTime = millis();
+        AsyncJsonResponse * response = new AsyncJsonResponse();
+      	JsonObject& root = response->getRoot();
+        FlashMode_t ideMode = ESP.getFlashChipMode();
+ 	    root["heap"] = ESP.getFreeHeap();
+    	    root["flashid"] = ESP.getFlashChipId();
+    	    root["realSize"] = ESP.getFlashChipRealSize();
+    	    root["ideSize"] =  ESP.getFlashChipSize();
+    	    root["byIdSize"] =  ESP.getFlashChipSizeByChipId();
+    	    root["ideSpeed"] = ESP.getFlashChipSpeed();
+    	    root["ideMode"] = (ideMode == FM_QIO ? "QIO" : ideMode == FM_QOUT ? "QOUT" : ideMode == FM_DIO ? "DIO" : ideMode == FM_DOUT ? "DOUT" : "UNKNOWN");
+    	    root["sdkVersion"] = ESP.getSdkVersion();
+    	    root["coreVersion"] = ESP.getCoreVersion();
+    	    root["cpuFreq"] = ESP.getCpuFreqMHz();
+    	    root["lastReset"] = ESP.getResetReason();
+    	    root["lastResetInfo"] = ESP.getResetInfo();
+    	    root["fwMD5"] = ESP.getSketchMD5();
+    	    root["time"] = millis()-startTime;
+    	    response->setLength();
+    	    request->send(response);
+
+    });
+
+
     server.on("/list", HTTP_GET, [](AsyncWebServerRequest *request){
         
         
@@ -758,7 +787,8 @@ void webserver_begin() {
         setLang(request);
         changed = LANG;
     });
-    
+
+/*  OBSOLETE
     server.on("/saveTimeSlotValues.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
         
         uint32_t startTime=millis();
@@ -772,7 +802,7 @@ void webserver_begin() {
         sendJsonResultResponse(request,ok,"OK","ERROR",millis()-startTime);
         changed = LED;
     });
-
+*/
     server.on("/getTimeSlotProfiles.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
         uint32_t startTime=millis();
         
@@ -798,7 +828,8 @@ void webserver_begin() {
         request->send(response);
         
     });
-    
+
+    /*    OBSOLETE
     server.on("/setTimeSlotProfile.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
 
         uint32_t startTime=millis();
@@ -824,7 +855,7 @@ void webserver_begin() {
         sendJsonResultResponse(request,ok,"OK","ERROR",millis()-startTime);
         changed = LED;
     });
-    
+*/
     
     server.on("/getinfo.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
 
@@ -837,6 +868,14 @@ void webserver_begin() {
     	 JsonObject& root = response->getRoot();
     	 root["mode"] = mode;
     	 root["modulescount"] = modulesCount;
+
+    	  time_t localtime = now();
+    	  if (config.useDST) {
+    			Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
+    			localtime = tzlocal.toLocal(now());
+    	  }
+
+    	 root["timeslot"] = (uint32_t)hour(localtime)*3600+(uint32_t)minute(localtime)*60+(uint32_t)second(localtime)%900;
     	 JsonArray& tsv = root.createNestedArray("timeSlotValues");
 
 
@@ -858,6 +897,7 @@ void webserver_begin() {
          PRINT_CONFIG();
     });
     
+
     server.on("/getconfig.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
          uint32_t startTime=millis();
          DEBUG_MSG("%s\n","getconfig.cgi");
@@ -893,15 +933,12 @@ void webserver_begin() {
 
     server.on("/gettime.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
         time_t utc = now();    //current time from the Time Library
-        //String time = String(str_timestatus[timeStatus()])+ ": " +  String(hour(tz.toLocal(utc))) + ":" + String(minute(tz.toLocal(utc))) + ":" + String(second(tz.toLocal(utc))) +" " + String(tz.utcIsDST(now())?"CEST":"CET");
         AsyncResponseStream *response = request->beginResponseStream("text/json");
-
         DynamicJsonBuffer jsonBuffer;
         JsonObject &root = jsonBuffer.createObject();
         root["utc"] = utc;
         root.printTo(*response);
         request->send(response);
-
     });
 
     server.on("/avr.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
@@ -923,6 +960,25 @@ void webserver_begin() {
 
     server.on("/saveSampling.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {}, onSaveSampling);
 
+    server.on("/setprofile.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
+    			uint32_t startTime=millis();
+    	        String profileName=request->arg("profileName");
+    	        String nfilename;
+    	        if (!profileName.endsWith(".pjs")) {
+    	            nfilename=String(profileName+".pjs");
+    	        } else {
+    	            nfilename=String(profileName);
+    	        }
+
+    	        bool ok=loadSamplingStruct(nfilename,&samplings);
+    	        if (ok) {
+    	            config.profileFileName=String(nfilename);
+    	            ok=saveConfig();
+    	        }
+    	        sendJsonResultResponse(request,ok,"OK","ERROR",millis()-startTime);
+    	        changed = LED;
+    });
+
     server.on("/setmanual.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
     	 DEBUG_MSG("%s\n","setmanual.cgi");
     	 int m = StringToInt((String)request->arg("m"));
@@ -930,6 +986,38 @@ void webserver_begin() {
     	 sendJsonResultResponse(request,true);
     	 saveConfig();
     	 changed = MANUAL;
+    });
+
+    server.on("/getversions.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
+    	 sendJsonResultResponse(request,true);
+    	 changed = VERSIONINFO;
+    });
+
+    server.on("/resetavr.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
+    	 sendJsonResultResponse(request,true);
+    	 changed = RESETAVR;
+    });
+
+    server.on("/showversions.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
+    	    uint32_t startTime = millis();
+        AsyncResponseStream *response = request->beginResponseStream("text/json");
+        DynamicJsonBuffer jsonBuffer;
+        JsonObject &root = jsonBuffer.createObject();
+        root["coreVersion"] = coreVersion;
+        root["masterVersion"] = versionInfo.mainModule;
+        JsonArray& mv = root.createNestedArray("modulesVersion");
+		 for(uint8_t i=0;i<modulesCount;i++) {
+			 mv.add(versionInfo.slaveModules[i]);
+		 }
+        JsonArray& mt = root.createNestedArray("modulesTemperature");
+			 for(uint8_t i=0;i<modulesCount;i++) {
+				 mt.add( modulesTemperature[i]);
+   	   }
+
+         root["time"] = millis()-startTime;
+
+         root.printTo(*response);
+         request->send(response);
     });
 
     server.on("/setled.cgi",HTTP_POST,[](AsyncWebServerRequest *request) {
@@ -963,12 +1051,11 @@ void webserver_begin() {
     	 changed = MANUAL;
     });
 
+#ifdef DEBUG
      ws.onEvent(onEvent);
      server.addHandler(&ws);
+#endif
 
-     server.on("/heap", HTTP_GET, [](AsyncWebServerRequest *request){
-       request->send(200, "text/plain", String(ESP.getFreeHeap()));
-     });
 
 
     server.begin();

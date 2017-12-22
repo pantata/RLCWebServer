@@ -72,6 +72,7 @@
         "min": "Minuta",
         "month": "Měsíc",
         "save": "Uložit",
+        "timezone":"Časová zóna",
         "setdt": "Nastavení data a hodin",
         "year": "Rok",
         "format": "DD.MM.YY HH24.MI",
@@ -83,13 +84,17 @@
         "date":"Aktuální datum",
         "time":"Aktuální čas",
         "dtFormat":"Zobrazení data a času",
-        "set":"Uložit"
+        "set":"Uložit",
+        "months":["Leden","Únor","Březen","Duben","Květen","Červen","Červenec","Srpen","Září","Říjen","Listopad","Prosinec"],
+		"days":["Po","Út","Stř","Čt","Pá","So","Ne"],
+		"weeks":["První", "Druhý","Třetí","Čtvrtý","Poslední"]
     },
     "wifi": {
+    	"title":"Nastavení WiFi",
         "apmode":"WiFi mód:",
         "apExt":"Expert:",
         "address": "Adresa: ",
-        "assoc": "Nastavení WiFi",
+        "assoc": "Připojeno k: ",
         "channel": "Kanál: ",
         "connect": "Připojit",
         "mac": "MAC: ",

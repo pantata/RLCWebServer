@@ -223,13 +223,13 @@ bool deleteSampling(uint8_t modul,uint8_t channel,uint8_t timeSlot)
 uint16_t getSamplingValue(uint8_t modul,uint8_t channel)
 {
     uint16_t ret = 0;
-    uint32_t currentTime = (uint32_t)hour()*3600+(uint32_t)minute()*60+(uint32_t)second();
+    time_t localtime = now();
+	if (config.useDST) {
+		Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
+		localtime = tzlocal.toLocal(now());
+	}
 
-    if (config.useDST) {
-    	Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
-    	time_t ct=tzlocal.toLocal(currentTime);
-    	currentTime=ct;
-    }
+	uint32_t currentTime = (uint32_t)hour(localtime)*3600+(uint32_t)minute(localtime)*60+(uint32_t)second(localtime);
 
     uint32_t startTime = 0;
     uint32_t endTime = 0;

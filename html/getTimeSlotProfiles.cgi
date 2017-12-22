@@ -1,10 +1,10 @@
 {
     "profileList": [
         {
-            "filename": "/Nastaveni1.pjs"
+            "filename": "/zakladni.pjs"
         },
         {
-            "filename": "/pokus.pjs"
+            "filename": "/default2.pjs"
         }
     ],
     "time": 101

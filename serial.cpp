@@ -119,13 +119,15 @@ void uartIsChanged() {
     waitForRespond();
 }
 
-void uartGetTime() {  // get time
+void uartSendTime() {  // get time
 	char tmpbuff[9];
 	unixtime.time = now();
 
 	if (config.useDST) {
 		Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
 		unixtime.time = tzlocal.toLocal(now());
+	} else {
+		unixtime.time = now() + (config.tzRule.dstEnd.offset*60);
 	}
 	sprintf(tmpbuff,TIME_OK,timeStatus(),unixtime.btime[0],unixtime.btime[1],unixtime.btime[2],unixtime.btime[3]);
 	uint16_t crc = getCrc(tmpbuff);
@@ -137,8 +139,8 @@ void uartGetTime() {  // get time
 	DEBUG_MSG("Time: %c %02x %02x %02x %02x 000\n",timeStatus()+48,unixtime.btime[0],unixtime.btime[1],unixtime.btime[2],unixtime.btime[3]);
 }
 
-void sendTimeConfig() {
-	  char tmpbuff[9] =  {0,0,0,0,0,0,0,0};
+void uartSendTimeConfig() {
+	  char tmpbuff[8] =  {0,0,0,0,0,0,0,0};
 	  char databuff[8] = {0,0,0,0,0,0,0,0};
 	  //nejdrive hlavicka
 	  tmpbuff[0] = 3; //typ odpovedi
@@ -187,7 +189,7 @@ void uartGetConfig(String data) {
   *  255 255 6 1 0 0 0 X
   *
   */
-  char tmpbuff[9] =  {0,0,0,0,0,0,0,0};
+  char tmpbuff[8] =  {0,0,0,0,0,0,0,0};
   char databuff[8] = {0,0,0,0,0,0,0,0};
   //nejdrive hlavicka
   tmpbuff[0] = 3; //typ odpovedi
@@ -224,6 +226,11 @@ void uartGetConfig(String data) {
 	  unixtime.btime[1] = data.charAt(3);
 	  unixtime.btime[2] = data.charAt(4);
 	  unixtime.btime[3] = data.charAt(5);
+	  //prevod na UTC
+		if (config.useDST) {
+			Tz tzlocal=Tz(config.tzRule.dstStart,config.tzRule.dstEnd);
+			unixtime.time = tzlocal.toUTC(unixtime.time);
+		}
 	  setTime(unixtime.time);
   }
 }
@@ -232,7 +239,7 @@ void uartGetConfig(String data) {
 void sendLedVal() {
 	unsigned long startTime = millis();
 
-	char tmpbuff[9] =  {0,0,0,0,0,0,0,0};
+	char tmpbuff[8] =  {0,0,0,0,0,0,0,0};
 	char databuff[8] = {0,0,0,0,0,0,0,0};
 
 	uint8_t b = 0;
@@ -314,8 +321,20 @@ void process4()
     DEBUG_MSG("current time is %d.%d.%d %d:%d:%d\n",day(),month(),year(),hour(),minute(),second());
 }
 
-void sendNetValues() {
-	  char tmpbuff[9] =  {0,0,0,0,0,0,0,0};
+void uartGetVersionInfo() {
+	char tmpbuff[8] =  {0,0,0,0,0,0,0,0};
+	tmpbuff[0] = 25; //typ zpravy
+	sendSerialPacket(tmpbuff);
+}
+
+void uartGetTemperatureInfo() {
+	char tmpbuff[8] =  {0,0,0,0,0,0,0,0};
+	tmpbuff[0] = 23; //typ zpravy
+	sendSerialPacket(tmpbuff);
+}
+
+void uartSendNetValues() {
+	  char tmpbuff[8] =  {0,0,0,0,0,0,0,0};
 	  char databuff[8] = {0,0,0,0,0,0,0,0};
 	  //nejdrive hlavicka
 	  tmpbuff[0] = 14; //typ odpovedi
@@ -405,30 +424,23 @@ void setManual(String data) {
 
 }
 
-void process9(String data)
-{
-    byte module=(byte) data.charAt(1);
-    byte channel=(byte) data.charAt(2);
-#ifdef DEBUG
-    module-=48;
-    channel-=48;
-#endif
-    
-    union {
-        uint16_t value16;
-        uint8_t value8[2];
-    } v;
-    
-    /*byte *out=getChannelValue(module,channel);*/
-    
-    v.value16=getSamplingValue(module,channel);
-#ifdef DEBUG
-    
-    Serial.printf("%c%c\n",v.value8[0]+48,v.value8[1]+48);
-#else
-    Serial.printf("%c%c",v.value8[0],v.value8[1]);
-#endif
-    
+/*
+ * Precte verze slave modulu a master modulu
+ */
+void setVersionInfo(String data) {
+    static uint8_t i = 0;
+
+    if (i == 0) {
+    		versionInfo.mainModule = (data.charAt(2) << 8) |  data.charAt(3);
+    		i++;
+    		return;
+    }
+
+    versionInfo.slaveModules[i-1] = (data.charAt(2) << 8) |  data.charAt(3);
+    versionInfo.slaveModules[i] = (data.charAt(4) << 8) |  data.charAt(5);
+    i=i+2;
+
+    if (i > 15) i = 0;
 }
 
 void saveManualLedValues(char chr) {
@@ -459,34 +471,16 @@ void saveManualLedValues(char chr) {
 	}
 }
 
+//TODO:info o teplote
 void processTemperature(String data) {
-
- 	 static bool startProcessTemp = false;
-     static uint8_t modulesCnt = 0;
-	 static uint8_t pckt_cnt = 0;
-	 uint8_t inc_pckt = 0;
 	 static uint8_t i = 0;
+	 modulesTemperature[i] = data.charAt(1);
+	 modulesTemperature[i+1] = data.charAt(2);
+	 modulesTemperature[i+2] = data.charAt(3);
+	 modulesTemperature[i+3] = data.charAt(4);
+	 i = i + 4;
 
-	 if (startProcessTemp) {
-		 for (uint8_t x=2;x< 6;x++) {
-			 if (data.charAt(x) != 255) {
-				 modulesTemperature[i++] = data.charAt(x);
-				 modulesCnt--;
-			 }
-		 }
-		 if (modulesCnt == 0) {
-			 startProcessTemp = false;
-			 i = 0;
-			 pckt_cnt = 0;
-			 modulesCnt = 0;
-		 }
-
-	 } else {
-		 //prvni paket
-		 startProcessTemp = true;
-		 modulesCnt = data.charAt(2);;
-		 pckt_cnt = data.charAt(3);
-	 }
+	 if (i > 15) i = 0;
 }
 
 void processIncomingSerial() {
@@ -494,12 +488,12 @@ void processIncomingSerial() {
         switch(inputString.charAt(0)) {
             case PING: uartGetPing(); break;
             case GETCHANGE:   uartIsChanged(); break;
-            case GETTIME:   uartGetTime(); break;
-            case GETCONFIG:   uartGetConfig(inputString); break;
-            case GETLEDVALUES:   sendLedVal(); break;
-            case GETNETVALUES:   sendNetValues(); break;
+            case GETTIME:   uartSendTime(); break;
+            case GETCONFIG:   uartGetConfig(inputString); uartGetVersionInfo(); break;
+            case GETLEDVALUES:   sendLedVal(); uartGetTemperatureInfo(); break;
+            case GETNETVALUES:   uartSendNetValues(); break;
             case SETMANUAL:   setManual(inputString); break;
-            case CODE9:   process9(inputString); break;
+            case GETVERSION:   setVersionInfo(inputString); break;
             case TEMPERATURE: processTemperature(inputString); break;
             default:
             	DEBUG_MSG("default -%x-\n",inputString.charAt(0));

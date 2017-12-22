@@ -46,7 +46,9 @@ extern "C" {
 #include "user_interface.h"
 }
 
-#define VER "undefined"
+#define COREVERSION 0x0101
+
+const uint16_t coreVersion = COREVERSION;
 
 WiFiUDP Udp;
 NTPClient ntpClient(Udp, TIMESERVER, 0, NTPSYNCINTERVAL);
@@ -55,6 +57,7 @@ DNSServer dnsServer;
 Config config;
 WifiNetworks wifinetworks[16];
 struct Samplings samplings;
+struct VersionInfo versionInfo;
 
 bool shouldReboot = false;
 bool shouldReconnect = false;
@@ -66,32 +69,21 @@ bool incomingLedValues = false;
 
 String inputString = "";
 uint8_t inStr = 0;
-boolean stringComplete = false;
 
 uint8_t lang = 0;
 t_changed changed = NONE;
 
-#ifdef DEBUG
-uint8_t modulesCount = 16;
-#else
-uint8_t modulesCount=1;
-#endif
+uint8_t modulesCount=16;
+
 
 int8_t modulesTemperature[16];
 uint8_t mode = 0;
 
 bool _is_static_ip = false;
-//wifi_is_connected_t _wifi_is_connected = W_DISCONNECT;
 uint8_t _wifi_retry_count = 0;
 uint32_t _wifi_retry_timeout = 0;
 
 bool syncTime = false;
-
-#ifdef VERSION
-const char* version = VERSION;
-#else
-const char* version = VER;
-#endif
 
 int dstOffset[] = { -720, -660, -600, -540, -480, -420, -360, -300, -240, -210,
 		-180, -120, -60, 0, 60, 120, 180, 210, 240, 270, 300, 330, 345, 360,
@@ -112,7 +104,7 @@ const char* str_lang[] = { "en", "cs", "pl", "de" };
 
 union Unixtime unixtime;
 
-SoftwareSerial DEBUGSER(14, 12, false, 256);
+//SoftwareSerial DEBUGSER(14, 12, false, 256);
 
 // SKETCH BEGIN
 
@@ -599,37 +591,20 @@ void setup() {
 	Serial1.setDebugOutput(true);
 #endif
 
+
 	ArduinoOTA.onStart([]() {
-		DEBUGSER.println("Start");
-	});
-
-	ArduinoOTA.onEnd([]() {
-		DEBUGSER.println("\nEnd");
-	});
-
-	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-		DEBUGSER.printf("Progress: %u%%\r\n", (progress / (total / 100)));
-	});
-
-	ArduinoOTA.onError([](ota_error_t error) {
-		DEBUGSER.printf("Error[%u]: ", error);
-		if (error == OTA_AUTH_ERROR) DEBUGSER.println("Auth Failed");
-		else if (error == OTA_BEGIN_ERROR) DEBUGSER.println("Begin Failed");
-		else if (error == OTA_CONNECT_ERROR) DEBUGSER.println("Connect Failed");
-		else if (error == OTA_RECEIVE_ERROR) DEBUGSER.println("Receive Failed");
-		else if (error == OTA_END_ERROR) DEBUGSER.println("End Failed");
+		SPIFFS.end();
 	});
 
 	ArduinoOTA.begin();
 
-	DEBUGSER.printf("Verze: %s\n", version);
-
 	initSamplingValues();
 
-	SPIFFS.begin();
-	if (!loadConfig(&config)) {
-		normalizeConfig();
-		saveConfig();
+	if (SPIFFS.begin() ) {
+		if (!loadConfig(&config)) {
+			normalizeConfig();
+			saveConfig();
+		}
 	}
 
 	PRINT_CONFIG(config);
@@ -684,7 +659,9 @@ void setup() {
 	}
 }
 
+#ifdef DEBUG
 extern AsyncWebSocket ws;
+#endif
 
 void loop() {
 
@@ -762,10 +739,8 @@ void loop() {
 				ws.binaryAll(inputString);
 #endif
 
-				stringComplete = true; //obsolete
 				//test control. soucet
 				//if ok, pak zpracuj, jinak nuluj
-
 				uint16_t crc = checkCrc((char*) inputString.c_str()); //kontrola CRC
 
 				if (crc == 0) { //crc je ok,
@@ -784,7 +759,6 @@ void loop() {
 				}
 
 				inStr = 0;
-				stringComplete = false;
 				inputString = "";
 			}
 		}
@@ -794,25 +768,38 @@ void loop() {
 	case LED:
 		break;
 	case MANUAL:
-		DEBUG_MSG("SET MANUAL");
 		sendLedVal();
 		changed = NONE;
 		break;
 	case TIME:
-		DEBUG_MSG("SET TIME");
-		uartGetTime();
+		uartSendTime();
 		changed = TIME_CONFIG;
 		break;
 	case WIFI:
-		sendNetValues();
+		uartSendNetValues();
+		changed = NONE;
+		break;
+	case VERSIONINFO:
+		uartGetVersionInfo();
+		changed = NONE;
+		break;
+	case TEMPERATUREINFO:
+		uartGetTemperatureInfo();
+		changed = NONE;
 		break;
 	case IP:
 		break;
 	case LANG:
 		break;
 	case TIME_CONFIG:
-		sendTimeConfig();
+		uartSendTimeConfig();
 		changed = NONE;
+		break;
+	case RESETAVR:
+		  digitalWrite(ARDUINO_RESET_PIN,LOW);
+		  delay(50);
+		  digitalWrite(ARDUINO_RESET_PIN,HIGH);
+		  changed = NONE;
 		break;
 	}
 

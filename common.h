@@ -12,7 +12,7 @@
 
 #include "tz.h"
 
-#define DEBUG 1
+//#define DEBUG 1
 
 #ifdef DEBUG
 #include <SoftwareSerial.h>
@@ -38,7 +38,7 @@ extern SoftwareSerial DEBUGSER;
 #define GETNETVALUES '5'/* char(5) */
 #define SETMANUAL '6'/* char(6) */
 #define CODE61 '1'
-#define CODE9 '9'/* char(9) */
+#define GETVERSION '9'/* char(9) */
 #define BREAK '\n'
 #define TEMPERATURE '8'
 
@@ -54,6 +54,7 @@ extern SoftwareSerial DEBUGSER;
 
 #define AP_IP   String("192.168.4.1")
 #define AP_MASK String("255.255.255.0")
+#define APPWD   "nereus"
 #define HOSTNAME String("NEREUS") + String(ESP.getChipId(), HEX)
 #define DNS_PORT 53
 #define TIMESERVER "pool.ntp.org"
@@ -115,7 +116,7 @@ struct Config {
 
 struct Sampling {
     uint8_t modul;   //4bit TODO: sloucit
-    uint8_t channel; //4bit
+    uint8_t channel; //3bit
     uint8_t timeSlot;
     uint8_t efect;
     uint16_t value;
@@ -139,6 +140,12 @@ union Unixtime {
     byte btime[4];
 };
 
+struct VersionInfo {
+	uint16_t mainModule;        //LSB main, MSB subversion
+	uint16_t slaveModules[16];  //LSB main, MSB subversion
+};
+
+extern struct VersionInfo versionInfo;
 extern struct Samplings samplings;
 
 extern struct Config config;
@@ -159,7 +166,7 @@ extern const char* str_timestatus[];
 
 extern int8_t modulesTemperature[];
 
-enum t_changed  {NONE, LED, MANUAL, TIME, TIME_CONFIG, WIFI, IP, LANG} ;
+enum t_changed  {NONE, LED, MANUAL, TIME, TIME_CONFIG, WIFI, IP, LANG, VERSIONINFO, TEMPERATUREINFO, RESETAVR} ;
 
 extern t_changed changed;
 extern uint8_t lang;
@@ -177,6 +184,6 @@ extern String inputString;
 extern boolean stringComplete;
 extern bool incomingLedValues;
 
-
+extern const uint16_t coreVersion;
 
 #endif /* common_h */
