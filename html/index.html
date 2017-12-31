@@ -542,7 +542,8 @@ height: 14px;
 
 div#mM{
     /*border-bottom: 1px solid black;*/
-    padding-bottom: 0px;        
+    padding-bottom: 0px; 
+    padding-top: 20px; 
 }
 
 ul#ml li {
@@ -587,6 +588,34 @@ margin-top:-5px;
  padding: 2px;
 }
 
+
+/* Tooltip container */
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+/* Tooltip text */
+.tooltip .tooltiptext {
+    visibility: hidden;
+    background-color: grey;
+    color: #fff;
+    text-align: center;
+    padding: 5px 0;
+    border-radius: 6px;
+	width: 60px;
+    bottom: 80%;
+    left: 50%; 
+    margin-left: -30px;
+    position: absolute;
+    z-index: 1;
+    font-size: 80% !important;
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
 
 		</style>
 	</head>
@@ -652,7 +681,8 @@ margin-top:-5px;
 		           <div id="mM" class="pure-menu pure-menu-horizontal pure-menu-scrollable">
                       <div class="pure-menu-link pure-menu-heading I18N">led.modules</div>
                         <ul id="ml" class="pure-menu-list"></ul>                                       
-                    </div>		
+                    </div>
+                    <span class="ml-tooltip"></span>		
 					<form class="pure-form" action="#">
 					<fieldset>
 					  <legend></legend>
@@ -984,12 +1014,12 @@ margin-top:-5px;
 		         <div class="card">
 	        	  <h2 class='I18N'>fw.info</h2>
 						  <div id="fw-table">
-							 <form enctype="multipart/form-data" action="/" method="POST" id="fwform" name="fwform" class="pure-form pure-form-aligned">
+							 <form enctype="multipart/form-data" action="/updater.html" method="POST" id="fwform" name="fwform" class="pure-form pure-form-aligned">
 								<fieldset>
 									<legend class='I18N'>fw.info</legend>
-									<div class="pure-control-group"><label for="fwUI" class="I18N">fw.web</label><span id="fwUI"></span></div>
-									<div class="pure-control-group"><label for="fwCTRL" class="I18N">fw.ctrl</label><span id="fwCTRL"></span></div>
-									<div class="pure-control-group"><label for="fwMDL" class="I18N">fw.modul</label><span id="fwMDL"></span></div>
+									<div class="pure-control-group"><label for="fwUI" class="I18N">fw.web</label><span id="fw-coreVersion"></span></div>
+									<div class="pure-control-group"><label for="fwCTRL" class="I18N">fw.ctrl</label><span id="fw-masterVersion"></span></div>
+									<div class="pure-control-group"><label for="fwMDL" class="I18N">fw.modul</label><span id="fw-modulesVersion"></span></div>
 									<!--div class="pure-controls"><a class='pure-button I18N' href="#" id="fwcheck">fw.check</a></div-->
 									<div style="display:none;" class="spinner spinner-small" id="fw-spinner"></div>	
 									<input type="hidden" name="fwupdate" />

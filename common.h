@@ -44,7 +44,7 @@ extern SoftwareSerial DEBUGSER;
 
 #define PING_OK   "\x0OK\x0\x0\x0\x0\x0"
 #define CHANGE_OK "\x1%c\xff\xff\xff\xff\xff\xff"
-#define TIME_OK   "\x6%c%c%c%c%c\xff\xff"
+#define TIME_OK   "\x5%c%c%c%c%c\xff\xff"
 #define _OK       "\x0OK\x0\x0\x0\x0\x0"
 
 

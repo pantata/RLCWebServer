@@ -1111,6 +1111,12 @@ $('div#menu a.pure-menu-link').click(function(event) {
 	   setProfileList();
 	   getProfileValues();
 	}
+	
+	if (curmenu == 'firmware') {
+		getFwVersions();
+	}
+	
+	
 });
 
 function minToTime( min) {
@@ -1166,6 +1172,37 @@ $("#aps").on( 'click', 'div', function(e) {
 	$("#input-ssid").attr("placeholder","").val($(this).find('label').text());
 
 });
+
+function getFwVersions() {
+	$.ajax({ url:'showversions.cgi',
+		type:"GET",
+	    dataType:"json",
+	    cache:true,
+	    contentType:"application/json; charset=utf-8",
+		success:function(data) {
+				showFwInfo(data);
+		},
+		error:function(xhr,type){
+	    }
+	});
+}
+
+function dec2hex(i) {
+	return '0x'+(i+0x10000).toString(16).substr(-4).toUpperCase();
+}
+
+function showFwInfo(data) {
+	console.log(data);
+	  Object.keys(data).forEach(function(v) {
+		  if (Array.isArray(data[v])) {
+			  data[v].forEach(function(x) {
+				  $("#fw-" + v).append(dec2hex(x)+",");
+			  });
+		  } else {
+			  $("#fw-" + v).text(dec2hex(data[v]));
+		  }		  
+	 });	 	
+};
 
 function createInputForAp(ap) {
 	  if (ap.essid=="" && ap.rssi==0) return;
@@ -1251,8 +1288,9 @@ function getWifiInfo() {
 }
 
 function showWifiInfo(data) {
+
 	  Object.keys(data).forEach(function(v) {
-	    $("#wifi-" + v).text(J42R.get(data[v]));;
+		  $("#wifi-" + v).text(data[v]);;
 	  });	 
 	  $("#wifi-spinner").hide();
 	  $("#wifi-table").show();
@@ -1450,12 +1488,13 @@ function saveInfo(data, sel) {
 	pSelectBox('#ledsetup-filter-module',modulesName,modulesCount, 0, false);
 	
 	$('ul#ml').empty();
-		 
+    	console.log(data.modulesTemperature);	 
 	if (cnt > 0 ) {
-		for (var i = 1; i <= cnt; i++) {
-			opt = '<li id="mo-'+i+'" class="pure-menu-item'+(i==sel?' pure-menu-selected':'')+ '"><a href="#" val="'+i+'" class="pure-menu-link">'+J42R.get('led.module-name.'+i)+'</a></li>';
-			$('ul#ml').append(opt);	
-		
+		for (var i = 1; i <= cnt; i++) {			
+			temperature = data.modulesTemperature[i-1] != -128?''+data.modulesTemperature[i-1]:' - ';
+			console.log(temperature);
+			opt = '<li id="mo-'+i+'" class="tooltip pure-menu-item'+(i==sel?' pure-menu-selected':'')+ '"><span class="tooltiptext">'+temperature+'&nbsp;&#8451;</span><a href="#" val="'+i+'" class="pure-menu-link">'+J42R.get('led.module-name.'+i)+'</a></li>';			
+			x = $(opt).appendTo('ul#ml');
 			if (i == sel ) {
 				var b = data.timeSlotValues[i-1];
 				title = J42R.get('led.module-name.'+i) ;
@@ -1477,8 +1516,8 @@ function saveInfo(data, sel) {
 	} else {
 		timersled = window.setTimeout(getInfo, 30000);		
 	}
-
 }
+
 
 
 function getInfo() {
@@ -2510,4 +2549,8 @@ $('#timeform').on('submit', function(e) {
                 //window.location.href = "/?page=wifi";             
             }
          });       
-    });
+});
+
+
+
+

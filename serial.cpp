@@ -329,7 +329,7 @@ void uartGetVersionInfo() {
 
 void uartGetTemperatureInfo() {
 	char tmpbuff[8] =  {0,0,0,0,0,0,0,0};
-	tmpbuff[0] = 23; //typ zpravy
+	tmpbuff[0] = 22; //typ zpravy
 	sendSerialPacket(tmpbuff);
 }
 
@@ -431,13 +431,13 @@ void setVersionInfo(String data) {
     static uint8_t i = 0;
 
     if (i == 0) {
-    		versionInfo.mainModule = (data.charAt(2) << 8) |  data.charAt(3);
+    		versionInfo.mainModule = (data.charAt(1) << 8) |  data.charAt(2);
     		i++;
     		return;
     }
 
-    versionInfo.slaveModules[i-1] = (data.charAt(2) << 8) |  data.charAt(3);
-    versionInfo.slaveModules[i] = (data.charAt(4) << 8) |  data.charAt(5);
+    versionInfo.slaveModules[i-1] = (data.charAt(1) << 8) |  data.charAt(2);
+    versionInfo.slaveModules[i] = (data.charAt(3) << 8) |  data.charAt(4);
     i=i+2;
 
     if (i > 15) i = 0;
@@ -489,8 +489,8 @@ void processIncomingSerial() {
             case PING: uartGetPing(); break;
             case GETCHANGE:   uartIsChanged(); break;
             case GETTIME:   uartSendTime(); break;
-            case GETCONFIG:   uartGetConfig(inputString); uartGetVersionInfo(); break;
-            case GETLEDVALUES:   sendLedVal(); uartGetTemperatureInfo(); break;
+            case GETCONFIG:   uartGetConfig(inputString); break;
+            case GETLEDVALUES:   sendLedVal(); break;
             case GETNETVALUES:   uartSendNetValues(); break;
             case SETMANUAL:   setManual(inputString); break;
             case GETVERSION:   setVersionInfo(inputString); break;

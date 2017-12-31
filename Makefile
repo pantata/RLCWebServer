@@ -60,13 +60,13 @@ F_CPU		      := 80000000L
 BUILD_FLASH_SIZE  := 4M
 BUILD_FLASH_FREQ  := 40
 #LDSCRIPT 		  := eagle.flash.1m256.ld
-LDSCRIPT 		  := eagle.flash.4m.ld
+LDSCRIPT 		  := eagle.flash.4m1m.ld
 FLASH_MODE        := qio
 RESET_MODE        := ck 
 
 BOARD_TAG  = generic
 #BOARD_TAG1 = generic.menu.FlashSize.1M256
-BOARD_TAG1 = generic.menu.FlashSize.4M3M
+BOARD_TAG1 = generic.menu.FlashSize.4M1M
 BOARD_TAG2 = generic.menu.FlashFreq.40
 GCC_PREPROCESSOR_DEFINITIONS = ESP8266 ARDUINO
 

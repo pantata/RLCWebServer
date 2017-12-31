@@ -7,10 +7,10 @@
     "STA":"WiFi klient",
     "fw": {
         "check": "Zkontrolovat",
-        "ctrl": "Verze firmware:",
+        "ctrl": "Verze kontroleru:",
         "info": "Informace",
-        "modul": "Verze firmware modulů:",
-        "web": "",
+        "modul": "Verze led modulů:",
+        "web": "Verze html:",
         "file":"Aktualizace firmware:",
         "upload":"Spustit aktualizaci"
     },

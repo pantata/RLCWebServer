@@ -302,29 +302,16 @@ void normalizeConfig() {
 }
 
 bool loadConfig(Config *conf) {
-	//bool r;
-	DEBUG_MSG("%s\n", "loadConfig start");
-
-	//r = loadConfigStruct("config.bin", conf);
-
 	File configFile = SPIFFS.open("/config.json", "r");
 	if (!configFile) {
-		DEBUG_MSG("%s\n", "Failed to open config file");
 		return false;
 	}
 	size_t size = configFile.size();
-	//  if (size > 1024) {
-	// #ifdef DEBUG
-	// Serial.println("Config file size is too large");
-	// #endif
-	// return false;
-	// }
-	//
+
 	char * pf = new char[size];
 	std::unique_ptr<char[]> buf(pf);
 	configFile.readBytes(buf.get(), size);
 
-	//StaticJsonBuffer<600> jsonBuffer;
 	DynamicJsonBuffer jsonBuffer;
 	JsonObject& json = jsonBuffer.parseObject(buf.get());
 
@@ -333,8 +320,6 @@ bool loadConfig(Config *conf) {
 		//free(pf);
 		return false;
 	}
-
-	DEBUG_MSG("%s\n", "loadConfig json.success ");
 
 	if (json.containsKey("ssid"))
 		conf->ssid = String((const char *) json["ssid"]);
@@ -438,8 +423,6 @@ bool loadConfig(Config *conf) {
 
 	/* Normalize config file */
 	normalizeConfig();
-	//DEBUG_MSG("Load config file %s\n",r?"success":"failed");
-	/*free(pf);*/
 	return true;
 
 }
@@ -464,8 +447,6 @@ bool saveSamplingStruct(String filename) {
 
 bool loadSamplingStruct(String filename, Samplings *s) {
 	String fn = "/" + filename;
-	DEBUG_MSG("Opening samplig file: %s, struct size %d\n", fn.c_str(),
-			sizeof(Sampling));
 	File f = SPIFFS.open(fn.c_str(), "r");
 	if (f) {
 		if (f.read((uint8_t *) s, sizeof(samplings)) != -1) {
@@ -545,16 +526,14 @@ bool saveConfig() {
 
 	File configFile = SPIFFS.open("/config.json", "w");
 	if (!configFile) {
-		DEBUG_MSG("%s\n", "Failed to open config file for writing");
 		return false;
 	}
 	json.printTo(configFile);
 	return true;
-
-	//return saveConfigStruct(String("config.bin"));
 }
 
 void setup() {
+
 	digitalWrite(ARDUINO_RESET_PIN, HIGH);
 	pinMode(ARDUINO_RESET_PIN, OUTPUT);
 
@@ -563,34 +542,18 @@ void setup() {
 	WiFi.setAutoReconnect(false);
 
 	connectedEventHandler = WiFi.onStationModeConnected(
-			[](const WiFiEventStationModeConnected& event)
-			{
-				DEBUG_MSG("Connected ... \n");
-					if (saveConfig()) {
-						DEBUG_MSG("%s\n","file config.json has been saved");
-					} else {
-						DEBUG_MSG("%s\n","file config.json has not been saved");
-					}
-					DEBUG_MSG("\nConnected to %s\n", config.ssid.c_str());
+			[](const WiFiEventStationModeConnected& event) {
+				saveConfig();
 				if ( isDNSStarted ) dnsServer.stop();
 			});
 
 	disconnectedEventHandler = WiFi.onStationModeDisconnected(
 			[](const WiFiEventStationModeDisconnected& event)			{
 				;
-				DEBUG_MSG("Disconnected ... \n");
 			});
 
 	// initialize serial:
-	//Serial.begin(115200);
 	Serial.begin(BAUD_RATE);
-
-#ifdef DEBUG
-
-	DEBUGSER.begin(57600);
-	Serial1.setDebugOutput(true);
-#endif
-
 
 	ArduinoOTA.onStart([]() {
 		SPIFFS.end();
@@ -607,27 +570,11 @@ void setup() {
 		}
 	}
 
-	PRINT_CONFIG(config);
-
 	if (config.profileFileName.length() > 0) {
-
 		bool lok = loadSamplingStruct(config.profileFileName, &samplings);
-		if (lok == true) {
-			DEBUG_MSG(
-					"loadSamplingStruct from file %s loaded successfully, size: %d, pocet:%d\n",
-					config.profileFileName.c_str(), sizeof(samplings),
-					(sizeof(samplings) - 2) / sizeof(Sampling));
-		} else {
-			DEBUG_MSG("loadSamplingStruct from file %s loaded with error\n",
-					config.profileFileName.c_str());
-		}
 	}
 
-	PRINT_CONFIG(config);
-
-	/*httpUpdater.setup(server,"/update");*/
 	WiFi.hostname(config.hostname.c_str());
-	DEBUG_MSG("Set wifi mode %d\n", config.wifimode);
 	uint8_t res = WL_DISCONNECTED;
 
 	if (config.wifimode == WIFI_STA) {  //&& (config.wifimode != WIFI_OFF) ) {
@@ -658,10 +605,6 @@ void setup() {
 		MDNS.addService("http", "tcp", 80);
 	}
 }
-
-#ifdef DEBUG
-extern AsyncWebSocket ws;
-#endif
 
 void loop() {
 
@@ -734,28 +677,16 @@ void loop() {
 			inputString += inChar;
 			inStr++;
 			if (inStr == 8) {
-				//debug
-#ifdef DEBUG
-				ws.binaryAll(inputString);
-#endif
-
 				//test control. soucet
 				//if ok, pak zpracuj, jinak nuluj
 				uint16_t crc = checkCrc((char*) inputString.c_str()); //kontrola CRC
 
 				if (crc == 0) { //crc je ok,
-#ifdef DEBUG
-					ws.textAll("CRC OK");
-#endif
+					//TODO: send OK
 					processIncomingSerial();
 				} else {
-					//empty serial buffer
-#ifdef DEBUG
-					ws.textAll("CRC error");
-#endif
-					while (Serial.available()) {
-						Serial.read();
-					}
+					//TODO: send error
+					;
 				}
 
 				inStr = 0;

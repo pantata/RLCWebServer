@@ -13,25 +13,8 @@
 void webserver_begin();
 void setTimeCgi(AsyncWebServerRequest *request);
 void sendJsonResultResponse(AsyncWebServerRequest *request,bool cond = true,String okResultText = "OK",String errorResultText = "Error",uint32_t processedTime = 0);
-void samplingRequest(AsyncWebServerRequest *request);
-void printSampligs(AsyncResponseStream *response, Samplings *p_s, int mc);
-
-const char upload_html[] PROGMEM = R"html(
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-<html>
-<head>
-<meta http-equiv="content-type" content="text/html; charset=utf-8">
-<title></title>
-</head>
-<body>
-<h1>File uploader</h1>
-<form enctype="multipart/form-data" action="/upload" method="POST">
-<input type="file" name="datafile" />
-<input type="submit" value="Upload"/>
-</form>
-</body>
-</html>
-)html";
+//void samplingRequest(AsyncWebServerRequest *request);
+//void printSampligs(AsyncResponseStream *response, Samplings *p_s, int mc);
 
 const char update_html[] PROGMEM = R"html(
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
@@ -48,7 +31,6 @@ const char update_html[] PROGMEM = R"html(
 </form>
 </body></html>
 )html";
-
 
 
 #endif /* webserver_h */
