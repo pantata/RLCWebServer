@@ -1,4 +1,0 @@
-{
-"dtmo":"[[[0, null, 2, null, null, null, null, null, null],[28, 0, 2, 0, 0, 0, 0, 0, null],[36, 0, null, null, null, null, 0, 0, null],[50, 100, 100, 100, 100, 80, 40, 30, null],[54, 100, 100, 100, 100, 80, 40, 30, null],[76, 0, 20, 0, 0, 0, 0, 0, null],[80, null, 5, null, null, null, null, null, null],[87, null, 5, null, null, null, null, null, null],[88, null, 2, null, null, null, null, null, null],[96,null,2,null,null,null,null,null,null]],[[0,null,null,null,null,null,null,null,null],[96,null,null,null,null,null,null,null,null]],[[0,null,null,null,null,null,null,null,null], [96,null,null,null,null,null,null,null,null]],[[0,null,null,null,null,null,null,null,null],[96,null,null,null,null,null,null,null,null]]]",
-"time":16 
-} 
