@@ -1,8 +1,7 @@
-Release
-/.project
-core
-.settings
-/.cproject
-/.DS_Store
-Builds
-user.mk
+.pio
+.vscode/
+.vscode/c_cpp_properties.json
+.vscode/launch.json
+.vscode/ipch
+.travis.yml
+lib/MyTime/.DS_Store
