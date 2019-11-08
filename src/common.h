@@ -27,27 +27,6 @@ extern SoftwareSerial DEBUGSER;
 #define PRINT_CONFIG(c) for(;0;)
 #endif
 
-#define BAUD_RATE 230400
-#define BAUD_RATE_A 115200
-
-#define PING '0'/*char(255) */
-#define GETCHANGE '1' /*char(1) */
-#define GETTIME '2'/* char(2) */
-#define GETCONFIG '3'/* char(3) */
-#define GETLEDVALUES '4'/* char(4) */
-#define GETNETVALUES '5'/* char(5) */
-#define SETMANUAL '6'/* char(6) */
-#define CODE61 '1'
-#define GETVERSION '9'/* char(9) */
-#define BREAK '\n'
-#define TEMPERATURE '8'
-
-#define PING_OK   "\x0OK\x0\x0\x0\x0\x0"
-#define CHANGE_OK "\x1%c\xff\xff\xff\xff\xff\xff"
-#define TIME_OK   "\x5%c%c%c%c%c\xff\xff"
-#define _OK       "\x0OK\x0\x0\x0\x0\x0"
-
-
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 #define MAX_PWM 4000
 #define MAX_MODULES 16
@@ -156,8 +135,6 @@ extern union Unixtime unixtime;
 extern bool shouldReconnect;
 extern bool shouldReboot;
 extern byte modulesCount;
-extern bool arduinoFlash;
-
 
 extern const char* str_wifistatus[];
 extern const char* str_wifimode[];

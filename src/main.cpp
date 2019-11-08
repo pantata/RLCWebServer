@@ -30,14 +30,15 @@
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
 #include <SoftwareSerial.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 
 #include "common.h"
 #include "RlcWebFw.h"
 
-#include "avrUpdate.h"
 #include "webserver.h"
 #include "sampling.h"
-#include "serial.h"
 #include "tz.h"
 
 //#include "espping.h"
@@ -53,6 +54,10 @@ const uint16_t coreVersion = COREVERSION;
 WiFiUDP Udp;
 NTPClient ntpClient(Udp, TIMESERVER, 0, NTPSYNCINTERVAL);
 DNSServer dnsServer;
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 32 // OLED display height, in pixels
+Adafruit_SSD1306 display = Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
 
 Config config;
 WifiNetworks wifinetworks[16];
@@ -534,8 +539,14 @@ bool saveConfig() {
 
 void setup() {
 
-	digitalWrite(ARDUINO_RESET_PIN, HIGH);
-	pinMode(ARDUINO_RESET_PIN, OUTPUT);
+   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+  	if(!display.begin(SSD1306_EXTERNALVCC, 0x3C)) { // Address 0x3C for 128x32
+		DEBUG_MSG("SSD1306 allocation failed");  	
+  	}
+	display.display();
+	delay(2000); // Pause for 2 seconds
+  	// Clear the buffer
+  	display.clearDisplay();
 
 	WiFi.persistent(false);
 	WiFi.setAutoConnect(false);
@@ -551,9 +562,6 @@ void setup() {
 			[](const WiFiEventStationModeDisconnected& event)			{
 				;
 			});
-
-	// initialize serial:
-	Serial.begin(BAUD_RATE);
 
 	ArduinoOTA.onStart([]() {
 		SPIFFS.end();
@@ -595,9 +603,6 @@ void setup() {
 
 	setSyncInterval(NTPSYNCINTERVAL);
 	setSyncProvider(getNtpTime);
-
-	// reserve 200 bytes for the inputString:
-	inputString.reserve(20);
 
 	webserver_begin();
 	//add mDNS service
@@ -657,80 +662,31 @@ void loop() {
 		syncTime = false;
 	}
 
-	/*
-	 * Programovani arduina
-	 */
-	if (arduinoFlash) {
-		arduinoFlash = false;
-		if (arduinoBeginUpdate()) {
-			DEBUG_MSG("%s\n", "Begin Flashing Arduino\n");
-		}
-	}
-
-	while (Serial.available()) {
-		char inChar = (char) Serial.read();
-		if (arduinoUpdating()) {
-			arduinoHandleData(inChar);
-		} else {
-			// get the new byte:
-			// add it to, the inputString:
-			inputString += inChar;
-			inStr++;
-			if (inStr == 8) {
-				//test control. soucet
-				//if ok, pak zpracuj, jinak nuluj
-				uint16_t crc = checkCrc((char*) inputString.c_str()); //kontrola CRC
-
-				if (crc == 0) { //crc je ok,
-					//TODO: send OK
-					processIncomingSerial();
-				} else {
-					//TODO: send error
-					;
-				}
-
-				inStr = 0;
-				inputString = "";
-			}
-		}
-	}
-
+//TODO: upravit na poslani na slave a nikoli na arduino
 	switch (changed) {
 	case LED:
 		break;
 	case MANUAL:
-		sendLedVal();
+		//sendLedVal(); 
 		changed = NONE;
 		break;
 	case TIME:
-		uartSendTime();
-		changed = TIME_CONFIG;
+		changed = NONE;
 		break;
 	case WIFI:
-		uartSendNetValues();
 		changed = NONE;
 		break;
 	case VERSIONINFO:
-		uartGetVersionInfo();
+		//uartGetVersionInfo();
 		changed = NONE;
 		break;
 	case TEMPERATUREINFO:
-		uartGetTemperatureInfo();
+		//uartGetTemperatureInfo();
 		changed = NONE;
 		break;
 	case IP:
 		break;
 	case LANG:
-		break;
-	case TIME_CONFIG:
-		uartSendTimeConfig();
-		changed = NONE;
-		break;
-	case RESETAVR:
-		  digitalWrite(ARDUINO_RESET_PIN,LOW);
-		  delay(50);
-		  digitalWrite(ARDUINO_RESET_PIN,HIGH);
-		  changed = NONE;
 		break;
 	}
 
