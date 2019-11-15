@@ -46,7 +46,7 @@ extern "C" {
 #include "user_interface.h"
 }
 
-#define COREVERSION 0x0101
+#define COREVERSION 0x0102
 
 const uint16_t coreVersion = COREVERSION;
 
