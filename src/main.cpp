@@ -33,6 +33,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <TaskScheduler.h>
 
 #include "common.h"
 #include "RlcWebFw.h"
@@ -40,6 +41,7 @@
 #include "webserver.h"
 #include "sampling.h"
 #include "tz.h"
+#include "twi_registry.h"
 
 //#include "espping.h"
 
@@ -50,6 +52,10 @@ extern "C" {
 #define COREVERSION 0x0101
 
 const uint16_t coreVersion = COREVERSION;
+
+#define BYTELOW(v)   (*(((unsigned char *) (&v))))
+#define BYTEHIGH(v)  (*((unsigned char *) (&v)+1))
+
 
 WiFiUDP Udp;
 NTPClient ntpClient(Udp, TIMESERVER, 0, NTPSYNCINTERVAL);
@@ -79,7 +85,8 @@ uint8_t lang = 0;
 t_changed changed = NONE;
 
 uint8_t modulesCount=16;
-
+uint8_t slaveAddr[16];
+uint16_t slaveVersion[16];
 
 int8_t modulesTemperature[16];
 uint8_t mode = 0;
@@ -110,6 +117,62 @@ const char* str_lang[] = { "en", "cs", "pl", "de" };
 union Unixtime unixtime;
 
 //SoftwareSerial DEBUGSER(14, 12, false, 256);
+
+//Task lib.
+// Callback methods prototypes
+void t1Callback();
+//Tasks
+Task t1(1000, -1, &t1Callback);
+Scheduler runner;
+
+static int8_t readTemperature(uint8_t address);
+
+void t1Callback() {
+	for (uint8_t m = 0; m < modulesCount; m++) {
+		esp_yield();
+		modulesTemperature[m] = readTemperature(slaveAddr[m]);
+	}	
+}
+
+uint16_t crc16_update(uint16_t crc, uint8_t a)
+{
+  int i;
+
+  crc ^= a;
+  for (i = 0; i < 8; ++i)
+  {
+    if (crc & 1)
+      crc = (crc >> 1) ^ 0xA001;
+    else
+      crc = (crc >> 1);
+  }
+
+  return crc;
+}
+
+uint16_t checkCrc(uint8_t *data) {
+
+	uint16_t crc = 0xffff;
+
+	for (uint8_t i = 0; i < 8; i++) {
+		crc = crc16_update(crc, data[i]);
+	}
+	return crc;
+}
+
+uint16_t getCrc(char *data) {
+
+	uint16_t crc = 0xffff;
+
+	for (uint8_t i = 0; i < 6; i++) {
+		crc = crc16_update(crc, data[i]);
+	}
+	return crc;
+}
+
+//LED
+int16_t channelVal[MAX_MODULES][CHANNELS]; //16x7x2
+
 
 // SKETCH BEGIN
 
@@ -537,6 +600,129 @@ bool saveConfig() {
 	return true;
 }
 
+
+static void searchSlave() {
+	uint8_t error, address, idx = 0;
+	memset(slaveAddr, 255, 16);
+	for (address = 0x10; address <= 0x40; address++) {
+		Wire.beginTransmission(address);
+		Wire.write(reg_MASTER);
+		Wire.write(0xff); //value 0xFF = controller presence
+    	error = Wire.endTransmission();
+
+		if (error == 0) {
+			slaveAddr[idx] = address;
+			idx++;
+			//sprintf(tempStr, "%d: %03xh", idx - 1, slaveAddr[idx - 1]);
+			//tft_println(tempStr);
+		}
+	}
+	modulesCount = idx;
+	return;
+}
+
+static void sendValue(uint8_t address, int8_t m) {
+
+	uint8_t error = 0;
+
+	//remap led position
+	//toto poradi chceme
+	#define c_white  0
+	#define c_uv     1
+	#define c_rb     2
+	#define c_blue   3
+	#define c_green  4
+	#define c_red    5
+	#define c_amber  6
+
+	//a takto jsou zapojeny
+	uint8_t led_colors[CHANNELS] = {c_blue,c_amber,c_white,c_red,c_green,c_rb,c_uv};
+
+	uint16_t crc = 0xffff;
+
+	//posleme info , ze ridime
+	Wire.beginTransmission(address);
+	Wire.write(reg_MASTER); //register address
+	Wire.write(0xff);
+	Wire.endTransmission();
+
+	//spocitame crc
+	for (uint8_t x = 0; x < CHANNELS; x++) {
+		uint16_t c_val = channelVal[m][led_colors[x]];
+		uint8_t lb = LOW_BYTE(c_val);
+		uint8_t hb = HIGH_BYTE(c_val);
+		crc = crc16_update(crc, lb);
+		crc = crc16_update(crc, hb);
+	}
+
+	//posleme data vcetne crc
+	Wire.beginTransmission(address);
+	Wire.write(reg_LED_START); //register address
+
+	for (uint8_t x = 0; x < CHANNELS; x++) {
+		uint16_t c_val = channelVal[m][led_colors[x]];
+		uint8_t lb = LOW_BYTE(c_val);
+		uint8_t hb = HIGH_BYTE(c_val);
+
+		Wire.write(lb);
+		Wire.write(hb);
+	}
+
+	//crc
+	Wire.write(LOW_BYTE(crc));
+	Wire.write(HIGH_BYTE(crc));
+
+	//status reg_DATA_OK
+	Wire.write(error);
+	Wire.endTransmission();
+}
+
+static int8_t readTemperature(uint8_t address) {
+	uint8_t ret = 0;
+	uint8_t temp = 0xff;
+	uint8_t temp_status = 0xee;
+
+	Wire.beginTransmission(address);
+	Wire.write(reg_THERM_STATUS);
+	Wire.endTransmission();
+
+	uint8_t cnt = Wire.requestFrom(address, 2);
+	if (cnt > 1) {
+		temp_status = Wire.read();
+		temp = Wire.read();
+	}
+
+	if (temp_status) {
+		ret = temp < 128 ? temp : temp - 256;;
+	} else {
+		ret = ERR_TEMP_READ;
+	}
+
+	return ret;
+}
+
+static uint16_t readSlaveVersion(uint8_t address) {
+	uint16_t ret = 0;
+
+	Wire.beginTransmission(address);
+	Wire.write(reg_VERSION_MAIN);
+	Wire.endTransmission();
+
+	uint8_t cnt = Wire.requestFrom(address, 2);
+	if (cnt > 1) {
+		BYTELOW(ret) = Wire.read();
+		BYTEHIGH(ret) = Wire.read();
+	}
+	return ret;
+}
+
+void setSlaveDemo(uint8_t address, uint8_t start) {
+	Wire.beginTransmission(address);
+	Wire.write(reg_MASTER);
+	if (start) Wire.write(0xde); else Wire.write(0xff);
+	Wire.endTransmission();
+}
+
 void setup() {
 
    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
@@ -609,6 +795,16 @@ void setup() {
 	if (MDNS.begin(config.hostname.c_str())) {
 		MDNS.addService("http", "tcp", 80);
 	}
+
+	//search i2c slave
+	searchSlave();
+	for (uint8_t m = 0; m < modulesCount; m++) {
+		versionInfo.slaveModules[m] = readSlaveVersion(slaveAddr[m]);
+	}
+	
+	runner.init();
+	runner.addTask(t1);
+	 t1.enable();
 }
 
 void loop() {
@@ -689,6 +885,8 @@ void loop() {
 	case LANG:
 		break;
 	}
+
+	runner.execute();
 
 	delay(1);
 }

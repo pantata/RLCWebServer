@@ -30,6 +30,7 @@ extern SoftwareSerial DEBUGSER;
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 #define MAX_PWM 4000
 #define MAX_MODULES 16
+#define CHANNELS 7
 
 #define AP_IP   String("192.168.4.1")
 #define AP_MASK String("255.255.255.0")
@@ -52,6 +53,7 @@ extern SoftwareSerial DEBUGSER;
 #define LEDAUTO    0
 #define LEDMANUAL  1
 
+#define ERR_TEMP_READ   -128
 
 typedef enum {
     W_DISCONNECT       =  0,
@@ -162,5 +164,8 @@ extern boolean stringComplete;
 extern bool incomingLedValues;
 
 extern const uint16_t coreVersion;
+
+
+
 
 #endif /* common_h */
