@@ -31,8 +31,8 @@
 #include <ESP8266mDNS.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <SSD1306Brzo.h>
+
 #include <TaskScheduler.h>
 
 #include "common.h"
@@ -63,7 +63,7 @@ DNSServer dnsServer;
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
-Adafruit_SSD1306 display = Adafruit_SSD1306(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire);
+SSD1306Brzo  display(0x3c, D1, D2);
 
 Config config;
 WifiNetworks wifinetworks[16];
@@ -732,14 +732,9 @@ void setSlaveDemo(uint8_t address, uint8_t start) {
 
 void setup() {
 
-   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  	if(!display.begin(SSD1306_EXTERNALVCC, 0x3C)) { // Address 0x3C for 128x32
-		DEBUG_MSG("SSD1306 allocation failed");  	
-  	}
-	display.display();
-	delay(2000); // Pause for 2 seconds
-  	// Clear the buffer
-  	display.clearDisplay();
+  display.init();
+  display.flipScreenVertically();
+  display.setContrast(255);
 
 /*
 	WiFi.persistent(false);
@@ -762,7 +757,25 @@ void setup() {
 
 	ArduinoOTA.onStart([]() {
 		SPIFFS.end();
+	    display.clear();
+    	display.setFont(ArialMT_Plain_10);
+    	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
+    	display.drawString(display.getWidth()/2, display.getHeight()/2 - 10, "OTA Update");
+    	display.display();
 	});
+
+ 	 ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    	display.drawProgressBar(4, 32, 120, 8, progress / (total / 100) );
+    	display.display();
+  	});
+
+  	ArduinoOTA.onEnd([]() {
+    	display.clear();
+    	display.setFont(ArialMT_Plain_10);
+    	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
+    	display.drawString(display.getWidth()/2, display.getHeight()/2, "Restart");
+    	display.display();
+  	});
 
 	initSamplingValues();
 
