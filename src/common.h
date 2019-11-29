@@ -145,7 +145,7 @@ extern const char* str_timestatus[];
 
 extern int8_t modulesTemperature[];
 
-enum t_changed  {NONE, LED, MANUAL, TIME, TIME_CONFIG, WIFI, IP, LANG, VERSIONINFO, TEMPERATUREINFO, RESETAVR} ;
+enum t_changed  {NONE, LED, MANUAL, TIME, TIME_CONFIG, WIFI, IP, LANG, VERSIONINFO, TEMPERATUREINFO} ;
 
 extern t_changed changed;
 extern uint8_t lang;

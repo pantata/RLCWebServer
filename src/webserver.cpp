@@ -269,11 +269,6 @@ void webserver_begin() {
 		shouldReboot = true;
 	});
 
-	server.on("/resetavr", HTTP_GET, [](AsyncWebServerRequest *request) {
-		sendJsonResultResponse(request,true);
-		changed = RESETAVR;
-	});
-
 	server.on("/meminfo", HTTP_GET,
 			[](AsyncWebServerRequest *request) {
 				uint32_t startTime = millis();
@@ -326,7 +321,7 @@ void webserver_begin() {
 					response->print("</option>");
 				}
 				response->print("</select>");
-				response->print("<input type=\"submit\" value=\"Delete\"\>");
+				response->print("<input type=\"submit\" value=\"Delete\">");
 				response->print("</form></body></html>");
 				request->send(response);
 
@@ -537,7 +532,7 @@ void webserver_begin() {
 					}
 
 				}
-				response->printf("],\n\"time\":%d}",millis()-startTime);
+				response->printf("],\n\"time\":%ld}",millis()-startTime);
 				request->send(response);
 
 			});

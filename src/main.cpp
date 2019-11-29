@@ -126,11 +126,13 @@ Task t1(1000, -1, &t1Callback);
 Scheduler runner;
 
 static int8_t readTemperature(uint8_t address);
+static void sendValToSlave(int8_t m);
 
 void t1Callback() {
 	for (uint8_t m = 0; m < modulesCount; m++) {
 		esp_yield();
 		modulesTemperature[m] = readTemperature(slaveAddr[m]);
+		sendValToSlave(m);
 	}	
 }
 
@@ -621,12 +623,11 @@ static void searchSlave() {
 	return;
 }
 
-static void sendValue(uint8_t address, int8_t m) {
+static void sendValToSlave(int8_t m) {
 
 	uint8_t error = 0;
-
-	//remap led position
-	//toto poradi chceme
+	int ledValue[CHANNELS] = {0};
+	//remap led position from web page to hardware
 	#define c_white  0
 	#define c_uv     1
 	#define c_rb     2
@@ -641,14 +642,19 @@ static void sendValue(uint8_t address, int8_t m) {
 	uint16_t crc = 0xffff;
 
 	//posleme info , ze ridime
-	Wire.beginTransmission(address);
+	Wire.beginTransmission(slaveAddr[m]);
 	Wire.write(reg_MASTER); //register address
 	Wire.write(0xff);
 	Wire.endTransmission();
 
 	//spocitame crc
 	for (uint8_t x = 0; x < CHANNELS; x++) {
-		uint16_t c_val = channelVal[m][led_colors[x]];
+		if (config.manual) { 
+			ledValue[x] = config.manualValues[m][x];
+		} else {
+			ledValue[x] = getSamplingValue(m, led_colors[x]);
+		}
+		uint16_t c_val = ledValue[x];
 		uint8_t lb = LOW_BYTE(c_val);
 		uint8_t hb = HIGH_BYTE(c_val);
 		crc = crc16_update(crc, lb);
@@ -656,16 +662,17 @@ static void sendValue(uint8_t address, int8_t m) {
 	}
 
 	//posleme data vcetne crc
-	Wire.beginTransmission(address);
+	Wire.beginTransmission(slaveAddr[m]);
 	Wire.write(reg_LED_START); //register address
 
 	for (uint8_t x = 0; x < CHANNELS; x++) {
-		uint16_t c_val = channelVal[m][led_colors[x]];
+		uint16_t c_val = ledValue[x];
 		uint8_t lb = LOW_BYTE(c_val);
 		uint8_t hb = HIGH_BYTE(c_val);
 
 		Wire.write(lb);
 		Wire.write(hb);
+		esp_yield();
 	}
 
 	//crc
@@ -734,10 +741,13 @@ void setup() {
   	// Clear the buffer
   	display.clearDisplay();
 
+/*
 	WiFi.persistent(false);
 	WiFi.setAutoConnect(false);
 	WiFi.setAutoReconnect(false);
+*/
 
+/*
 	connectedEventHandler = WiFi.onStationModeConnected(
 			[](const WiFiEventStationModeConnected& event) {
 				saveConfig();
@@ -748,12 +758,11 @@ void setup() {
 			[](const WiFiEventStationModeDisconnected& event)			{
 				;
 			});
+*/
 
 	ArduinoOTA.onStart([]() {
 		SPIFFS.end();
 	});
-
-	ArduinoOTA.begin();
 
 	initSamplingValues();
 
@@ -804,7 +813,9 @@ void setup() {
 	
 	runner.init();
 	runner.addTask(t1);
-	 t1.enable();
+	t1.enable();
+
+	ArduinoOTA.begin();
 }
 
 void loop() {
@@ -821,20 +832,19 @@ void loop() {
 		shouldReconnect = false;
 	}
 
-	//reboot after success firmware update
+	//reboot. manual or after fw update
 	if (shouldReboot) {
 		DEBUG_MSG("%s\n", "Rebooting...");
 		delay(100);
 		ESP.restart();
 	}
 
-	/* TODO: otestovat WiFi connection test
-	 * pokud mame nakonfigurovane wifi pripojeni a dojde k restartu AP
-	 * pak se musime znova pripojit
-	 * pokud se pripojeni nepovede do stanoveneho poctu pokusu,
-	 * pak spustit vlastni AP
+	/* TODO: 
+		Periodicka kontrola wifi pripojeni ???
+		- nebo to nechame na ESP
+		- ale, pokud nam padne wifi, chceme dal ridit svetla, takze by bylo dobre pustit AP
 	 */
-
+/*
 	if ((WiFi.status() != WL_CONNECTED) && ((millis() - _wifi_retry_timeout) > WIFI_RETRY_TIMEOUT) && (config.wifimode == WIFI_STA)) {
 		//odpojeno a vyprsel timeout na test
 		_wifi_retry_timeout = millis();
@@ -847,9 +857,10 @@ void loop() {
 			wifiConnect();
 		}
 	}
+*/
 
 	/*
-	 * TODO: dopracovat periodickou synchronizaci casu
+	 * TODO: OPRAVIT NA TASKSCHEDULLER
 	 */
 	if (syncTime) {
 		now(true);
@@ -858,12 +869,10 @@ void loop() {
 		syncTime = false;
 	}
 
-//TODO: upravit na poslani na slave a nikoli na arduino
 	switch (changed) {
 	case LED:
 		break;
 	case MANUAL:
-		//sendLedVal(); 
 		changed = NONE;
 		break;
 	case TIME:
@@ -873,16 +882,20 @@ void loop() {
 		changed = NONE;
 		break;
 	case VERSIONINFO:
-		//uartGetVersionInfo();
+		//getVersionInfo();
 		changed = NONE;
 		break;
 	case TEMPERATUREINFO:
-		//uartGetTemperatureInfo();
+		//getTemperatureInfo();
 		changed = NONE;
 		break;
 	case IP:
 		break;
 	case LANG:
+		break;
+	case TIME_CONFIG:
+		break;
+	default:
 		break;
 	}
 
