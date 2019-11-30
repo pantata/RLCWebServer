@@ -29,8 +29,10 @@
 #include <MyTimeLib.h>
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
-#include <Wire.h> 
-#include "SSD1306Brzo.h"
+
+#include <Wire.h>
+#include <SSD1306Brzo.h>
+#include <TaskScheduler.h>
 
 #include "common.h"
 #include "RlcWebFw.h"
@@ -38,6 +40,7 @@
 #include "webserver.h"
 #include "sampling.h"
 #include "tz.h"
+#include "twi_registry.h"
 
 //#include "espping.h"
 
@@ -49,11 +52,16 @@ extern "C" {
 
 const uint16_t coreVersion = COREVERSION;
 
-SSD1306Brzo  display(0x3c, D1, D2);
+#define BYTELOW(v)   (*(((unsigned char *) (&v))))
+#define BYTEHIGH(v)  (*((unsigned char *) (&v)+1))
 
 WiFiUDP Udp;
 NTPClient ntpClient(Udp, TIMESERVER, 0, NTPSYNCINTERVAL);
 DNSServer dnsServer;
+
+#define SCREEN_WIDTH 128 // OLED display width, in pixels
+#define SCREEN_HEIGHT 32 // OLED display height, in pixels
+SSD1306Brzo  display(0x3c, D1, D2);
 
 Config config;
 WifiNetworks wifinetworks[16];
@@ -75,7 +83,8 @@ uint8_t lang = 0;
 t_changed changed = NONE;
 
 uint8_t modulesCount=16;
-
+uint8_t slaveAddr[16];
+uint16_t slaveVersion[16];
 
 int8_t modulesTemperature[16];
 uint8_t mode = 0;
@@ -104,6 +113,64 @@ const char* str_timestatus[] = { "timeNotSet", "timeNeedsSync", "timeSet" };
 const char* str_lang[] = { "en", "cs", "pl", "de" };
 
 union Unixtime unixtime;
+
+
+//Task lib.
+// Callback methods prototypes
+void t1Callback();
+//Tasks
+Task t1(1000, -1, &t1Callback);
+Scheduler runner;
+
+static int8_t readTemperature(uint8_t address);
+static void sendValToSlave(int8_t m);
+
+void t1Callback() {
+	for (uint8_t m = 0; m < modulesCount; m++) {
+		esp_yield();
+		modulesTemperature[m] = readTemperature(slaveAddr[m]);
+		sendValToSlave(m);
+	}	
+}
+
+uint16_t crc16_update(uint16_t crc, uint8_t a)
+{
+  int i;
+
+  crc ^= a;
+  for (i = 0; i < 8; ++i)
+  {
+    if (crc & 1)
+      crc = (crc >> 1) ^ 0xA001;
+    else
+      crc = (crc >> 1);
+  }
+
+  return crc;
+}
+
+uint16_t checkCrc(uint8_t *data) {
+
+	uint16_t crc = 0xffff;
+
+	for (uint8_t i = 0; i < 8; i++) {
+		crc = crc16_update(crc, data[i]);
+	}
+	return crc;
+}
+
+uint16_t getCrc(char *data) {
+
+	uint16_t crc = 0xffff;
+
+	for (uint8_t i = 0; i < 6; i++) {
+		crc = crc16_update(crc, data[i]);
+	}
+	return crc;
+}
+
+//LED
+int16_t channelVal[MAX_MODULES][CHANNELS]; //16x7x2
 
 
 // SKETCH BEGIN
@@ -508,10 +575,139 @@ bool saveConfig() {
 	return true;
 }
 
+
+static void searchSlave() {
+	uint8_t error, address, idx = 0;
+	memset(slaveAddr, 255, 16);
+	for (address = 0x10; address <= 0x40; address++) {
+		Wire.beginTransmission(address);
+		Wire.write(reg_MASTER);
+		Wire.write(0xff); //value 0xFF = controller presence
+    	error = Wire.endTransmission();
+
+		if (error == 0) {
+			slaveAddr[idx] = address;
+			idx++;
+			//sprintf(tempStr, "%d: %03xh", idx - 1, slaveAddr[idx - 1]);
+			//tft_println(tempStr);
+		}
+	}
+	modulesCount = idx;
+	return;
+}
+
+static void sendValToSlave(int8_t m) {
+
+	uint8_t error = 0;
+	int ledValue[CHANNELS] = {0};
+	//remap led position from web page to hardware
+	#define c_white  0
+	#define c_uv     1
+	#define c_rb     2
+	#define c_blue   3
+	#define c_green  4
+	#define c_red    5
+	#define c_amber  6
+
+	//a takto jsou zapojeny
+	uint8_t led_colors[CHANNELS] = {c_blue,c_amber,c_white,c_red,c_green,c_rb,c_uv};
+
+	uint16_t crc = 0xffff;
+
+	//posleme info , ze ridime
+	Wire.beginTransmission(slaveAddr[m]);
+	Wire.write(reg_MASTER); //register address
+	Wire.write(0xff);
+	Wire.endTransmission();
+
+	//spocitame crc
+	for (uint8_t x = 0; x < CHANNELS; x++) {
+		if (config.manual) { 
+			ledValue[x] = config.manualValues[m][x];
+		} else {
+			ledValue[x] = getSamplingValue(m, led_colors[x]);
+		}
+		uint16_t c_val = ledValue[x];
+		uint8_t lb = LOW_BYTE(c_val);
+		uint8_t hb = HIGH_BYTE(c_val);
+		crc = crc16_update(crc, lb);
+		crc = crc16_update(crc, hb);
+	}
+
+	//posleme data vcetne crc
+	Wire.beginTransmission(slaveAddr[m]);
+	Wire.write(reg_LED_START); //register address
+
+	for (uint8_t x = 0; x < CHANNELS; x++) {
+		uint16_t c_val = ledValue[x];
+		uint8_t lb = LOW_BYTE(c_val);
+		uint8_t hb = HIGH_BYTE(c_val);
+
+		Wire.write(lb);
+		Wire.write(hb);
+		esp_yield();
+	}
+
+	//crc
+	Wire.write(LOW_BYTE(crc));
+	Wire.write(HIGH_BYTE(crc));
+
+	//status reg_DATA_OK
+	Wire.write(error);
+	Wire.endTransmission();
+}
+
+static int8_t readTemperature(uint8_t address) {
+	uint8_t ret = 0;
+	uint8_t temp = 0xff;
+	uint8_t temp_status = 0xee;
+
+	Wire.beginTransmission(address);
+	Wire.write(reg_THERM_STATUS);
+	Wire.endTransmission();
+
+	uint8_t cnt = Wire.requestFrom(address, 2);
+	if (cnt > 1) {
+		temp_status = Wire.read();
+		temp = Wire.read();
+	}
+
+	if (temp_status) {
+		ret = temp < 128 ? temp : temp - 256;;
+	} else {
+		ret = ERR_TEMP_READ;
+	}
+
+	return ret;
+}
+
+static uint16_t readSlaveVersion(uint8_t address) {
+	uint16_t ret = 0;
+
+	Wire.beginTransmission(address);
+	Wire.write(reg_VERSION_MAIN);
+	Wire.endTransmission();
+
+	uint8_t cnt = Wire.requestFrom(address, 2);
+	if (cnt > 1) {
+		BYTELOW(ret) = Wire.read();
+		BYTEHIGH(ret) = Wire.read();
+	}
+	return ret;
+}
+
+void setSlaveDemo(uint8_t address, uint8_t start) {
+	Wire.beginTransmission(address);
+	Wire.write(reg_MASTER);
+	if (start) Wire.write(0xde); else Wire.write(0xff);
+	Wire.endTransmission();
+}
+
 void setup() {
 	#ifdef DEBUG
 		Serial.begin(9600);
 	#endif
+
 
 /*
 	WiFi.persistent(false);
@@ -522,6 +718,7 @@ void setup() {
     display.flipScreenVertically();
     display.setContrast(255);
 
+/*
 	connectedEventHandler = WiFi.onStationModeConnected(
 			[](const WiFiEventStationModeConnected& event) {
 				saveConfig();
@@ -532,31 +729,29 @@ void setup() {
 			[](const WiFiEventStationModeDisconnected& event)			{
 				;
 			});
+*/
 
 	ArduinoOTA.onStart([]() {
 		SPIFFS.end();
-
-    	display.clear();
+	    display.clear();
     	display.setFont(ArialMT_Plain_10);
     	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
     	display.drawString(display.getWidth()/2, display.getHeight()/2 - 10, "Aktualizace");
-    	display.display();		
+    	display.display();
 	});
 
-	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+ 	 ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
     	display.drawProgressBar(4, 32, 120, 8, progress / (total / 100) );
     	display.display();
   	});
 
-	ArduinoOTA.onEnd([]() {
+  	ArduinoOTA.onEnd([]() {
     	display.clear();
     	display.setFont(ArialMT_Plain_10);
     	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
     	display.drawString(display.getWidth()/2, display.getHeight()/2, "Restart");
     	display.display();
-  	});  
-
-	ArduinoOTA.begin();
+  	});
 
 	initSamplingValues();
 
@@ -593,24 +788,23 @@ void setup() {
 	setSyncInterval(NTPSYNCINTERVAL);
 	setSyncProvider(getNtpTime);
 
-	// reserve 200 bytes for the inputString:
-	inputString.reserve(20);
-
 	webserver_begin();
 	//add mDNS service
 	if (MDNS.begin(config.hostname.c_str())) {
 		MDNS.addService("http", "tcp", 80);
 	}
 
-	  // Align text vertical/horizontal center
-  	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-  	display.setFont(ArialMT_Plain_10);
-	if (config.wifimode == WIFI_STA) {  
-  		display.drawString(display.getWidth()/2, display.getHeight()/2, "IP:\n" + WiFi.localIP().toString());
-	} else {
-		display.drawString(display.getWidth()/2, display.getHeight()/2, WiFi.softAPSSID() + "\n" + WiFi.softAPIP().toString());
+	//search i2c slave
+	searchSlave();
+	for (uint8_t m = 0; m < modulesCount; m++) {
+		versionInfo.slaveModules[m] = readSlaveVersion(slaveAddr[m]);
 	}
-  	display.display();
+	
+	runner.init();
+	runner.addTask(t1);
+	t1.enable();
+
+	ArduinoOTA.begin();
 }
 
 void loop() {
@@ -629,20 +823,19 @@ void loop() {
 		shouldReconnect = false;
 	}
 
-	//reboot after success firmware update
+	//reboot. manual or after fw update
 	if (shouldReboot) {
 		DEBUG_MSG("%s\n", "Rebooting...");
 		delay(100);
 		ESP.restart();
 	}
 
-	/* TODO: otestovat WiFi connection test
-	 * pokud mame nakonfigurovane wifi pripojeni a dojde k restartu AP
-	 * pak se musime znova pripojit
-	 * pokud se pripojeni nepovede do stanoveneho poctu pokusu,
-	 * pak spustit vlastni AP
+	/* TODO: 
+		Periodicka kontrola wifi pripojeni ???
+		- nebo to nechame na ESP
+		- ale, pokud nam padne wifi, chceme dal ridit svetla, takze by bylo dobre pustit AP
 	 */
-
+/*
 	if ((WiFi.status() != WL_CONNECTED) && ((millis() - _wifi_retry_timeout) > WIFI_RETRY_TIMEOUT) && (config.wifimode == WIFI_STA)) {
 		//odpojeno a vyprsel timeout na test
 		_wifi_retry_timeout = millis();
@@ -655,9 +848,10 @@ void loop() {
 			wifiConnect();
 		}
 	}
+*/
 
 	/*
-	 * TODO: dopracovat periodickou synchronizaci casu
+	 * TODO: OPRAVIT NA TASKSCHEDULLER
 	 */
 	if (syncTime) {
 		now(true);
@@ -670,23 +864,20 @@ void loop() {
 	case LED:
 		break;
 	case MANUAL:
-		//sendLedVal();
 		changed = NONE;
 		break;
 	case TIME:
-		//uartSendTime();
-		changed = TIME_CONFIG;
+		changed = NONE;
 		break;
 	case WIFI:
-		//uartSendNetValues();
 		changed = NONE;
 		break;
 	case VERSIONINFO:
-		//uartGetVersionInfo();
+		//getVersionInfo();
 		changed = NONE;
 		break;
 	case TEMPERATUREINFO:
-		//uartGetTemperatureInfo();
+		//getTemperatureInfo();
 		changed = NONE;
 		break;
 	case IP:
@@ -694,10 +885,12 @@ void loop() {
 	case LANG:
 		break;
 	case TIME_CONFIG:
-		//uartSendTimeConfig();
-		changed = NONE;
+		break;
+	default:
 		break;
 	}
+
+	runner.execute();
 
 	delay(1);
 }

@@ -321,7 +321,7 @@ void webserver_begin() {
 					response->print("</option>");
 				}
 				response->print("</select>");
-				response->print("<input type=\"submit\" value=\"Delete\"\>");
+				response->print("<input type=\"submit\" value=\"Delete\">");
 				response->print("</form></body></html>");
 				request->send(response);
 
@@ -532,7 +532,7 @@ void webserver_begin() {
 					}
 
 				}
-				response->printf("],\n\"time\":%d}",millis()-startTime);
+				response->printf("],\n\"time\":%ld}",millis()-startTime);
 				request->send(response);
 
 			});
