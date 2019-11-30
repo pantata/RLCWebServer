@@ -127,7 +127,7 @@ static void sendValToSlave(int8_t m);
 
 void t1Callback() {
 	for (uint8_t m = 0; m < modulesCount; m++) {
-		esp_yield();
+		//esp_yield();
 		modulesTemperature[m] = readTemperature(slaveAddr[m]);
 		sendValToSlave(m);
 	}	
@@ -201,32 +201,33 @@ time_t getNtpTime() {
 }
 
 uint8_t waitForConnectResult(unsigned long _connectTimeout) {
-	DEBUG_MSG("%s\n", "Waiting for connection result with time out");
+	DEBUG_MSG("Waiting for connection result with time out\n");
 	unsigned long start = millis();
 	boolean keepConnecting = true;
 	uint8_t status;
 	while (keepConnecting) {
-		esp_yield();
 		status = WiFi.status();
-		if (millis() > start + _connectTimeout) {
-			keepConnecting = false;
-			DEBUG_MSG("%s\n", "Connection timed out");
-		}
 		if ((status == WL_CONNECTED) || (status == WL_CONNECT_FAILED)) {
 			keepConnecting = false;
 		}
+		if (millis() > (start + _connectTimeout)) {
+			keepConnecting = false;
+			DEBUG_MSG("Connection timed out\n");
+		}
+		DEBUG_MSG(".");
 		delay(100);
 	}
+	DEBUG_MSG("\n");
 	return status;
 }
 
 void connectWifi(String ssid, String pass) {
-	DEBUG_MSG("wifi begin");
+	DEBUG_MSG("connectWifi\n");
 	WiFi.begin ( ssid, pass );  	
 }
 
 void wifiConnect() {
-	DEBUG_MSG("wifiConnect");
+	DEBUG_MSG("wifiConnect\n");
 	normalizeConfig();
 
 	if (config.wifimode == WIFI_STA) {
@@ -271,7 +272,7 @@ void wifiConnect() {
 }
 
 void wifiFailover() {
-	DEBUG_MSG("%s\n", "STA FAIL ...");
+	DEBUG_MSG("Wifi failover\n");
 	normalizeConfig();
 
 	WiFi.mode(WIFI_AP);
@@ -645,7 +646,7 @@ static void sendValToSlave(int8_t m) {
 
 		Wire.write(lb);
 		Wire.write(hb);
-		esp_yield();
+		//esp_yield();
 	}
 
 	//crc
@@ -704,8 +705,10 @@ void setSlaveDemo(uint8_t address, uint8_t start) {
 }
 
 void setup() {
+
 	#ifdef DEBUG
 		Serial.begin(9600);
+		DEBUG_MSG("/n");
 	#endif
 
 
@@ -767,9 +770,8 @@ void setup() {
 	}
 
 	WiFi.hostname(config.hostname.c_str());
-	uint8_t res = WL_DISCONNECTED;
-
-	if (config.wifimode == WIFI_STA) {  //&& (config.wifimode != WIFI_OFF) ) {
+	
+	if (config.wifimode == WIFI_STA) { 
 		wifiConnect();
 		if (waitForConnectResult(WAIT_FOR_WIFI) != WL_CONNECTED) {
 			wifiFailover();
@@ -778,7 +780,6 @@ void setup() {
 		DEBUG_MSG("Set AP: %s", config.hostname.c_str());
 		WiFi.mode(WIFI_AP);
 		WiFi.softAP(config.hostname.c_str());
-		//_wifi_is_connected = WIFI_AP_STARTED;
 	}
 
 	startUpdate = false;
@@ -805,6 +806,12 @@ void setup() {
 	t1.enable();
 
 	ArduinoOTA.begin();
+
+	// Align text vertical/horizontal center
+  	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
+  	display.setFont(ArialMT_Plain_10);
+  	display.drawString(display.getWidth()/2, display.getHeight()/2, "Ready:\n" + WiFi.localIP().toString());
+  	display.display();
 }
 
 void loop() {
