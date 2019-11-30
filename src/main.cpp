@@ -126,6 +126,7 @@ static int8_t readTemperature(uint8_t address);
 static void sendValToSlave(int8_t m);
 
 void t1Callback() {
+	DEBUG_MSG("Runner run\n");
 	for (uint8_t m = 0; m < modulesCount; m++) {
 		//esp_yield();
 		modulesTemperature[m] = readTemperature(slaveAddr[m]);
