@@ -21,8 +21,6 @@
 #include "sampling.h"
 #include "webserver.h"
 
-#include "avrUpdate.h"
-
 AsyncWebServer server(80);
 
 time_t utc;
@@ -269,11 +267,6 @@ void webserver_begin() {
 	server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request) {
 		sendJsonResultResponse(request,true);
 		shouldReboot = true;
-	});
-
-	server.on("/resetavr", HTTP_GET, [](AsyncWebServerRequest *request) {
-		sendJsonResultResponse(request,true);
-		changed = RESETAVR;
 	});
 
 	server.on("/meminfo", HTTP_GET,
@@ -627,24 +620,6 @@ void webserver_begin() {
 			root.printTo(*response);
 			request->send(response);
 		});
-
-	/* avr update fw */
-	server.on("/avr.cgi", HTTP_GET, [](AsyncWebServerRequest *request) {
-		arduinoFlash = true;
-		sendJsonResultResponse(request,true);
-	});
-
-	server.on("/avrstatus.cgi", HTTP_GET,
-			[](AsyncWebServerRequest *request) {
-				AsyncResponseStream *response = request->beginResponseStream("text/json");
-				DynamicJsonBuffer jsonBuffer;
-				JsonObject &root = jsonBuffer.createObject();
-				root["status"] = arduinoGetStatus();
-				root["pages"] = arduinoPages();
-				root["pagesFlashed"] = arduinoPagesFlashed();
-				root.printTo(*response);
-				request->send(response);
-			});
 
 	server.on("/saveSampling.cgi", HTTP_POST,
 			[](AsyncWebServerRequest *request) {}, onUpload);

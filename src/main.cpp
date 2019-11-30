@@ -29,15 +29,14 @@
 #include <MyTimeLib.h>
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
-#include <SoftwareSerial.h>
+#include <Wire.h> 
+#include "SSD1306Brzo.h"
 
 #include "common.h"
 #include "RlcWebFw.h"
 
-#include "avrUpdate.h"
 #include "webserver.h"
 #include "sampling.h"
-#include "serial.h"
 #include "tz.h"
 
 //#include "espping.h"
@@ -49,6 +48,8 @@ extern "C" {
 #define COREVERSION 0x0102
 
 const uint16_t coreVersion = COREVERSION;
+
+SSD1306Brzo  display(0x3c, D1, D2);
 
 WiFiUDP Udp;
 NTPClient ntpClient(Udp, TIMESERVER, 0, NTPSYNCINTERVAL);
@@ -104,7 +105,6 @@ const char* str_lang[] = { "en", "cs", "pl", "de" };
 
 union Unixtime unixtime;
 
-//SoftwareSerial DEBUGSER(14, 12, false, 256);
 
 // SKETCH BEGIN
 
@@ -139,6 +139,7 @@ uint8_t waitForConnectResult(unsigned long _connectTimeout) {
 	boolean keepConnecting = true;
 	uint8_t status;
 	while (keepConnecting) {
+		esp_yield();
 		status = WiFi.status();
 		if (millis() > start + _connectTimeout) {
 			keepConnecting = false;
@@ -153,37 +154,12 @@ uint8_t waitForConnectResult(unsigned long _connectTimeout) {
 }
 
 void connectWifi(String ssid, String pass) {
-	//fix for auto connect racing issue
-	WiFi.setAutoReconnect(false);
-	if (WiFi.isConnected()) {
-		DEBUG_MSG("%s\n", "Already connected. Disconnecting ...");
-		WiFi.disconnect();
-	}
-
-	if (WiFi.getMode() != WIFI_STA) {
-		DEBUG_MSG("%s\n", "Set STA mode");
-		WiFi.mode(WIFI_STA);
-	}
-
-	if (ssid != "") {
-		DEBUG_MSG("Connecting to ::%s:: and ::%s:: \n", ssid.c_str(),
-				pass.c_str());
-		WiFi.begin(ssid.c_str(), pass.c_str());
-	} else {
-		if (WiFi.SSID()) {
-			DEBUG_MSG("%s\n", "Using last saved values, should be faster");
-			//trying to fix connection in progress hanging
-			ETS_UART_INTR_DISABLE();
-			wifi_station_disconnect();
-			ETS_UART_INTR_ENABLE();
-		} else {
-			DEBUG_MSG("%s\n", "No saved credentials");
-		}
-	}
+	DEBUG_MSG("wifi begin");
+	WiFi.begin ( ssid, pass );  	
 }
 
 void wifiConnect() {
-
+	DEBUG_MSG("wifiConnect");
 	normalizeConfig();
 
 	if (config.wifimode == WIFI_STA) {
@@ -533,13 +509,18 @@ bool saveConfig() {
 }
 
 void setup() {
+	#ifdef DEBUG
+		Serial.begin(9600);
+	#endif
 
-	digitalWrite(ARDUINO_RESET_PIN, HIGH);
-	pinMode(ARDUINO_RESET_PIN, OUTPUT);
-
+/*
 	WiFi.persistent(false);
 	WiFi.setAutoConnect(false);
 	WiFi.setAutoReconnect(false);
+*/
+	display.init();
+    display.flipScreenVertically();
+    display.setContrast(255);
 
 	connectedEventHandler = WiFi.onStationModeConnected(
 			[](const WiFiEventStationModeConnected& event) {
@@ -552,12 +533,28 @@ void setup() {
 				;
 			});
 
-	// initialize serial:
-	Serial.begin(BAUD_RATE);
-
 	ArduinoOTA.onStart([]() {
 		SPIFFS.end();
+
+    	display.clear();
+    	display.setFont(ArialMT_Plain_10);
+    	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
+    	display.drawString(display.getWidth()/2, display.getHeight()/2 - 10, "Aktualizace");
+    	display.display();		
 	});
+
+	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    	display.drawProgressBar(4, 32, 120, 8, progress / (total / 100) );
+    	display.display();
+  	});
+
+	ArduinoOTA.onEnd([]() {
+    	display.clear();
+    	display.setFont(ArialMT_Plain_10);
+    	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
+    	display.drawString(display.getWidth()/2, display.getHeight()/2, "Restart");
+    	display.display();
+  	});  
 
 	ArduinoOTA.begin();
 
@@ -604,15 +601,27 @@ void setup() {
 	if (MDNS.begin(config.hostname.c_str())) {
 		MDNS.addService("http", "tcp", 80);
 	}
+
+	  // Align text vertical/horizontal center
+  	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
+  	display.setFont(ArialMT_Plain_10);
+	if (config.wifimode == WIFI_STA) {  
+  		display.drawString(display.getWidth()/2, display.getHeight()/2, "IP:\n" + WiFi.localIP().toString());
+	} else {
+		display.drawString(display.getWidth()/2, display.getHeight()/2, WiFi.softAPSSID() + "\n" + WiFi.softAPIP().toString());
+	}
+  	display.display();
 }
 
 void loop() {
 
 	if (isDNSStarted)
 		dnsServer.processNextRequest();
-
+	// TODO: 
+	//if (updateEnabled) {
 	ArduinoOTA.handle();
-
+	//}
+	
 	//wifi change
 	if (shouldReconnect) {
 		wifiConnect();
@@ -657,65 +666,27 @@ void loop() {
 		syncTime = false;
 	}
 
-	/*
-	 * Programovani arduina
-	 */
-	if (arduinoFlash) {
-		arduinoFlash = false;
-		if (arduinoBeginUpdate()) {
-			DEBUG_MSG("%s\n", "Begin Flashing Arduino\n");
-		}
-	}
-
-	while (Serial.available()) {
-		char inChar = (char) Serial.read();
-		if (arduinoUpdating()) {
-			arduinoHandleData(inChar);
-		} else {
-			// get the new byte:
-			// add it to, the inputString:
-			inputString += inChar;
-			inStr++;
-			if (inStr == 8) {
-				//test control. soucet
-				//if ok, pak zpracuj, jinak nuluj
-				uint16_t crc = checkCrc((char*) inputString.c_str()); //kontrola CRC
-
-				if (crc == 0) { //crc je ok,
-					//TODO: send OK
-					processIncomingSerial();
-				} else {
-					//TODO: send error
-					;
-				}
-
-				inStr = 0;
-				inputString = "";
-			}
-		}
-	}
-
 	switch (changed) {
 	case LED:
 		break;
 	case MANUAL:
-		sendLedVal();
+		//sendLedVal();
 		changed = NONE;
 		break;
 	case TIME:
-		uartSendTime();
+		//uartSendTime();
 		changed = TIME_CONFIG;
 		break;
 	case WIFI:
-		uartSendNetValues();
+		//uartSendNetValues();
 		changed = NONE;
 		break;
 	case VERSIONINFO:
-		uartGetVersionInfo();
+		//uartGetVersionInfo();
 		changed = NONE;
 		break;
 	case TEMPERATUREINFO:
-		uartGetTemperatureInfo();
+		//uartGetTemperatureInfo();
 		changed = NONE;
 		break;
 	case IP:
@@ -723,14 +694,8 @@ void loop() {
 	case LANG:
 		break;
 	case TIME_CONFIG:
-		uartSendTimeConfig();
+		//uartSendTimeConfig();
 		changed = NONE;
-		break;
-	case RESETAVR:
-		  digitalWrite(ARDUINO_RESET_PIN,LOW);
-		  delay(50);
-		  digitalWrite(ARDUINO_RESET_PIN,HIGH);
-		  changed = NONE;
 		break;
 	}
 

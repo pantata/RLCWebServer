@@ -11,3 +11,6 @@ Pouzite knihovny:
  
  
 
+curl -F "datafile=@nereus.js.gz" http://192.168.244.1/upload
+curl -F "datafile=@index.html.gz" http://192.168.244.1/upload
+curl -F "datafile=@index.html.gz" http://192.168.244.1/uploadner

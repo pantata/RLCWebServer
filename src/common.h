@@ -12,16 +12,13 @@
 
 #include "tz.h"
 
-//#define DEBUG 1
+#define DEBUG 1
 
 #ifdef DEBUG
-#include <SoftwareSerial.h>
 
-extern SoftwareSerial DEBUGSER;
-
-#define DEBUG_MSG(...) DEBUGSER.printf(__VA_ARGS__)
+#define DEBUG_MSG(...) Serial.printf(__VA_ARGS__)
 //#define PRINT_CONFIG(c) for(;0;)
-#define PRINT_CONFIG(...) DEBUGSER.printf("HEAP = %d\n",ESP.getFreeHeap())
+#define PRINT_CONFIG(...) Serial.printf("HEAP = %d\n",ESP.getFreeHeap())
 #else
 #define DEBUG_MSG(fmt, ...) for(;0;)
 #define PRINT_CONFIG(c) for(;0;)
