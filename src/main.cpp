@@ -829,6 +829,13 @@ void setup() {
 	t1.enable();
 
 	ArduinoOTA.begin();
+
+	// Align text vertical/horizontal center
+  	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
+  	display.setFont(ArialMT_Plain_10);
+  	display.drawString(display.getWidth()/2, display.getHeight()/2, "Ready for OTA:\n" + WiFi.localIP().toString());
+  	display.display();
+
 }
 
 void loop() {
