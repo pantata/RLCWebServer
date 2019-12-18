@@ -40,7 +40,8 @@ extern SoftwareSerial DEBUGSER;
 #define TIMESERVER "pool.ntp.org"
 
 #define WIFITIMEOUT  15
-#define SAMPLING_MAX 896 //max 8 bodu na kanal
+//#define SAMPLING_MAX 896 //max 8 bodu na kanal, 7 kanalu 16 modulu
+#define SAMPLING_MAX 16 //max 8 bodu na kanal, 2 kanaly 1 modul
 #define SAMPLING_UINT8_MAX_VALUE 255
 #define TIMEDELAY 10UL
 
