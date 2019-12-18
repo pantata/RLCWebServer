@@ -2,17 +2,8 @@
 /// @mainpage	RlcWebFw
 ///
 /// @details    WiFi chip firmware
-/// @n
-/// @n
-///
-/// @date		21.10.16 15:51
-/// @version v0.2-10-gf4a3c71
-///
-///
-/// @see		ReadMe.txt for references
 ///
 
-///
 #include <Esp.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -30,8 +21,6 @@
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
 #include <SoftwareSerial.h>
-#include <Wire.h>
-#include <SSD1306Brzo.h>
 
 #include <TaskScheduler.h>
 
@@ -41,7 +30,6 @@
 #include "webserver.h"
 #include "sampling.h"
 #include "tz.h"
-#include "twi_registry.h"
 
 //#include "espping.h"
 
@@ -60,10 +48,6 @@ const uint16_t coreVersion = COREVERSION;
 WiFiUDP Udp;
 NTPClient ntpClient(Udp, TIMESERVER, 0, NTPSYNCINTERVAL);
 DNSServer dnsServer;
-
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 32 // OLED display height, in pixels
-SSD1306Brzo  display(0x3c, D1, D2);
 
 Config config;
 WifiNetworks wifinetworks[16];
@@ -118,23 +102,29 @@ union Unixtime unixtime;
 
 //SoftwareSerial DEBUGSER(14, 12, false, 256);
 
-//Task lib.
-// Callback methods prototypes
-void t1Callback();
+
+
+//Callback
+void tComputeLedValues() {
+	//vrat hodnotu led a nastav pwm na pinu PWM_CH1 a PWM_CH2
+	int16_t v1 = getSamplingValue(0,0);
+	int16_t v2 = getSamplingValue(0,1);
+	DEBUG_MSG("LedVal1: %d, LedVal2: %d\n",v1,v2);
+	analogWrite(PWM_CH1,v1);
+	analogWrite(PWM_CH1,v2);
+}
+
+void tSyncTime() {
+	now(true);
+	if (timeStatus() == timeSet)
+			changed = TIME;
+}
+
 //Tasks
-Task t1(1000, -1, &t1Callback);
+Task computeLedValuesTask(1000, -1, &tComputeLedValues);
+Task syncTimeTask(3600, -1, &tSyncTime);
 Scheduler runner;
 
-static int8_t readTemperature(uint8_t address);
-static void sendValToSlave(int8_t m);
-
-void t1Callback() {
-	for (uint8_t m = 0; m < modulesCount; m++) {
-		esp_yield();
-		modulesTemperature[m] = readTemperature(slaveAddr[m]);
-		sendValToSlave(m);
-	}	
-}
 
 uint16_t crc16_update(uint16_t crc, uint8_t a)
 {
@@ -602,139 +592,12 @@ bool saveConfig() {
 	return true;
 }
 
-
-static void searchSlave() {
-	uint8_t error, address, idx = 0;
-	memset(slaveAddr, 255, 16);
-	for (address = 0x10; address <= 0x40; address++) {
-		Wire.beginTransmission(address);
-		Wire.write(reg_MASTER);
-		Wire.write(0xff); //value 0xFF = controller presence
-    	error = Wire.endTransmission();
-
-		if (error == 0) {
-			slaveAddr[idx] = address;
-			idx++;
-			//sprintf(tempStr, "%d: %03xh", idx - 1, slaveAddr[idx - 1]);
-			//tft_println(tempStr);
-		}
-	}
-	modulesCount = idx;
-	return;
-}
-
-static void sendValToSlave(int8_t m) {
-
-	uint8_t error = 0;
-	int ledValue[CHANNELS] = {0};
-	//remap led position from web page to hardware
-	#define c_white  0
-	#define c_uv     1
-	#define c_rb     2
-	#define c_blue   3
-	#define c_green  4
-	#define c_red    5
-	#define c_amber  6
-
-	//a takto jsou zapojeny
-	uint8_t led_colors[CHANNELS] = {c_blue,c_amber,c_white,c_red,c_green,c_rb,c_uv};
-
-	uint16_t crc = 0xffff;
-
-	//posleme info , ze ridime
-	Wire.beginTransmission(slaveAddr[m]);
-	Wire.write(reg_MASTER); //register address
-	Wire.write(0xff);
-	Wire.endTransmission();
-
-	//spocitame crc
-	for (uint8_t x = 0; x < CHANNELS; x++) {
-		if (config.manual) { 
-			ledValue[x] = config.manualValues[m][x];
-		} else {
-			ledValue[x] = getSamplingValue(m, led_colors[x]);
-		}
-		uint16_t c_val = ledValue[x];
-		uint8_t lb = LOW_BYTE(c_val);
-		uint8_t hb = HIGH_BYTE(c_val);
-		crc = crc16_update(crc, lb);
-		crc = crc16_update(crc, hb);
-	}
-
-	//posleme data vcetne crc
-	Wire.beginTransmission(slaveAddr[m]);
-	Wire.write(reg_LED_START); //register address
-
-	for (uint8_t x = 0; x < CHANNELS; x++) {
-		uint16_t c_val = ledValue[x];
-		uint8_t lb = LOW_BYTE(c_val);
-		uint8_t hb = HIGH_BYTE(c_val);
-
-		Wire.write(lb);
-		Wire.write(hb);
-		esp_yield();
-	}
-
-	//crc
-	Wire.write(LOW_BYTE(crc));
-	Wire.write(HIGH_BYTE(crc));
-
-	//status reg_DATA_OK
-	Wire.write(error);
-	Wire.endTransmission();
-}
-
-static int8_t readTemperature(uint8_t address) {
-	uint8_t ret = 0;
-	uint8_t temp = 0xff;
-	uint8_t temp_status = 0xee;
-
-	Wire.beginTransmission(address);
-	Wire.write(reg_THERM_STATUS);
-	Wire.endTransmission();
-
-	uint8_t cnt = Wire.requestFrom(address, 2);
-	if (cnt > 1) {
-		temp_status = Wire.read();
-		temp = Wire.read();
-	}
-
-	if (temp_status) {
-		ret = temp < 128 ? temp : temp - 256;;
-	} else {
-		ret = ERR_TEMP_READ;
-	}
-
-	return ret;
-}
-
-static uint16_t readSlaveVersion(uint8_t address) {
-	uint16_t ret = 0;
-
-	Wire.beginTransmission(address);
-	Wire.write(reg_VERSION_MAIN);
-	Wire.endTransmission();
-
-	uint8_t cnt = Wire.requestFrom(address, 2);
-	if (cnt > 1) {
-		BYTELOW(ret) = Wire.read();
-		BYTEHIGH(ret) = Wire.read();
-	}
-	return ret;
-}
-
-void setSlaveDemo(uint8_t address, uint8_t start) {
-	Wire.beginTransmission(address);
-	Wire.write(reg_MASTER);
-	if (start) Wire.write(0xde); else Wire.write(0xff);
-	Wire.endTransmission();
-}
-
 void setup() {
-
-  display.init();
-  display.flipScreenVertically();
-  display.setContrast(255);
+	//turn of pwm output
+	pinMode(PWM_CH1,OUTPUT);
+	pinMode(PWM_CH2,OUTPUT);
+	analogWrite(PWM_CH1,0);
+	analogWrite(PWM_CH2,0);
 
 /*
 	WiFi.persistent(false);
@@ -756,27 +619,19 @@ void setup() {
 */
 
 	ArduinoOTA.onStart([]() {
+		runner.disableAll();
 		SPIFFS.end();
-	    display.clear();
-    	display.setFont(ArialMT_Plain_10);
-    	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-    	display.drawString(display.getWidth()/2, display.getHeight()/2 - 10, "OTA Update");
-    	display.display();
 	});
 
+/*
  	 ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    	display.drawProgressBar(4, 32, 120, 8, progress / (total / 100) );
-    	display.display();
   	});
+*/
 
+/*
   	ArduinoOTA.onEnd([]() {
-    	display.clear();
-    	display.setFont(ArialMT_Plain_10);
-    	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-    	display.drawString(display.getWidth()/2, display.getHeight()/2, "Restart");
-    	display.display();
   	});
-
+*/
 	initSamplingValues();
 
 	if (SPIFFS.begin() ) {
@@ -817,25 +672,14 @@ void setup() {
 	if (MDNS.begin(config.hostname.c_str())) {
 		MDNS.addService("http", "tcp", 80);
 	}
-
-	//search i2c slave
-	searchSlave();
-	for (uint8_t m = 0; m < modulesCount; m++) {
-		versionInfo.slaveModules[m] = readSlaveVersion(slaveAddr[m]);
-	}
 	
 	runner.init();
-	runner.addTask(t1);
-	t1.enable();
-
+	runner.addTask(computeLedValuesTask);
+	runner.addTask(syncTimeTask);
+	computeLedValuesTask.enable();
+	syncTimeTask.enable();
+	
 	ArduinoOTA.begin();
-
-	// Align text vertical/horizontal center
-  	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-  	display.setFont(ArialMT_Plain_10);
-  	display.drawString(display.getWidth()/2, display.getHeight()/2, "Ready for OTA:\n" + WiFi.localIP().toString());
-  	display.display();
-
 }
 
 void loop() {
@@ -879,16 +723,6 @@ void loop() {
 	}
 */
 
-	/*
-	 * TODO: OPRAVIT NA TASKSCHEDULLER
-	 */
-	if (syncTime) {
-		now(true);
-		if (timeStatus() == timeSet)
-			changed = TIME;
-		syncTime = false;
-	}
-
 	switch (changed) {
 	case LED:
 		break;
@@ -899,14 +733,6 @@ void loop() {
 		changed = NONE;
 		break;
 	case WIFI:
-		changed = NONE;
-		break;
-	case VERSIONINFO:
-		//getVersionInfo();
-		changed = NONE;
-		break;
-	case TEMPERATUREINFO:
-		//getTemperatureInfo();
 		changed = NONE;
 		break;
 	case IP:

@@ -28,9 +28,9 @@ extern SoftwareSerial DEBUGSER;
 #endif
 
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
-#define MAX_PWM 4000
-#define MAX_MODULES 16
-#define CHANNELS 7
+#define MAX_PWM 1000
+#define MAX_MODULES 1
+#define CHANNELS 2
 
 #define AP_IP   String("192.168.4.1")
 #define AP_MASK String("255.255.255.0")
@@ -54,6 +54,10 @@ extern SoftwareSerial DEBUGSER;
 #define LEDMANUAL  1
 
 #define ERR_TEMP_READ   -128
+
+#define PWM_CH1   14
+#define PWM_CH2   12
+
 
 typedef enum {
     W_DISCONNECT       =  0,
@@ -145,7 +149,7 @@ extern const char* str_timestatus[];
 
 extern int8_t modulesTemperature[];
 
-enum t_changed  {NONE, LED, MANUAL, TIME, TIME_CONFIG, WIFI, IP, LANG, VERSIONINFO, TEMPERATUREINFO} ;
+enum t_changed  {NONE, LED, MANUAL, TIME, TIME_CONFIG, WIFI, IP, LANG, TEMPERATUREINFO} ;
 
 extern t_changed changed;
 extern uint8_t lang;
@@ -164,8 +168,5 @@ extern boolean stringComplete;
 extern bool incomingLedValues;
 
 extern const uint16_t coreVersion;
-
-
-
 
 #endif /* common_h */
