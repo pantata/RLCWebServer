@@ -12,12 +12,13 @@
 
 #include "tz.h"
 
-//#define DEBUG 1
+#define DEBUG 1
 
 #ifdef DEBUG
-#include <SoftwareSerial.h>
+//#include <SoftwareSerial.h>
 
-extern SoftwareSerial DEBUGSER;
+#define  DEBUGSER Serial
+//extern SoftwareSerial DEBUGSER;
 
 #define DEBUG_MSG(...) DEBUGSER.printf(__VA_ARGS__)
 //#define PRINT_CONFIG(c) for(;0;)
@@ -35,7 +36,7 @@ extern SoftwareSerial DEBUGSER;
 #define AP_IP   String("192.168.4.1")
 #define AP_MASK String("255.255.255.0")
 #define APPWD   "nereus"
-#define HOSTNAME String("NEREUS") + String(ESP.getChipId(), HEX)
+#define HOSTNAME String("MARSAqua") + String(ESP.getChipId(), HEX)
 #define DNS_PORT 53
 #define TIMESERVER "pool.ntp.org"
 

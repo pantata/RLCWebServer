@@ -24,6 +24,9 @@
 
 #include <TaskScheduler.h>
 
+#include <OneWire.h> 
+#include <DallasTemperature.h>
+
 #include "common.h"
 #include "RlcWebFw.h"
 
@@ -44,6 +47,14 @@ const uint16_t coreVersion = COREVERSION;
 #define BYTELOW(v)   (*(((unsigned char *) (&v))))
 #define BYTEHIGH(v)  (*((unsigned char *) (&v)+1))
 
+//pro teploměr
+#define ONE_WIRE_BUS D4
+#define TEMPERATURE_PRECISION 9 
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+DeviceAddress insideThermometer, outsideThermometer;
+float teplota;
 
 WiFiUDP Udp;
 NTPClient ntpClient(Udp, TIMESERVER, 0, NTPSYNCINTERVAL);
@@ -68,11 +79,11 @@ uint8_t inStr = 0;
 uint8_t lang = 0;
 t_changed changed = NONE;
 
-uint8_t modulesCount=16;
-uint8_t slaveAddr[16];
-uint16_t slaveVersion[16];
+uint8_t modulesCount=1;
+uint8_t slaveAddr[1];
+uint16_t slaveVersion[1];
 
-int8_t modulesTemperature[16];
+int8_t modulesTemperature[1];
 uint8_t mode = 0;
 
 bool _is_static_ip = false;
@@ -100,29 +111,41 @@ const char* str_lang[] = { "en", "cs", "pl", "de" };
 
 union Unixtime unixtime;
 
-//SoftwareSerial DEBUGSER(14, 12, false, 256);
-
-
-
 //Callback
 void tComputeLedValues() {
+	uint16_t v1, v2;
 	//vrat hodnotu led a nastav pwm na pinu PWM_CH1 a PWM_CH2
-	int16_t v1 = getSamplingValue(0,0);
-	int16_t v2 = getSamplingValue(0,1);
-	DEBUG_MSG("LedVal1: %d, LedVal2: %d\n",v1,v2);
+	if (config.manual == true) {
+		v1 = config.manualValues[0][0];
+		v2 = config.manualValues[0][1];
+	} else {
+		v1 = getSamplingValue(1,1);
+		v2 = getSamplingValue(1,2);
+	}
+	DEBUG_MSG("LedVal1: %hu, LedVal2: %hu\n",v1,v2);
 	analogWrite(PWM_CH1,v1);
-	analogWrite(PWM_CH1,v2);
+	analogWrite(PWM_CH2,v2);
 }
 
 void tSyncTime() {
-	now(true);
-	if (timeStatus() == timeSet)
+	if (config.useNtp) {
+		now(true);
+		if (timeStatus() == timeSet)
 			changed = TIME;
+	}
 }
 
+
+void tTemperaturetask() {
+
+}
+
+
+
 //Tasks
-Task computeLedValuesTask(1000, -1, &tComputeLedValues);
-Task syncTimeTask(3600, -1, &tSyncTime);
+Task computeLedValuesTask(1*1000, -1, &tComputeLedValues);
+Task syncTimeTask(45000, -1, &tSyncTime);
+Task temperatureTask(30000, -1, &tTemperaturetask);
 Scheduler runner;
 
 
@@ -593,6 +616,11 @@ bool saveConfig() {
 }
 
 void setup() {
+
+	#ifdef DEBUG
+		DEBUGSER.begin(9600);
+	#endif
+
 	//turn of pwm output
 	pinMode(PWM_CH1,OUTPUT);
 	pinMode(PWM_CH2,OUTPUT);
@@ -680,6 +708,17 @@ void setup() {
 	syncTimeTask.enable();
 	
 	ArduinoOTA.begin();
+
+
+	//teplomer
+	oneWire.reset_search();
+	if (!oneWire.search(insideThermometer)) {
+		 DEBUG_MSG("Vnitrni teplomer nenalezen!\n");
+	} else {
+		sensors.setResolution(insideThermometer, TEMPERATURE_PRECISION);
+		sensors.requestTemperatures();
+		modulesTemperature[0] = (int8_t)sensors.getTempC(insideThermometer);
+	}
 }
 
 void loop() {
@@ -730,6 +769,7 @@ void loop() {
 		changed = NONE;
 		break;
 	case TIME:
+		//syncTimeTask.forceNextIteration();
 		changed = NONE;
 		break;
 	case WIFI:
@@ -740,6 +780,7 @@ void loop() {
 	case LANG:
 		break;
 	case TIME_CONFIG:
+		changed = NONE;
 		break;
 	default:
 		break;
