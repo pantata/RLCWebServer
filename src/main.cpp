@@ -92,6 +92,8 @@ uint16_t slaveVersion[1];
 int8_t modulesTemperature[1];
 uint8_t mode = 0;
 
+uint16_t ledVal1, ledVal2;
+
 bool _is_static_ip = false;
 uint8_t _wifi_retry_count = 0;
 uint32_t _wifi_retry_timeout = 0;
@@ -118,27 +120,18 @@ const char* str_lang[] = { "en", "cs", "pl", "de" };
 union Unixtime unixtime;
 
 //Callback
-void tComputeLedValues() {
-	uint16_t v1, v2;
+void tComputeLedValues() {	
 	//vrat hodnotu led a nastav pwm na pinu PWM_CH1 a PWM_CH2
 	if (config.manual == true) {
-		v1 = config.manualValues[0][0];
-		v2 = config.manualValues[0][1];
+		ledVal1 = config.manualValues[0][0];
+		ledVal2 = config.manualValues[0][1];
 	} else {
-		v1 = getSamplingValue(1,1);
-		v2 = getSamplingValue(1,2);
+		ledVal1 = getSamplingValue(1,1);
+		ledVal2 = getSamplingValue(1,2);
 	}
-	DEBUG_MSG("LedVal1: %hu, LedVal2: %hu\n",v1,v2);
-	analogWrite(PWM_CH1,v1);
-	analogWrite(PWM_CH2,v2);
-
-	//display values
-	display.setColor setTextColor(0xFFFF, 0)
-	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-  	display.setFont(ArialMT_Plain_10);
-    display.drawString(display.getWidth()/2, display.getHeight() - 10, "CH1: "+ String(v1) + "% - CH2: "+ String(v2) + "%");
-  	display.display();
-
+	DEBUG_MSG("LedVal1: %hu, LedVal2: %hu\n",ledVal1,ledVal2);
+	analogWrite(PWM_CH1,ledVal1);
+	analogWrite(PWM_CH2,ledVal2);
 }
 
 void tSyncTime() {
@@ -155,11 +148,36 @@ void tTemperaturetask() {
 }
 
 
+void tDisplaytask() {
+
+	display.clear();
+	//diplay IP
+	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
+  	display.setFont(ArialMT_Plain_10);
+	if (WiFi.getMode() == WIFI_STA) {  
+  		display.drawString(display.getWidth()/2, 13, "IP: " + WiFi.localIP().toString());		
+	} else {
+		display.drawString(display.getWidth()/2,13, config.hostname);
+		display.drawString(display.getWidth()/2, 26, "IP: " + WiFi.softAPIP().toString());
+	}
+
+	//display values
+	display.setColor(BLACK); 
+    display.fillRect(0, display.getHeight() - 10, display.getWidth(), display.getHeight());
+	display.setColor(WHITE); 
+	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
+  	display.setFont(ArialMT_Plain_10);
+    display.drawString(display.getWidth()/2, display.getHeight() - 10, "CH1: "+ String(ledVal1/10) + "% - CH2: "+ String(ledVal2/10) + "%");
+  	display.display();
+	DEBUG_MSG("DISPLAY\n");
+}
+
 
 //Tasks
 Task computeLedValuesTask(1*1000, -1, &tComputeLedValues);
 Task syncTimeTask(45000, -1, &tSyncTime);
 Task temperatureTask(30000, -1, &tTemperaturetask);
+Task displayTask(1000, -1, &tDisplaytask);
 Scheduler runner;
 
 
@@ -632,12 +650,13 @@ void setup() {
 		DEBUGSER.begin(9600);
 	#endif
 
-	//turn of pwm output
+	//set pwm output
 	pinMode(PWM_CH1,OUTPUT);
 	pinMode(PWM_CH2,OUTPUT);
 	analogWrite(PWM_CH1,0);
 	analogWrite(PWM_CH2,0);
-	analogWriteFreq(200);
+	analogWriteFreq(PWM_FREQ);
+
 /*
 	WiFi.persistent(false);
 	WiFi.setAutoConnect(false);
@@ -646,10 +665,7 @@ void setup() {
 
   	// Initialising the UI will init the display too.
   	display.init();
-
   	display.flipScreenVertically();
-  	display.setFont(ArialMT_Plain_10);
-
 	display.clear();
 
 	ArduinoOTA.onStart([]() {
@@ -721,9 +737,10 @@ void setup() {
 	runner.init();
 	runner.addTask(computeLedValuesTask);
 	runner.addTask(syncTimeTask);
+	runner.addTask(displayTask);
 	computeLedValuesTask.enable();
 	syncTimeTask.enable();
-	
+	displayTask.enable();
 	ArduinoOTA.begin();
 
 
@@ -737,10 +754,6 @@ void setup() {
 		modulesTemperature[0] = (int8_t)sensors.getTempC(insideThermometer);
 	}
 
-	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-  	display.setFont(ArialMT_Plain_10);
-  	display.drawString(display.getWidth()/2, display.getHeight()/2, "Ready for OTA:\n" + WiFi.localIP().toString());
-  	display.display();
 }
 
 void loop() {
@@ -755,7 +768,12 @@ void loop() {
 	//wifi change
 	if (shouldReconnect) {
 		wifiConnect();
-		syncTime = true;
+	    if (waitForConnectResult(WAIT_FOR_WIFI) != WL_CONNECTED) {
+			wifiFailover();
+		} else {
+			saveConfig();
+			syncTime = true;			
+		}
 		shouldReconnect = false;
 	}
 
@@ -771,20 +789,6 @@ void loop() {
 		- nebo to nechame na ESP
 		- ale, pokud nam padne wifi, chceme dal ridit svetla, takze by bylo dobre pustit AP
 	 */
-/*
-	if ((WiFi.status() != WL_CONNECTED) && ((millis() - _wifi_retry_timeout) > WIFI_RETRY_TIMEOUT) && (config.wifimode == WIFI_STA)) {
-		//odpojeno a vyprsel timeout na test
-		_wifi_retry_timeout = millis();
-		_wifi_retry_count++;
-		if (_wifi_retry_count > WIFI_RETRY_COUNT) {
-			wifiFailover();
-			_wifi_retry_count = 0;
-		} else {
-			//pokusime se pripojit
-			wifiConnect();
-		}
-	}
-*/
 
 	switch (changed) {
 	case LED:

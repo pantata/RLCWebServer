@@ -60,6 +60,8 @@
 #define PWM_CH1   14
 #define PWM_CH2   12
 
+#define PWM_FREQ  200
+
 
 typedef enum {
     W_DISCONNECT       =  0,
