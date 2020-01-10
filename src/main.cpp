@@ -143,8 +143,9 @@ void tSyncTime() {
 }
 
 
-void tTemperaturetask() {
-
+void tTemperaturetask() {	
+	modulesTemperature[0] = (int8_t)sensors.getTempC(insideThermometer);
+	sensors.requestTemperatures();
 }
 
 
@@ -174,9 +175,9 @@ void tDisplaytask() {
 
 
 //Tasks
-Task computeLedValuesTask(1*1000, -1, &tComputeLedValues);
+Task computeLedValuesTask(1000, -1, &tComputeLedValues);
 Task syncTimeTask(45000, -1, &tSyncTime);
-Task temperatureTask(30000, -1, &tTemperaturetask);
+Task temperatureTask(10000, -1, &tTemperaturetask);
 Task displayTask(1000, -1, &tDisplaytask);
 Scheduler runner;
 
@@ -738,6 +739,7 @@ void setup() {
 	runner.addTask(computeLedValuesTask);
 	runner.addTask(syncTimeTask);
 	runner.addTask(displayTask);
+	runner.addTask(temperatureTask);
 	computeLedValuesTask.enable();
 	syncTimeTask.enable();
 	displayTask.enable();
@@ -748,23 +750,34 @@ void setup() {
 	oneWire.reset_search();
 	if (!oneWire.search(insideThermometer)) {
 		 DEBUG_MSG("Vnitrni teplomer nenalezen!\n");
+		 temperatureTask.disable();
 	} else {
 		sensors.setResolution(insideThermometer, TEMPERATURE_PRECISION);
-		sensors.requestTemperatures();
-		modulesTemperature[0] = (int8_t)sensors.getTempC(insideThermometer);
+		sensors.requestTemperatures();		
+		temperatureTask.enable();
 	}
 
 }
 
 void loop() {
 
-	if (isDNSStarted)
-		dnsServer.processNextRequest();
+	if (digitalRead(BUTTON)) {
+		if (WiFi.getMode() == WIFI_OFF ) {
+			WiFi.mode((WiFiMode_t)config.wifimode);
+			shouldReconnect = true;
+		} else {
+			WiFi.mode(WIFI_OFF);
+			shouldReconnect = false;
+		}
+	}
 
-	MDNS.update();
+	if (WiFi.getMode() != WIFI_OFF ) {
+		if (isDNSStarted )
+			dnsServer.processNextRequest();
+			MDNS.update();
+			ArduinoOTA.handle();
+	}
 	
-	ArduinoOTA.handle();
-
 	//wifi change
 	if (shouldReconnect) {
 		wifiConnect();
@@ -783,12 +796,6 @@ void loop() {
 		delay(100);
 		ESP.restart();
 	}
-
-	/* TODO: 
-		Periodicka kontrola wifi pripojeni ???
-		- nebo to nechame na ESP
-		- ale, pokud nam padne wifi, chceme dal ridit svetla, takze by bylo dobre pustit AP
-	 */
 
 	switch (changed) {
 	case LED:
