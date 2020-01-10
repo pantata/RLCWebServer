@@ -687,11 +687,13 @@ void webserver_begin() {
 		for (uint8_t i=(m>0?m-1:0); i < (m==0?MAX_MODULES:m); i++) {
 			config.manualValues[i][0] = (uint16_t)root["1"];
 			config.manualValues[i][1] = (uint16_t)root["2"];
+			/*
 			config.manualValues[i][2] = (uint16_t)root["3"];
 			config.manualValues[i][3] = (uint16_t)root["4"];
 			config.manualValues[i][4] = (uint16_t)root["5"];
 			config.manualValues[i][5] = (uint16_t)root["6"];
 			config.manualValues[i][6] = (uint16_t)root["7"];
+			*/
 		}
 		saveConfig();
 		sendJsonResultResponse(request,true);
@@ -699,5 +701,6 @@ void webserver_begin() {
 	});
 
 	server.begin();
+	
 }
 

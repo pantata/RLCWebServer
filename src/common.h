@@ -60,7 +60,7 @@
 #define PWM_CH1   14
 #define PWM_CH2   12
 
-#define BUTTON    16
+#define BUTTON    13
 
 #define PWM_FREQ  200
 

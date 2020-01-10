@@ -148,27 +148,33 @@ void tTemperaturetask() {
 	sensors.requestTemperatures();
 }
 
-
 void tDisplaytask() {
 
 	display.clear();
 	//diplay IP
-	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
+	display.setTextAlignment(TEXT_ALIGN_LEFT);
   	display.setFont(ArialMT_Plain_10);
 	if (WiFi.getMode() == WIFI_STA) {  
-  		display.drawString(display.getWidth()/2, 13, "IP: " + WiFi.localIP().toString());		
+  		display.drawString(0, 1, WiFi.localIP().toString());		
+	} else if (WiFi.getMode() == WIFI_OFF ){
+		display.drawString(0,1, "WIFI OFF");
 	} else {
-		display.drawString(display.getWidth()/2,13, config.hostname);
-		display.drawString(display.getWidth()/2, 26, "IP: " + WiFi.softAPIP().toString());
+		display.drawString(0,1, config.hostname + "\n" + WiFi.softAPIP().toString());
 	}
 
+	display.setTextAlignment(TEXT_ALIGN_RIGHT);
+	display.setFont(ArialMT_Plain_10);		
+	display.drawString(display.getWidth(), 1, String(modulesTemperature[0]) + char(247)+"C");
+
+
 	//display values
-	display.setColor(BLACK); 
-    display.fillRect(0, display.getHeight() - 10, display.getWidth(), display.getHeight());
-	display.setColor(WHITE); 
-	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-  	display.setFont(ArialMT_Plain_10);
-    display.drawString(display.getWidth()/2, display.getHeight() - 10, "CH1: "+ String(ledVal1/10) + "% - CH2: "+ String(ledVal2/10) + "%");
+	display.setTextAlignment(TEXT_ALIGN_LEFT);
+  	display.setFont(ArialMT_Plain_16);
+    display.drawString(0, display.getHeight() - 40, "Bílá:");
+	display.drawString(0, display.getHeight() - 20, "Modrá:");
+	display.drawString(55, display.getHeight() - 40, String(ledVal1/10) + "%");
+	display.drawString(55, display.getHeight() - 20, String(ledVal2/10) + "%");
+	
   	display.display();
 	DEBUG_MSG("DISPLAY\n");
 }
@@ -657,6 +663,8 @@ void setup() {
 	analogWrite(PWM_CH1,0);
 	analogWrite(PWM_CH2,0);
 	analogWriteFreq(PWM_FREQ);
+	//set button input
+	pinMode(BUTTON,INPUT);
 
 /*
 	WiFi.persistent(false);
@@ -666,7 +674,7 @@ void setup() {
 
   	// Initialising the UI will init the display too.
   	display.init();
-  	display.flipScreenVertically();
+  	//display.flipScreenVertically();
 	display.clear();
 
 	ArduinoOTA.onStart([]() {
@@ -749,8 +757,8 @@ void setup() {
 	//teplomer
 	oneWire.reset_search();
 	if (!oneWire.search(insideThermometer)) {
+		temperatureTask.disable();
 		 DEBUG_MSG("Vnitrni teplomer nenalezen!\n");
-		 temperatureTask.disable();
 	} else {
 		sensors.setResolution(insideThermometer, TEMPERATURE_PRECISION);
 		sensors.requestTemperatures();		
@@ -761,6 +769,7 @@ void setup() {
 
 void loop() {
 
+/*
 	if (digitalRead(BUTTON)) {
 		if (WiFi.getMode() == WIFI_OFF ) {
 			WiFi.mode((WiFiMode_t)config.wifimode);
@@ -770,7 +779,7 @@ void loop() {
 			shouldReconnect = false;
 		}
 	}
-
+*/
 	if (WiFi.getMode() != WIFI_OFF ) {
 		if (isDNSStarted )
 			dnsServer.processNextRequest();
