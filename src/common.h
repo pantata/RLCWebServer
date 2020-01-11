@@ -175,4 +175,9 @@ extern bool incomingLedValues;
 
 extern const uint16_t coreVersion;
 
+
+
+
+
+
 #endif /* common_h */

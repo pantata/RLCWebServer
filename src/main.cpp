@@ -119,6 +119,10 @@ const char* str_lang[] = { "en", "cs", "pl", "de" };
 
 union Unixtime unixtime;
 
+
+
+
+
 //Callback
 void tComputeLedValues() {	
 	//vrat hodnotu led a nastav pwm na pinu PWM_CH1 a PWM_CH2
@@ -148,6 +152,32 @@ void tTemperaturetask() {
 	sensors.requestTemperatures();
 }
 
+
+// utility function for digital clock display: prints leading 0
+String twoDigits(int digits){
+  if(digits < 10) {
+    String i = '0'+String(digits);
+    return i;
+  }
+  else {
+    return String(digits);
+  }
+}
+
+
+// Font generated or edited with the glyphEditor
+const uint8_t iconFont[] PROGMEM = {
+0x0A, // Width: 10
+0x0D, // Height: 13
+0x20, // First char: 32
+0x01, // Number of chars: 1
+// Jump Table:
+0x00, 0x00, 0x0E, 0x0A, // 32
+// Font Data:
+0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0xFC, 0x0F, 0xE2, 0x0F, 0xFC, 0x0F, 0x50, 0x07, // 32
+};         
+            
+
 void tDisplaytask() {
 
 	display.clear();
@@ -159,22 +189,41 @@ void tDisplaytask() {
 	} else if (WiFi.getMode() == WIFI_OFF ){
 		display.drawString(0,1, "WIFI OFF");
 	} else {
-		display.drawString(0,1, config.hostname + "\n" + WiFi.softAPIP().toString());
+		display.drawString(0,1, config.hostname);
+		display.drawString(0,13, WiFi.softAPIP().toString());
 	}
 
+	//display time
 	display.setTextAlignment(TEXT_ALIGN_RIGHT);
-	display.setFont(ArialMT_Plain_10);		
-	display.drawString(display.getWidth(), 1, String(modulesTemperature[0]) + char(247)+"C");
+  	display.setFont(ArialMT_Plain_10);
+	now();
+	String timenow = twoDigits(hour())+":"+twoDigits(minute())+":"+twoDigits(second());
+  	display.drawString(display.getWidth(), 1, timenow ); 
 
+	display.setTextAlignment(TEXT_ALIGN_RIGHT);
+	//thermo icon
+	display.setFont(iconFont);		
+	display.drawString(display.getWidth()-38, 13, " ");
+	//temperature
+	display.setFont(ArialMT_Plain_10);	
+	
+	display.drawString(display.getWidth(), 13, String(modulesTemperature[0])+"°C");
+
+	display.drawLine(0,29,display.getWidth(),29);
 
 	//display values
 	display.setTextAlignment(TEXT_ALIGN_LEFT);
-  	display.setFont(ArialMT_Plain_16);
-    display.drawString(0, display.getHeight() - 40, "Bílá:");
-	display.drawString(0, display.getHeight() - 20, "Modrá:");
-	display.drawString(55, display.getHeight() - 40, String(ledVal1/10) + "%");
-	display.drawString(55, display.getHeight() - 20, String(ledVal2/10) + "%");
-	
+  	display.setFont(DejaVu_Sans_Bold_12);
+    display.drawString(0, display.getHeight() - 32, "Bílá:");
+	display.drawString(0, display.getHeight() - 15, "Modrá:");
+	display.setTextAlignment(TEXT_ALIGN_RIGHT);
+/*
+	display.drawProgressBar(64,32,62,14,ledVal1/10);
+	display.drawProgressBar(64,47,62,14,ledVal2/10);
+*/
+	display.drawString(display.getWidth(), display.getHeight() - 32, String(ledVal1/10) + "%");
+	display.drawString(display.getWidth(), display.getHeight() - 15, String(ledVal2/10) + "%");
+
   	display.display();
 	DEBUG_MSG("DISPLAY\n");
 }
@@ -683,7 +732,7 @@ void setup() {
  		display.clear();
     	display.setFont(ArialMT_Plain_10);
     	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-    	display.drawString(display.getWidth()/2, display.getHeight()/2 - 10, "Firmware Update");
+    	display.drawString(display.getWidth()/2, display.getHeight()/2 - 10, "Aktualizace");
     	display.display();
 	});
 
