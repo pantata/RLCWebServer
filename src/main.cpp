@@ -31,7 +31,7 @@
 #include <ESP8266mDNS.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
-#include <SSD1306Brzo.h>
+#include <SSD1306Wire.h>
 
 #include <TaskScheduler.h>
 
@@ -63,7 +63,7 @@ DNSServer dnsServer;
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
-SSD1306Brzo  display(0x3c, D1, D2);
+SSD1306Wire display(0x3c, D1, D2);
 
 Config config;
 WifiNetworks wifinetworks[16];
