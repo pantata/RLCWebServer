@@ -13,15 +13,12 @@
 void initSamplingValues();
 void copySamplingUp(int x);
 void copySamplingDown(int x);
-bool insertOrUpdateSampling(uint8_t modul,uint8_t channel,uint8_t timeSlot,uint16_t value,uint8_t efect);
-bool deleteSampling(uint8_t modul,uint8_t channel,uint8_t timeSlot);
+bool insertOrUpdateSampling(uint8_t channel,uint8_t timeSlot,uint16_t value,uint8_t efect);
+bool deleteSampling(uint8_t channel,uint8_t timeSlot);
 
 uint8_t StringToUint8_t(String s);
 uint16_t StringToUint16_t(String s);
 int16_t StringToInt(String s);
-uint16_t getSamplingValue(uint8_t modul,uint8_t channel);
-bool saveSamplingStruct(String filename);
-bool loadSamplingStruct(String filename,Samplings *s );
-
+uint16_t getSamplingValue(uint8_t channel);
 
 #endif /* sampling_h */

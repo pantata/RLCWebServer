@@ -1,25 +1,15 @@
-///
-/// @mainpage	RlcWebFw
-///
-/// @details    WiFi chip firmware
-/// @n
-/// @n
-///
-/// @date		21.10.16 15:51
-/// @version v0.2-10-gf4a3c71
-///
-///
-/// @see		ReadMe.txt for references
-///
 
-///
+/// @mainpage	RlcWebFw
+/// @details    WiFi chip firmware
+/// @date		01.03.21
+/// @version    v0.5
+
 #include <Esp.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-#include <FS.h>
-
+//#include <FS.h>
 #include <time.h>
 #include <Hash.h>
 #include <ESPAsyncTCP.h>
@@ -29,28 +19,25 @@
 #include <MyTimeLib.h>
 #include <DNSServer.h>
 #include <ESP8266mDNS.h>
-#include <SoftwareSerial.h>
 #include <Wire.h>
-#include <SSD1306Wire.h>
-
-#include <TaskScheduler.h>
-
+#include <ESP8266AVRISP.h>
+#include <FS.h>
+#include <JsonListener.h>
+#include <JsonStreamingParser.h>
 #include "common.h"
 #include "RlcWebFw.h"
-
 #include "webserver.h"
 #include "sampling.h"
 #include "tz.h"
 #include "twi_registry.h"
 
-//#include "espping.h"
-
 extern "C" {
-#include "user_interface.h"
+	#include "user_interface.h"
 }
 
-#define COREVERSION 0x0101
+#define _TASK_TIMECRITICAL
 
+#define COREVERSION 0x0108
 const uint16_t coreVersion = COREVERSION;
 
 #define BYTELOW(v)   (*(((unsigned char *) (&v))))
@@ -60,10 +47,6 @@ const uint16_t coreVersion = COREVERSION;
 WiFiUDP Udp;
 NTPClient ntpClient(Udp, TIMESERVER, 0, NTPSYNCINTERVAL);
 DNSServer dnsServer;
-
-#define SCREEN_WIDTH 128 // OLED display width, in pixels
-#define SCREEN_HEIGHT 32 // OLED display height, in pixels
-SSD1306Wire display(0x3c, D1, D2);
 
 Config config;
 WifiNetworks wifinetworks[16];
@@ -75,7 +58,6 @@ bool shouldReconnect = false;
 bool startUpdate = false;
 bool updateExited = false;
 bool isDNSStarted = false;
-bool arduinoFlash = false;
 bool incomingLedValues = false;
 
 String inputString = "";
@@ -84,11 +66,10 @@ uint8_t inStr = 0;
 uint8_t lang = 0;
 t_changed changed = NONE;
 
-uint8_t modulesCount=16;
-uint8_t slaveAddr[16];
-uint16_t slaveVersion[16];
+uint8_t slaveAddr;
+uint16_t slaveVersion;
 
-int8_t modulesTemperature[16];
+int8_t modulesTemperature;
 uint8_t mode = 0;
 
 bool _is_static_ip = false;
@@ -115,34 +96,23 @@ const char* str_timestatus[] = { "timeNotSet", "timeNeedsSync", "timeSet" };
 const char* str_lang[] = { "en", "cs", "pl", "de" };
 
 union Unixtime unixtime;
+ESP8266AVRISP avrprog(port, 16);
 
-//SoftwareSerial DEBUGSER(14, 12, false, 256);
-
-//Task lib.
-// Callback methods prototypes
-void t1Callback();
-//Tasks
-Task t1(1000, -1, &t1Callback);
-Scheduler runner;
-
-static int8_t readTemperature(uint8_t address);
-static void sendValToSlave(int8_t m);
-
-void t1Callback() {
-	for (uint8_t m = 0; m < modulesCount; m++) {
-		esp_yield();
-		modulesTemperature[m] = readTemperature(slaveAddr[m]);
-		sendValToSlave(m);
-	}	
+void t1SendToSlave() {
+	//DEBUG_MSG("SendToSlave\n");
+	modulesTemperature = readTemperature();
+	//DEBUG_MSG("Slave temperature: %d\n",modulesTemperature);
+	sendValToSlave();
 }
 
-uint16_t crc16_update(uint16_t crc, uint8_t a)
-{
-  int i;
+void t2SyncTime() {
+	DEBUG_MSG("Synctime\n");
+}
 
+uint16_t crc16_update(uint16_t crc, uint8_t a) {
+  int i;
   crc ^= a;
-  for (i = 0; i < 8; ++i)
-  {
+  for (i = 0; i < 8; ++i) {
     if (crc & 1)
       crc = (crc >> 1) ^ 0xA001;
     else
@@ -173,10 +143,7 @@ uint16_t getCrc(char *data) {
 }
 
 //LED
-int16_t channelVal[MAX_MODULES][CHANNELS]; //16x7x2
-
-
-// SKETCH BEGIN
+int16_t channelVal[CHANNELS]; //16x7x2
 
 WiFiEventHandler connectedEventHandler, disconnectedEventHandler;
 
@@ -253,9 +220,7 @@ void connectWifi(String ssid, String pass) {
 }
 
 void wifiConnect() {
-
 	normalizeConfig();
-
 	if (config.wifimode == WIFI_STA) {
 		if (!config.wifidhcp) {
 			IPAddress ip = IPAddress((uint32_t) 0);
@@ -325,6 +290,11 @@ void wifiFailover() {
 }
 
 void normalizeConfig() {
+	DEBUG_MSG("Normalize config\n");
+	
+	if (config.profileFileName.length() == 0)
+		config.profileFileName = "profile.pjs";
+	
 	if (config.hostname.length() == 0)
 		config.hostname = HOSTNAME;
 
@@ -365,147 +335,151 @@ void normalizeConfig() {
 
 	config.dtFormat = constrain(config.dtFormat, 0, 4);
 	config.tmFormat = constrain(config.tmFormat, 0, 7);
-
-	config.lcdTimeout = constrain(config.lcdTimeout, 5, 127);
-	config.menuTimeout = constrain(config.menuTimeout, 5, 127);
 	config.lang = constrain(config.lang, 0, 3);
+	if (config.startUpdate == NULL) config.startUpdate = false;
 }
 
 bool loadConfig(Config *conf) {
-	File configFile = SPIFFS.open("/config.json", "r");
-	if (!configFile) {
-		return false;
-	}
-	size_t size = configFile.size();
-
-	char * pf = new char[size];
-	std::unique_ptr<char[]> buf(pf);
-	configFile.readBytes(buf.get(), size);
-
-	DynamicJsonBuffer jsonBuffer;
-	JsonObject& json = jsonBuffer.parseObject(buf.get());
-
-	if (!json.success()) {
-		DEBUG_MSG("%s\n", "Failed to parse config file");
-		//free(pf);
-		return false;
-	}
-
-	if (json.containsKey("ssid"))
-		conf->ssid = String((const char *) json["ssid"]);
-	if (json.containsKey("pwd"))
-		conf->pwd = String((const char *) json["pwd"]);
-	if (json.containsKey("hostname"))
-		conf->hostname = String((const char *) json["hostname"]);
-	if (json.containsKey("wifimode"))
-		conf->wifimode = json["wifimode"];
-	if (json.containsKey("ntpServer"))
-		conf->ntpServer = String((const char*) json["ntpServer"]);
-	if (json.containsKey("localPort"))
-		conf->localPort = json["localPort"];
-	String useNtp =
-			(json.containsKey("useNtp")) ?
-					String((const char*) json["useNtp"]) : "false";
-	conf->useNtp = (useNtp.equals("true")) ? 1 : 0;
-	if (json.containsKey("profileFileName"))
-		conf->profileFileName = String((const char*) json["profileFileName"]);
-	String wifidhcp =
-			(json.containsKey("wifidhcp")) ?
-					String((const char*) json["wifidhcp"]) : "true";
-	conf->wifidhcp = (wifidhcp.equals("true")) ? 1 : 0;
-	if (json.containsKey("wifiip"))
-		conf->wifiip = String((const char*) json["wifiip"]);
-	if (json.containsKey("wifimask"))
-		conf->wifimask = String((const char*) json["wifimask"]);
-	if (json.containsKey("wifigw"))
-		conf->wifigw = String((const char*) json["wifigw"]);
-	if (json.containsKey("wifidns1"))
-		conf->wifidns1 = String((const char*) json["wifidns1"]);
-	if (json.containsKey("wifidns2"))
-		conf->wifidns2 = String((const char*) json["wifidns2"]);
-	if (json.containsKey("appwd"))
-		conf->appwd = String((const char*) json["appwd"]);
-	if (json.containsKey("apchannel"))
-		conf->apchannel = json["apchannel"];
-	if (json.containsKey("apip"))
-		conf->apip = String((const char*) json["apip"]);
-	if (json.containsKey("apmask"))
-		conf->apmask = String((const char*) json["apmask"]);
-	if (json.containsKey("apgw"))
-		conf->apgw = String((const char*) json["apgw"]);
-	String useDST =
-			(json.containsKey("useDST")) ?
-					String((const char*) json["useDST"]) : "false";
-	conf->useDST = (useDST.equals("true")) ? 1 : 0;
-	conf->tzRule = TzRule();
-	if (json.containsKey("tzRule.tzName"))
-		conf->tzRule.tzName = String((const char*) json["tzRule.tzName"]);
-	if (json.containsKey("tzRule.dstStart.day"))
-		conf->tzRule.dstStart.day = json["tzRule.dstStart.day"];
-	if (json.containsKey("tzRule.dstStart.hour"))
-		conf->tzRule.dstStart.hour = json["tzRule.dstStart.hour"];
-	if (json.containsKey("tzRule.dstStart.month"))
-		conf->tzRule.dstStart.month = json["tzRule.dstStart.month"];
-	if (json.containsKey("tzRule.dstStart.offset"))
-		conf->tzRule.dstStart.offset = json["tzRule.dstStart.offset"];
-	if (json.containsKey("tzRule.dstStart.weeek"))
-		conf->tzRule.dstStart.week = json["tzRule.dstStart.weeek"];
-	if (json.containsKey("tzRule.dstEnd.day"))
-		conf->tzRule.dstEnd.day = json["tzRule.dstEnd.day"];
-	if (json.containsKey("tzRule.dstEnd.hour"))
-		conf->tzRule.dstEnd.hour = json["tzRule.dstEnd.hour"];
-	if (json.containsKey("tzRule.dstEnd.month"))
-		conf->tzRule.dstEnd.month = json["tzRule.dstEnd.month"];
-	if (json.containsKey("tzRule.dstEnd.offset"))
-		conf->tzRule.dstEnd.offset = json["tzRule.dstEnd.offset"];
-	if (json.containsKey("tzRule.dstEnd.week"))
-		conf->tzRule.dstEnd.week = json["tzRule.dstEnd.week"];
-
-	if (json.containsKey("tmFormat"))
-		conf->tmFormat = json["tmFormat"];
-	if (json.containsKey("dtFormat"))
-		conf->dtFormat = json["dtFormat"];
-
-	if (json.containsKey("lcdTimeout"))
-		conf->lcdTimeout = json["lcdTimeout"];
-	if (json.containsKey("menuTimeout"))
-		conf->menuTimeout = json["menuTimeout"];
-
-	if (json.containsKey("lang"))
-		conf->lang = json["lang"];
-
-	String useManual =
-			(json.containsKey("led.manual")) ?
-					String((const char*) json["led.manual"]) : "false";
-	conf->manual = (useManual.equals("true")) ? 1 : 0;
-
-	if (json.containsKey("manualValues")) {
-		for (int i = 0; i < MAX_MODULES; i++) {
-			conf->manualValues[i][0] = json["manualValues"][i][0];
-			conf->manualValues[i][1] = json["manualValues"][i][1];
-			conf->manualValues[i][2] = json["manualValues"][i][2];
-			conf->manualValues[i][3] = json["manualValues"][i][3];
-			conf->manualValues[i][4] = json["manualValues"][i][4];
-			conf->manualValues[i][5] = json["manualValues"][i][5];
-			conf->manualValues[i][6] = json["manualValues"][i][6];
+	if (SPIFFS.exists(CFGNAME)) {
+		File configFile = SPIFFS.open(CFGNAME, "r");
+		if (!configFile) {
+			DEBUG_MSG("Config not exist\n");
+			return false;
 		}
-	}
+		/*
+		size_t size = configFile.size();
 
-	/* Normalize config file */
-	normalizeConfig();
-	return true;
+		char * pf = new char[size];
+		std::unique_ptr<char[]> buf(pf);
+		configFile.readBytes(buf.get(), size);
+		configFile.close();
+		*/
+		DynamicJsonDocument json(2048);
+		DeserializationError error = deserializeJson(json, configFile);
 
+		if (error) {
+			DEBUG_MSG("Failed to parse config file: %s, %s",CFGNAME,error.c_str());
+  			return false;
+		}
+		if (json.containsKey("version"))
+			conf->version = json["version"];
+		if (json.containsKey("ssid"))
+			conf->ssid = String((const char *) json["ssid"]);
+		if (json.containsKey("pwd"))
+			conf->pwd = String((const char *) json["pwd"]);
+		if (json.containsKey("hostname"))
+			conf->hostname = String((const char *) json["hostname"]);
+		if (json.containsKey("wifimode"))
+			conf->wifimode = json["wifimode"];
+		if (json.containsKey("ntpServer"))
+			conf->ntpServer = String((const char*) json["ntpServer"]);
+		if (json.containsKey("localPort"))
+			conf->localPort = json["localPort"];
+		String useNtp =
+				(json.containsKey("useNtp")) ?
+						String((const char*) json["useNtp"]) : "false";
+		conf->useNtp = (useNtp.equals("true")) ? 1 : 0;
+		if (json.containsKey("profileFileName"))
+			conf->profileFileName = String((const char*) json["profileFileName"]);
+		String wifidhcp =
+				(json.containsKey("wifidhcp")) ?
+						String((const char*) json["wifidhcp"]) : "true";
+		conf->wifidhcp = (wifidhcp.equals("true")) ? 1 : 0;
+		if (json.containsKey("wifiip"))
+			conf->wifiip = String((const char*) json["wifiip"]);
+		if (json.containsKey("wifimask"))
+			conf->wifimask = String((const char*) json["wifimask"]);
+		if (json.containsKey("wifigw"))
+			conf->wifigw = String((const char*) json["wifigw"]);
+		if (json.containsKey("wifidns1"))
+			conf->wifidns1 = String((const char*) json["wifidns1"]);
+		if (json.containsKey("wifidns2"))
+			conf->wifidns2 = String((const char*) json["wifidns2"]);
+		if (json.containsKey("appwd"))
+			conf->appwd = String((const char*) json["appwd"]);
+		if (json.containsKey("apchannel"))
+			conf->apchannel = json["apchannel"];
+		if (json.containsKey("apip"))
+			conf->apip = String((const char*) json["apip"]);
+		if (json.containsKey("apmask"))
+			conf->apmask = String((const char*) json["apmask"]);
+		if (json.containsKey("apgw"))
+			conf->apgw = String((const char*) json["apgw"]);
+		String useDST =
+				(json.containsKey("useDST")) ?
+						String((const char*) json["useDST"]) : "false";
+		conf->useDST = (useDST.equals("true")) ? 1 : 0;
+		conf->tzRule = TzRule();
+		if (json.containsKey("tzRule.tzName"))
+			conf->tzRule.tzName = String((const char*) json["tzRule.tzName"]);
+		if (json.containsKey("tzRule.dstStart.day"))
+			conf->tzRule.dstStart.day = json["tzRule.dstStart.day"];
+		if (json.containsKey("tzRule.dstStart.hour"))
+			conf->tzRule.dstStart.hour = json["tzRule.dstStart.hour"];
+		if (json.containsKey("tzRule.dstStart.month"))
+			conf->tzRule.dstStart.month = json["tzRule.dstStart.month"];
+		if (json.containsKey("tzRule.dstStart.offset"))
+			conf->tzRule.dstStart.offset = json["tzRule.dstStart.offset"];
+		if (json.containsKey("tzRule.dstStart.weeek"))
+			conf->tzRule.dstStart.week = json["tzRule.dstStart.weeek"];
+		if (json.containsKey("tzRule.dstEnd.day"))
+			conf->tzRule.dstEnd.day = json["tzRule.dstEnd.day"];
+		if (json.containsKey("tzRule.dstEnd.hour"))
+			conf->tzRule.dstEnd.hour = json["tzRule.dstEnd.hour"];
+		if (json.containsKey("tzRule.dstEnd.month"))
+			conf->tzRule.dstEnd.month = json["tzRule.dstEnd.month"];
+		if (json.containsKey("tzRule.dstEnd.offset"))
+			conf->tzRule.dstEnd.offset = json["tzRule.dstEnd.offset"];
+		if (json.containsKey("tzRule.dstEnd.week"))
+			conf->tzRule.dstEnd.week = json["tzRule.dstEnd.week"];
+
+		if (json.containsKey("tmFormat"))
+			conf->tmFormat = json["tmFormat"];
+		if (json.containsKey("dtFormat"))
+			conf->dtFormat = json["dtFormat"];
+
+		if (json.containsKey("lang"))
+			conf->lang = json["lang"];
+
+		if (json.containsKey("startUpdate"))
+			conf->startUpdate = json["startUpdate"];
+
+		String useManual =
+				(json.containsKey("led.manual")) ?
+						String((const char*) json["led.manual"]) : "false";
+		conf->manual = (useManual.equals("true")) ? 1 : 0;
+
+		if (json.containsKey("manualValues")) {
+			for (int i = 0; i < MAX_MODULES; i++) {
+				conf->manualValues[0] = json["manualValues"][0];
+				conf->manualValues[1] = json["manualValues"][1];
+				conf->manualValues[2] = json["manualValues"][2];
+				conf->manualValues[3] = json["manualValues"][3];
+				conf->manualValues[4] = json["manualValues"][4];
+				conf->manualValues[5] = json["manualValues"][5];
+				conf->manualValues[6] = json["manualValues"][6];
+			}
+		}
+
+		/* Normalize config file */
+		normalizeConfig();
+		return true;
+		configFile.close();
+	} 
+	return false;
 }
 
+
 bool saveSamplingStruct(String filename) {
-	String fn = "/" + filename;
-	File f = SPIFFS.open(fn.c_str(), "w");
+	
+	File f = SPIFFS.open(("/"+filename).c_str(), "w");
 	if (!f) {
-		DEBUG_MSG("Failed to open file %s for writing\n", fn.c_str());
+		DEBUG_MSG("Failed to open file %s for writing\n", filename.c_str());
 		return false;
 	}
 	if (f.write((const uint8_t *) &samplings, sizeof(samplings))) {
 		f.close();
+		DEBUG_MSG("File %s saved\n", filename.c_str());
 		return true;
 	} else {
 		f.close();
@@ -515,9 +489,94 @@ bool saveSamplingStruct(String filename) {
 	return false;
 }
 
+bool saveSamplingStructToJson(String filename) {
+	
+	File f = SPIFFS.open(("/"+filename).c_str(), "w");
+	if (!f) {
+		DEBUG_MSG("Failed to open file %s for writing\n", filename.c_str());
+		return false;
+	}
+	f.printf("{\"used\":%d,\"data\":[",samplings.usedSamplingCount);
+	for (uint16_t i = 0; i< SAMPLING_MAX; i++) {
+		f.printf("[%d,%d,%u,%d]",
+			samplings.sampling[i].channel,
+			samplings.sampling[i].timeSlot,
+			samplings.sampling[i].value,
+			samplings.sampling[i].efect);
+		if (i < (SAMPLING_MAX-1)) f.printf(",");
+	}
+	f.printf("]}");
+	f.flush();
+	f.close();
+
+	return true;
+}
+
+JsonStreamingParser parser;
+SamplingJsonListener listener;
+String currentKey;
+String currentValue;
+bool isArr = false;
+uint8_t arrIdx = 0;
+uint8_t samplingIdx = 0;
+
+void SamplingJsonListener::whitespace(char c) {}
+void SamplingJsonListener::startDocument() {}
+void SamplingJsonListener::endObject() {}
+void SamplingJsonListener::endDocument() {}
+void SamplingJsonListener::startObject() {}
+void SamplingJsonListener::key(String key) {currentKey = key;}
+void SamplingJsonListener::endArray() {isArr = false;arrIdx = 0; }
+void SamplingJsonListener::startArray() { isArr = true; }
+void SamplingJsonListener::value(String value) {
+  currentValue = value;
+  if (currentKey == "used") {  	  
+	  samplings.usedSamplingCount = value.toInt();
+	  currentKey = "";
+  }
+  if (currentKey == "data") {  
+	if (isArr  && (samplingIdx < SAMPLING_MAX)) {
+		switch (arrIdx) {
+			case 0:
+				samplings.sampling[samplingIdx].channel=value.toInt();
+				break;
+			case 1:
+				samplings.sampling[samplingIdx].timeSlot=value.toInt();
+				break;
+			case 2:
+				samplings.sampling[samplingIdx].value=value.toDouble();
+				break;
+			case 3:
+				samplings.sampling[samplingIdx].efect=value.toInt();
+				samplingIdx++;
+				break;
+		}
+		arrIdx++;
+	}
+  }
+}
+
+bool loadSamplingStructFromJson(String filename, Samplings *s) {
+	if (!SPIFFS.exists(("/"+filename).c_str())) {
+		return false;
+	}
+	File f = SPIFFS.open(("/"+filename).c_str(), "r");
+	if (f) {
+		initSamplingValues();
+		while(f.available()) {
+			char json = f.read();
+			parser.parse(json);
+		}
+	}
+	f.close();
+	return true;
+}
+
 bool loadSamplingStruct(String filename, Samplings *s) {
-	String fn = "/" + filename;
-	File f = SPIFFS.open(fn.c_str(), "r");
+	if (!SPIFFS.exists(("/"+filename).c_str())) {
+		return false;
+	}
+	File f = SPIFFS.open(("/"+filename).c_str(), "r");
 	if (f) {
 		if (f.read((uint8_t *) s, sizeof(samplings)) != -1) {
 			f.close();
@@ -533,101 +592,98 @@ bool loadSamplingStruct(String filename, Samplings *s) {
 
 bool saveConfig() {
 	struct Config confsaved;
-
-	if (loadConfig(&confsaved)) {
-		if (memcmp(&config, &confsaved, sizeof(config)) == 0)
-			return false;
-	}
-
-	//StaticJsonBuffer<600> jsonBuffer;
-	DynamicJsonBuffer jsonBuffer;
-	JsonObject& json = jsonBuffer.createObject();
-
-	json["ssid"] = config.ssid.c_str();
-	json["pwd"] = config.pwd.c_str();
-	json["hostname"] = config.hostname.c_str();
-	json["wifimode"] = config.wifimode;
-	json["ntpServer"] = config.ntpServer.c_str();
-	json["localPort"] = config.localPort;
-	json["useNtp"] = (config.useNtp) ? "true" : "false";
-	json["profileFileName"] = config.profileFileName.c_str();
-	json["wifidhcp"] = (config.wifidhcp) ? "true" : "false";
-	json["wifiip"] = config.wifiip.c_str();
-	json["wifimask"] = config.wifimask.c_str();
-	json["wifigw"] = config.wifigw.c_str();
-	json["wifidns1"] = config.wifidns1.c_str();
-	json["wifidns2"] = config.wifidns2.c_str();
-	json["appwd"] = config.appwd.c_str();
-	json["apchannel"] = config.apchannel;
-	json["apip"] = config.apip.c_str();
-	json["apmask"] = config.apmask.c_str();
-	json["apgw"] = config.apgw.c_str();
-	json["useDST"] = (config.useDST) ? "true" : "false";
-	json["tzRule.tzName"] = config.tzRule.tzName.c_str();
-	json["tzRule.dstStart.day"] = config.tzRule.dstStart.day;
-	json["tzRule.dstStart.hour"] = config.tzRule.dstStart.hour;
-	json["tzRule.dstStart.month"] = config.tzRule.dstStart.month;
-	json["tzRule.dstStart.offset"] = config.tzRule.dstStart.offset;
-	json["tzRule.dstStart.week"] = config.tzRule.dstStart.week;
-	json["tzRule.dstEnd.day"] = config.tzRule.dstEnd.day;
-	json["tzRule.dstEnd.hour"] = config.tzRule.dstEnd.hour;
-	json["tzRule.dstEnd.month"] = config.tzRule.dstEnd.month;
-	json["tzRule.dstEnd.offset"] = config.tzRule.dstEnd.offset;
-	json["tzRule.dstEnd.week"] = config.tzRule.dstEnd.week;
-
-	json["tmFormat"] = config.tmFormat;
-	json["dtFormat"] = config.dtFormat;
-	json["lcdTimeout"] = config.lcdTimeout;
-	json["menuTimeout"] = config.menuTimeout;
-	json["led.manual"] = (config.manual) ? "true" : "false";
-	json["lang"] = config.lang;
-
-	JsonArray& data = json.createNestedArray("manualValues");
-	for (int i = 0; i < MAX_MODULES; i++) {
-		JsonArray& ledVal = data.createNestedArray();
-		ledVal.add(config.manualValues[i][0]);
-		ledVal.add(config.manualValues[i][1]);
-		ledVal.add(config.manualValues[i][2]);
-		ledVal.add(config.manualValues[i][3]);
-		ledVal.add(config.manualValues[i][4]);
-		ledVal.add(config.manualValues[i][5]);
-		ledVal.add(config.manualValues[i][6]);
-	}
-
-	File configFile = SPIFFS.open("/config.json", "w");
-	if (!configFile) {
+	DEBUG_MSG("Save config\n");
+	if ((loadConfig(&confsaved)) && (memcmp(&config, &confsaved, sizeof(config)) == 0)) {
+		DEBUG_MSG("Config test\n");
+		DEBUG_MSG("Config no changes, not saving");
 		return false;
 	}
-	json.printTo(configFile);
+	DEBUG_MSG("Create json\n");
+	DynamicJsonDocument doc(2048);
+	doc["version"] = coreVersion;
+	doc["ssid"] = config.ssid.c_str();
+	doc["pwd"] = config.pwd.c_str();
+	doc["hostname"] = config.hostname.c_str();
+	doc["wifimode"] = config.wifimode;
+	doc["ntpServer"] = config.ntpServer.c_str();
+	doc["localPort"] = config.localPort;
+	doc["useNtp"] = (config.useNtp) ? "true" : "false";
+	doc["profileFileName"] = config.profileFileName.c_str();
+	doc["wifidhcp"] = (config.wifidhcp) ? "true" : "false";
+	doc["wifiip"] = config.wifiip.c_str();
+	doc["wifimask"] = config.wifimask.c_str();
+	doc["wifigw"] = config.wifigw.c_str();
+	doc["wifidns1"] = config.wifidns1.c_str();
+	doc["wifidns2"] = config.wifidns2.c_str();
+	doc["appwd"] = config.appwd.c_str();
+	doc["apchannel"] = config.apchannel;
+	doc["apip"] = config.apip.c_str();
+	doc["apmask"] = config.apmask.c_str();
+	doc["apgw"] = config.apgw.c_str();
+	doc["useDST"] = (config.useDST) ? "true" : "false";
+	doc["tzRule.tzName"] = config.tzRule.tzName.c_str();
+	doc["tzRule.dstStart.day"] = config.tzRule.dstStart.day;
+	doc["tzRule.dstStart.hour"] = config.tzRule.dstStart.hour;
+	doc["tzRule.dstStart.month"] = config.tzRule.dstStart.month;
+	doc["tzRule.dstStart.offset"] = config.tzRule.dstStart.offset;
+	doc["tzRule.dstStart.week"] = config.tzRule.dstStart.week;
+	doc["tzRule.dstEnd.day"] = config.tzRule.dstEnd.day;
+	doc["tzRule.dstEnd.hour"] = config.tzRule.dstEnd.hour;
+	doc["tzRule.dstEnd.month"] = config.tzRule.dstEnd.month;
+	doc["tzRule.dstEnd.offset"] = config.tzRule.dstEnd.offset;
+	doc["tzRule.dstEnd.week"] = config.tzRule.dstEnd.week;
+
+	doc["tmFormat"] = config.tmFormat;
+	doc["dtFormat"] = config.dtFormat;
+	doc["led.manual"] = (config.manual) ? "true" : "false";
+	doc["lang"] = config.lang;
+	doc["startUpdate"] = config.startUpdate;
+
+	JsonArray data = doc.createNestedArray("manualValues");
+	data.add(config.manualValues[0]);
+	data.add(config.manualValues[1]);
+	data.add(config.manualValues[2]);
+	data.add(config.manualValues[3]);
+	data.add(config.manualValues[4]);
+	data.add(config.manualValues[5]);
+	data.add(config.manualValues[6]);
+	
+    DEBUG_MSG("JSON OK\n");
+	File configFile = SPIFFS.open(CFGNAME, "w");
+	if (!configFile) {
+		DEBUG_MSG("Config save failed \n");	
+		return false;
+	}
+	serializeJson(doc, configFile);
+	configFile.close();
+	DEBUG_MSG("Config saved: %s \n",CFGNAME);
 	return true;
 }
 
 
-static void searchSlave() {
+static uint8_t searchSlave() {
 	uint8_t error, address, idx = 0;
-	memset(slaveAddr, 255, 16);
-	for (address = 0x10; address <= 0x40; address++) {
+	Wire.begin(13,14);
+	Wire.setClock(100000);
+	slaveAddr = 0;
+	for (address = 1; address < 127; address++) {
 		Wire.beginTransmission(address);
-		Wire.write(reg_MASTER);
-		Wire.write(0xff); //value 0xFF = controller presence
+		//Wire.write(reg_MASTER);
+		//Wire.write(0xff); //value 0xFF = controller presence
     	error = Wire.endTransmission();
-
 		if (error == 0) {
-			slaveAddr[idx] = address;
+			slaveAddr = address;
+			DEBUG_MSG("Slave: %03xh\n", slaveAddr);
 			idx++;
-			//sprintf(tempStr, "%d: %03xh", idx - 1, slaveAddr[idx - 1]);
-			//tft_println(tempStr);
-		}
+		} 
 	}
-	modulesCount = idx;
-	return;
+	return idx;
 }
 
-static void sendValToSlave(int8_t m) {
-
+void sendValToSlave() {
 	uint8_t error = 0;
 	int ledValue[CHANNELS] = {0};
-	//remap led position from web page to hardware
+	//TODO: remap led position from web page to hardware
 	#define c_white  0
 	#define c_uv     1
 	#define c_rb     2
@@ -635,14 +691,14 @@ static void sendValToSlave(int8_t m) {
 	#define c_green  4
 	#define c_red    5
 	#define c_amber  6
-
 	//a takto jsou zapojeny
+	//TODO: revize
 	uint8_t led_colors[CHANNELS] = {c_blue,c_amber,c_white,c_red,c_green,c_rb,c_uv};
 
 	uint16_t crc = 0xffff;
 
 	//posleme info , ze ridime
-	Wire.beginTransmission(slaveAddr[m]);
+	Wire.beginTransmission(slaveAddr);
 	Wire.write(reg_MASTER); //register address
 	Wire.write(0xff);
 	Wire.endTransmission();
@@ -650,9 +706,9 @@ static void sendValToSlave(int8_t m) {
 	//spocitame crc
 	for (uint8_t x = 0; x < CHANNELS; x++) {
 		if (config.manual) { 
-			ledValue[x] = config.manualValues[m][x];
+			ledValue[x] = config.manualValues[x];
 		} else {
-			ledValue[x] = getSamplingValue(m, led_colors[x]);
+			ledValue[x] = getSamplingValue(led_colors[x]);
 		}
 		uint16_t c_val = ledValue[x];
 		uint8_t lb = LOW_BYTE(c_val);
@@ -662,7 +718,7 @@ static void sendValToSlave(int8_t m) {
 	}
 
 	//posleme data vcetne crc
-	Wire.beginTransmission(slaveAddr[m]);
+	Wire.beginTransmission(slaveAddr);
 	Wire.write(reg_LED_START); //register address
 
 	for (uint8_t x = 0; x < CHANNELS; x++) {
@@ -672,7 +728,6 @@ static void sendValToSlave(int8_t m) {
 
 		Wire.write(lb);
 		Wire.write(hb);
-		esp_yield();
 	}
 
 	//crc
@@ -682,18 +737,19 @@ static void sendValToSlave(int8_t m) {
 	//status reg_DATA_OK
 	Wire.write(error);
 	Wire.endTransmission();
+	//DEBUG_MSG("Data to slave send\n");
 }
 
-static int8_t readTemperature(uint8_t address) {
+int8_t readTemperature() {
 	uint8_t ret = 0;
 	uint8_t temp = 0xff;
 	uint8_t temp_status = 0xee;
 
-	Wire.beginTransmission(address);
+	Wire.beginTransmission(slaveAddr);
 	Wire.write(reg_THERM_STATUS);
 	Wire.endTransmission();
 
-	uint8_t cnt = Wire.requestFrom(address, 2);
+	uint8_t cnt = Wire.requestFrom(slaveAddr, 2);
 	if (cnt > 1) {
 		temp_status = Wire.read();
 		temp = Wire.read();
@@ -708,14 +764,14 @@ static int8_t readTemperature(uint8_t address) {
 	return ret;
 }
 
-static uint16_t readSlaveVersion(uint8_t address) {
+uint16_t readSlaveVersion() {
 	uint16_t ret = 0;
 
-	Wire.beginTransmission(address);
+	Wire.beginTransmission(slaveAddr);
 	Wire.write(reg_VERSION_MAIN);
 	Wire.endTransmission();
 
-	uint8_t cnt = Wire.requestFrom(address, 2);
+	uint8_t cnt = Wire.requestFrom(slaveAddr, 2);
 	if (cnt > 1) {
 		BYTELOW(ret) = Wire.read();
 		BYTEHIGH(ret) = Wire.read();
@@ -723,19 +779,79 @@ static uint16_t readSlaveVersion(uint8_t address) {
 	return ret;
 }
 
-void setSlaveDemo(uint8_t address, uint8_t start) {
-	Wire.beginTransmission(address);
+void setSlaveDemo( uint8_t start) {
+	Wire.beginTransmission(slaveAddr);
 	Wire.write(reg_MASTER);
 	if (start) Wire.write(0xde); else Wire.write(0xff);
 	Wire.endTransmission();
 }
 
+
+void updateAvr() {
+	static AVRISPState_t last_state = AVRISP_STATE_IDLE;
+	AVRISPState_t new_state = avrprog.update();
+	if (last_state != new_state) {
+		switch (new_state) {
+			case AVRISP_STATE_IDLE: {
+				DEBUG_MSG("[AVRISP] now idle\r\n");
+				// Use the SPI bus for other purposes
+				break;
+			}
+
+			case AVRISP_STATE_PENDING: {
+				DEBUG_MSG("[AVRISP] connection pending\r\n");
+				// Clean up your other purposes and prepare for programming mode
+				break;
+			}
+
+			case AVRISP_STATE_ACTIVE: {
+				DEBUG_MSG("[AVRISP] programming mode\r\n");
+				// Stand by for completion
+				delay(2000);
+				//ESP.reset();
+				break;
+			}
+		}
+		last_state = new_state;
+	}
+	// Serve the client
+	if (last_state != AVRISP_STATE_IDLE) {
+		avrprog.serve();
+	}
+}
+
+void blinkLed(uint8_t color=5, uint8_t count=3, uint16_t tm=1000) {
+	if (searchSlave() > 0 ) {
+		config.manual = true;
+		config.manualValues[0] = 0;
+		config.manualValues[1] = 0;
+		config.manualValues[2] = 0;
+		config.manualValues[3] = 0;
+		config.manualValues[4] = 0;
+		config.manualValues[6] = 0;
+		for (uint8_t x=0; x<count; x++) {
+			config.manualValues[color] = 200;
+			sendValToSlave();
+			delay(tm);
+			config.manualValues[color] = 0;
+			sendValToSlave();
+			delay(tm);
+		}
+	}
+}
+
 void setup() {
+  #ifdef DEBUG
+	DEBUGSER.begin(DEBUGBAUD);
+	DEBUG_MSG("\n");
+  #endif
 
-  display.init();
-  display.flipScreenVertically();
-  display.setContrast(255);
+  //reset avr, set pin to high
+  digitalWrite(RESET_AVR,LOW);
+  delay(20);
+  digitalWrite(RESET_AVR,HIGH);
 
+  parser.setListener(&listener);
 /*
 	WiFi.persistent(false);
 	WiFi.setAutoConnect(false);
@@ -756,170 +872,209 @@ void setup() {
 */
 
 	ArduinoOTA.onStart([]() {
+		//blinkLed(LEDRED,3,1000);
 		SPIFFS.end();
-	    display.clear();
-    	display.setFont(ArialMT_Plain_10);
-    	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-    	display.drawString(display.getWidth()/2, display.getHeight()/2 - 10, "OTA Update");
-    	display.display();
 	});
 
- 	 ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    	display.drawProgressBar(4, 32, 120, 8, progress / (total / 100) );
-    	display.display();
+	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+		//TODO: add green led blink
+		;
   	});
 
   	ArduinoOTA.onEnd([]() {
-    	display.clear();
-    	display.setFont(ArialMT_Plain_10);
-    	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-    	display.drawString(display.getWidth()/2, display.getHeight()/2, "Restart");
-    	display.display();
+		//TODO: add green led blink
+		//blinkLed(LEDGREEN,3,1000);
   	});
 
 	initSamplingValues();
 
+	DEBUG_MSG("Init config\n");
+	
 	if (SPIFFS.begin() ) {
-		if (!loadConfig(&config)) {
+		if (loadConfig(&config)) {
+			if (config.version != coreVersion) {
+				config.version = coreVersion;
+				//UPDATE ....
+				normalizeConfig();
+				DEBUG_MSG("Update config\n");
+				saveSamplingStructToJson("profile.pjs");
+				saveConfig();
+			}			
+		} else {
+			DEBUG_MSG("Init config\n");
 			normalizeConfig();
 			saveConfig();
-		}
-	}
-
-	if (config.profileFileName.length() > 0) {
-		bool lok = loadSamplingStruct(config.profileFileName, &samplings);
-	}
-
-	WiFi.hostname(config.hostname.c_str());
-	uint8_t res = WL_DISCONNECTED;
-
-	if (config.wifimode == WIFI_STA) {  //&& (config.wifimode != WIFI_OFF) ) {
-		wifiConnect();
-		if (waitForConnectResult(WAIT_FOR_WIFI) != WL_CONNECTED) {
-			wifiFailover();
+			saveSamplingStructToJson("profile.pjs");
 		}
 	} else {
-		DEBUG_MSG("Set AP: %s", config.hostname.c_str());
+		DEBUG_MSG("ERROR\n");
+		while (1) {;} 
+	}
+#ifdef DEBUG
+	for (int16_t i=0;i<SAMPLING_MAX;i++) {
+		DEBUG_MSG("CH: %d T: %d, V:%u, E:%d\n",
+		samplings.sampling[i].channel,
+		samplings.sampling[i].timeSlot,
+		samplings.sampling[i].value,
+		samplings.sampling[i].efect);
+	}
+#endif
+
+	//if startUpdate, start SPI and update, otherwise start I2C
+	if (config.startUpdate) {
+		DEBUG_MSG("Start update avr\n");
+		DEBUG_MSG("Set AP: %s\n", config.hostname.c_str());
 		WiFi.mode(WIFI_AP);
+		WiFi.hostname(config.hostname.c_str());
 		WiFi.softAP(config.hostname.c_str());
-		//_wifi_is_connected = WIFI_AP_STARTED;
-	}
 
-	startUpdate = false;
+		MDNS.begin(config.hostname.c_str());
+    	MDNS.addService("avrisp", "tcp", port);
+		//TODO:  blink yellow led
+		blinkLed(LEDAMBER,3,1000);
+		avrprog.begin();
+		startUpdate = true;
+		config.startUpdate = false;
+		saveConfig();
+		
+	} else {
 
-	ntpClient.begin();
+		if (config.profileFileName.length() > 0) {
+			bool lok = loadSamplingStructFromJson(config.profileFileName, &samplings);
+			DEBUG_MSG("Sampling config load: %s %s\n",config.profileFileName.c_str(),lok==1?"OK":"Fail");
+		}
 
-	setSyncInterval(NTPSYNCINTERVAL);
-	setSyncProvider(getNtpTime);
+		WiFi.hostname(config.hostname.c_str());
+		uint8_t res = WL_DISCONNECTED;
 
-	webserver_begin();
-	//add mDNS service
-	if (MDNS.begin(config.hostname.c_str())) {
-		MDNS.addService("http", "tcp", 80);
-	}
+		if (config.wifimode == WIFI_STA) {  //&& (config.wifimode != WIFI_OFF) ) {
+			wifiConnect();
+			if (waitForConnectResult(WAIT_FOR_WIFI) != WL_CONNECTED) {
+				wifiFailover();
+			}
+		} else {
+			DEBUG_MSG("Set AP: %s\n", config.hostname.c_str());
+			WiFi.mode(WIFI_AP);
+			WiFi.softAP(config.hostname.c_str());
+			//_wifi_is_connected = WIFI_AP_STARTED;
+		}
+		startUpdate = false;
+		ntpClient.begin();
+		setSyncInterval(NTPSYNCINTERVAL);
+		setSyncProvider(getNtpTime);
 
-	//search i2c slave
-	searchSlave();
-	for (uint8_t m = 0; m < modulesCount; m++) {
-		versionInfo.slaveModules[m] = readSlaveVersion(slaveAddr[m]);
-	}
+		webserver_begin();
+		//add mDNS service
+		if (MDNS.begin(config.hostname.c_str())) {
+			MDNS.addService("http", "tcp", 80);
+		}
+
+		delay(5000);
+		DEBUG_MSG("Searching slave\n");
+		if (searchSlave() > 0) {
+			versionInfo.slaveModule = readSlaveVersion();
+			DEBUG_MSG("Success,  ver.:0x%04X\n", versionInfo.slaveModule);
+		} else {
+			DEBUG_MSG("fail, no slave found\n");
+		}
+		ArduinoOTA.begin();					
+	}	
 	
-	runner.init();
-	runner.addTask(t1);
-	t1.enable();
-
-	ArduinoOTA.begin();
-
-	// Align text vertical/horizontal center
-  	display.setTextAlignment(TEXT_ALIGN_CENTER_BOTH);
-  	display.setFont(ArialMT_Plain_10);
-  	display.drawString(display.getWidth()/2, display.getHeight()/2, "Ready for OTA:\n" + WiFi.localIP().toString());
-  	display.display();
-
 }
 
+uint32_t t1_mm;
+
 void loop() {
+	uint32_t mm = millis();
 
-	if (isDNSStarted)
-		dnsServer.processNextRequest();
+	if (startUpdate) {
+		updateAvr();
+	} else {
+		if (isDNSStarted)
+			dnsServer.processNextRequest();
 
-	ArduinoOTA.handle();
+		ArduinoOTA.handle();
 
-	//wifi change
-	if (shouldReconnect) {
-		wifiConnect();
-		syncTime = true;
-		shouldReconnect = false;
-	}
-
-	//reboot. manual or after fw update
-	if (shouldReboot) {
-		DEBUG_MSG("%s\n", "Rebooting...");
-		delay(100);
-		ESP.restart();
-	}
-
-	/* TODO: 
-		Periodicka kontrola wifi pripojeni ???
-		- nebo to nechame na ESP
-		- ale, pokud nam padne wifi, chceme dal ridit svetla, takze by bylo dobre pustit AP
-	 */
-/*
-	if ((WiFi.status() != WL_CONNECTED) && ((millis() - _wifi_retry_timeout) > WIFI_RETRY_TIMEOUT) && (config.wifimode == WIFI_STA)) {
-		//odpojeno a vyprsel timeout na test
-		_wifi_retry_timeout = millis();
-		_wifi_retry_count++;
-		if (_wifi_retry_count > WIFI_RETRY_COUNT) {
-			wifiFailover();
-			_wifi_retry_count = 0;
-		} else {
-			//pokusime se pripojit
+		//wifi change
+		if (shouldReconnect) {
 			wifiConnect();
+			syncTime = true;
+			shouldReconnect = false;
+		}
+
+		//reboot. manual or after fw update
+		if (shouldReboot) {
+			DEBUG_MSG("%s\n", "Rebooting...");
+			delay(100);
+			ESP.restart();
+		}
+
+		/* TODO: 
+			Periodicka kontrola wifi pripojeni ???
+			- nebo to nechame na ESP
+			- ale, pokud nam padne wifi, chceme dal ridit svetla, takze by bylo dobre pustit AP
+		*/
+	/*
+		if ((WiFi.status() != WL_CONNECTED) && ((millis() - _wifi_retry_timeout) > WIFI_RETRY_TIMEOUT) && (config.wifimode == WIFI_STA)) {
+			//odpojeno a vyprsel timeout na test
+			_wifi_retry_timeout = millis();
+			_wifi_retry_count++;
+			if (_wifi_retry_count > WIFI_RETRY_COUNT) {
+				wifiFailover();
+				_wifi_retry_count = 0;
+			} else {
+				//pokusime se pripojit
+				wifiConnect();
+			}
+		}
+	*/
+
+		/*
+		*/
+		/*
+		if (syncTime) {
+			now(true);
+			if (timeStatus() == timeSet)
+				changed = TIME;
+			syncTime = false;
+		}
+		*/
+		switch (changed) {
+			case LED:
+				saveConfig();
+				changed = NONE;
+				break;
+			case MANUAL:
+				saveConfig();
+				changed = NONE;
+				break;
+			case TIME:
+				changed = NONE;
+				break;
+			case WIFI:
+				changed = NONE;
+				break;
+			case VERSIONINFO:
+				//getVersionInfo();
+				changed = NONE;
+				break;
+			case TEMPERATUREINFO:
+				//getTemperatureInfo();
+				changed = NONE;
+				break;
+			case IP:
+				break;
+			case LANG:
+				break;
+			case TIME_CONFIG:
+				break;
+			default:
+				break;
+		}
+
+		if (mm - t1_mm > TASK1) {
+			t1_mm = mm;
+			t1SendToSlave();
 		}
 	}
-*/
-
-	/*
-	 * TODO: OPRAVIT NA TASKSCHEDULLER
-	 */
-	if (syncTime) {
-		now(true);
-		if (timeStatus() == timeSet)
-			changed = TIME;
-		syncTime = false;
-	}
-
-	switch (changed) {
-	case LED:
-		break;
-	case MANUAL:
-		changed = NONE;
-		break;
-	case TIME:
-		changed = NONE;
-		break;
-	case WIFI:
-		changed = NONE;
-		break;
-	case VERSIONINFO:
-		//getVersionInfo();
-		changed = NONE;
-		break;
-	case TEMPERATUREINFO:
-		//getTemperatureInfo();
-		changed = NONE;
-		break;
-	case IP:
-		break;
-	case LANG:
-		break;
-	case TIME_CONFIG:
-		break;
-	default:
-		break;
-	}
-
-	runner.execute();
-
-	delay(1);
 }

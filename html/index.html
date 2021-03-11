@@ -679,8 +679,6 @@ margin-top:-5px;
 		    <div class="pure-u-1-1"> 		        
 		        <div class="card">
 		           <div id="mM" class="pure-menu pure-menu-horizontal pure-menu-scrollable">
-                      <div class="pure-menu-link pure-menu-heading I18N">led.modules</div>
-                        <ul id="ml" class="pure-menu-list"></ul>                                       
                     </div>
                     <span class="ml-tooltip"></span>		
 					<form class="pure-form" action="#">
@@ -698,10 +696,6 @@ margin-top:-5px;
 					  </div>
 					  </fieldset>
 					  <div id="chv-submit" style="display:none; margin-top:1em;" >
-					  <div class="pure-control-group">
-					        	<label for="led-cp-man-val" class='I18N'>led.cp-manual</label>
-                            <input type="checkbox" name="led-cp-man-val" id="led-cp-man-val">
-					  </div>
 					    <div class="pure-control-group">		
 					        <label for="led-man-send" class='I18N'>led.send-txt</label>
 					       	<button type="submit" id="led-man-send" class="pure-button pure-button-primary I18N">led.send</button>
@@ -713,7 +707,7 @@ margin-top:-5px;
 				</div> <!-- card -->
 				
 				<div class="card">
-				    <div id="g0"></div>
+				    <div id="g0" style="opacity:0.5"></div>
 				</div> <!-- card -->        
 	        </div>
         </div> 
@@ -744,20 +738,16 @@ margin-top:-5px;
 						<form action="#" id="ledstatus" name="ledstatus" class="pure-form">
 						
 								<div class="bl">
-								<label for="ledsetup-filter-module" class="I18N">led.module</label>
-									<select id="ledsetup-filter-module" name="module"></select>
-								</div>
-								<div class="bl">
 									<label for="ledsetup-filter-ledchan" class="I18N">led.ch</label>
 									<select id="ledsetup-filter-ledchan">
-										<option value='0' selected="selected" class="I18N">All</option>
-										<option value='1' class='I18N'>led.ch1</option>
-										<option value='2' class='I18N'>led.ch2</option>
-										<option value='3' class='I18N'>led.ch3</option>
-										<option value='4' class='I18N'>led.ch4</option>
-										<option value='5' class='I18N'>led.ch5</option>
-										<option value='6' class='I18N'>led.ch6</option>
-										<option value='7' class='I18N'>led.ch7</option>
+										<option value='-1' selected="selected" class="I18N">All</option>
+										<option value='0' class='I18N'>led.ch1</option>
+										<option value='1' class='I18N'>led.ch2</option>
+										<option value='2' class='I18N'>led.ch3</option>
+										<option value='3' class='I18N'>led.ch4</option>
+										<option value='4' class='I18N'>led.ch5</option>
+										<option value='5' class='I18N'>led.ch6</option>
+										<option value='6' class='I18N'>led.ch7</option>
 								   </select>
 							   </div>
 							    <div class="bl1"></div>								
@@ -766,11 +756,7 @@ margin-top:-5px;
 						<div id="lbls" style="float:right;"></div>
 						<div style="clear:both"></div>
 					</div>
-                    <div class="pure-control-group">
-                         <label for="led-cp-profile" class='I18N'>led.cpMod</label>
-                         <input type="checkbox" name="led-cp-profile" id="led-cp-profile">                            
-                    </div>						
-					
+    								
 				    <div class="pure-control-group">
 						<label for="led-save-profile" class='I18N'>led.profileName</label>
 						<input type="text" name="profilename" id="profilename">

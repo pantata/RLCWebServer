@@ -10,26 +10,25 @@
 #ifndef common_h
 #define common_h
 
+#include "Arduino.h"
 #include "tz.h"
+#include "JsonListener.h"
 
-//#define DEBUG 1
-
+#define DEBUG 1
+#define DEBUGBAUD 57600
 #ifdef DEBUG
-#include <SoftwareSerial.h>
-
-extern SoftwareSerial DEBUGSER;
-
-#define DEBUG_MSG(...) DEBUGSER.printf(__VA_ARGS__)
-//#define PRINT_CONFIG(c) for(;0;)
-#define PRINT_CONFIG(...) DEBUGSER.printf("HEAP = %d\n",ESP.getFreeHeap())
-#else
-#define DEBUG_MSG(fmt, ...) for(;0;)
-#define PRINT_CONFIG(c) for(;0;)
+    #define DEBUGSER Serial
+    #define DEBUG_MSG(...) DEBUGSER.printf(__VA_ARGS__)
+    //#define PRINT_CONFIG(c) for(;0;)
+    #define PRINT_CONFIG(...) DEBUGSER.printf("HEAP = %d\n",ESP.getFreeHeap())
+    #else
+    #define DEBUG_MSG(fmt, ...) for(;0;)
+    #define PRINT_CONFIG(c) for(;0;)
 #endif
 
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 #define MAX_PWM 4000
-#define MAX_MODULES 16
+#define MAX_MODULES 1
 #define CHANNELS 7
 
 #define AP_IP   String("192.168.4.1")
@@ -38,9 +37,10 @@ extern SoftwareSerial DEBUGSER;
 #define HOSTNAME String("NEREUS") + String(ESP.getChipId(), HEX)
 #define DNS_PORT 53
 #define TIMESERVER "pool.ntp.org"
+#define CFGNAME    "/nereus.cfg"
 
 #define WIFITIMEOUT  15
-#define SAMPLING_MAX 896 //max 8 bodu na kanal
+#define SAMPLING_MAX 504 //max 72 bodu ma kanal
 #define SAMPLING_UINT8_MAX_VALUE 255
 #define TIMEDELAY 10UL
 
@@ -55,6 +55,19 @@ extern SoftwareSerial DEBUGSER;
 
 #define ERR_TEMP_READ   -128
 
+#define RESET_AVR  9
+
+#define LEDBLUE    0
+#define LEDAMBER   1
+#define LEDWHITE   2
+#define LEDRED     3
+#define LEDGREEN   4
+#define LEDRB      5
+#define LEDUV      6
+
+#define TASK1      1000  //ms
+#define TASK2      60000 
+
 typedef enum {
     W_DISCONNECT       =  0,
     W_CONNECTED        =  1,
@@ -62,6 +75,7 @@ typedef enum {
 } wifi_is_connected_t;
 
 struct Config {
+    uint16_t version;
     String ssid; // par ssid
     String pwd;  // par pwd
     String hostname; // par apname
@@ -85,18 +99,16 @@ struct Config {
     TzRule tzRule;
     uint8_t dtFormat;
     uint8_t tmFormat;
-    uint8_t lcdTimeout;
-    uint8_t menuTimeout;
     bool manual;
     uint8_t lang;
-    uint16_t manualValues[MAX_MODULES][7];
+    uint16_t manualValues[7];
+    bool startUpdate;
 };
 
 //var dateFormat = ["DD.MM.YY","DD/MM/YY","DD-MM-YY","YY/MM/DD","YY-MM-DD"];
 //var timeFormat = ["HH:MI:SS P","HH.MI:SS P","HH24:MI:SS","HH24.MI:SS","HH:MI P","HH.MI P","HH24:MI","HH24.MI"];
 
 struct Sampling {
-    uint8_t modul;   //4bit TODO: sloucit
     uint8_t channel; //3bit
     uint8_t timeSlot;
     uint8_t efect;
@@ -123,7 +135,7 @@ union Unixtime {
 
 struct VersionInfo {
 	uint16_t mainModule;        //LSB main, MSB subversion
-	uint16_t slaveModules[16];  //LSB main, MSB subversion
+	uint16_t slaveModule;      //LSB main, MSB subversion
 };
 
 extern struct VersionInfo versionInfo;
@@ -143,7 +155,7 @@ extern const char* str_wifimode[];
 extern const char* str_wifiauth[];
 extern const char* str_timestatus[];
 
-extern int8_t modulesTemperature[];
+extern int8_t modulesTemperature;
 
 enum t_changed  {NONE, LED, MANUAL, TIME, TIME_CONFIG, WIFI, IP, LANG, VERSIONINFO, TEMPERATUREINFO} ;
 
@@ -165,6 +177,26 @@ extern bool incomingLedValues;
 
 extern const uint16_t coreVersion;
 
+const uint16_t port = 328;
+
+bool saveSamplingStruct(String filename);
+bool loadSamplingStruct(String filename,Samplings *s );
+
+int8_t readTemperature();
+void sendValToSlave();
+
+class SamplingJsonListener: public JsonListener {
+  public:
+    virtual void whitespace(char c);
+    virtual void startDocument();
+    virtual void key(String key);
+    virtual void value(String value);
+    virtual void endArray();
+    virtual void endObject();
+    virtual void endDocument();
+    virtual void startArray();
+    virtual void startObject(); 
+};
 
 
 

@@ -442,12 +442,12 @@ var clrs = [
 "#940000",
 "#920000"];
 
-var data =  [[0,0,0,0,0,0,0,0],[96,0,0,0,0,0,0,0]];
+var data =  [[0,0,0,0,0,0,0,0],[144,0,0,0,0,0,0,0]];
 			
 var dtmo = emptyDtmo();
 var dtmoEmpty = [
 	[0,null,null,null,null,null,null,null,null],
-	[96,null,null,null,null,null,null,null,null],
+	[144,null,null,null,null,null,null,null,null],
 	];
 
 var channels = [
@@ -844,56 +844,10 @@ var channels = [
 ];	
 
 function emptyDtmo() {
-	d = [[
+	d = [
 		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		],[
-		[0,null,null,null,null,null,null,null,null],
-		[96,null,null,null,null,null,null,null,null]
-		]];
-		
+		[144,null,null,null,null,null,null,null,null]
+		];
 	return d;	
 }
 
@@ -1120,7 +1074,7 @@ $('div#menu a.pure-menu-link').click(function(event) {
 });
 
 function minToTime( min) {
-	tmStr = pad('00',Math.floor(min/4),true)+":"+ pad('00',(min%4)*15,true);
+	tmStr = pad('00',Math.floor(min/4),true)+":"+ pad('00',(min%4)*10,true);
 	return tmStr;
 }
 
@@ -1399,116 +1353,44 @@ $("div.slider input[type=number]").change(function( event ) {
 
 function reG1() {
 	  
-  	  var mF = Number($("#ledsetup-filter-module").val());
-  	  if (mF != 0) {
-   	  	g1.updateOptions( { 'file': dtmo[mF-1], title: J42R.get('led.module-name.' + mF) } );
-	  } else {
-		g1.updateOptions( { 'file': dtmoEmpty , title: J42R.get('led.module-select') } );
-	  }
+   	g1.updateOptions( { 'file': dtmo } );
+
 }
 
-$("#ledsetup-filter-module").change(function( event ) {
-  	  reG1();	  
-	});
-
 $("#ledsetup-filter-ledchan").change(function( event ) {
-	  valTable(); 
 	  var l=$("#ledsetup-filter-ledchan").val();
-	  if (l == 0) {
+	  if (l == -1) {
 	    for(var i=0;i<8;i++) g1.setVisibility(i,true);
 	  } else {
 	  	for(var i=0;i<8;i++) g1.setVisibility(i,false);
-	  	g1.setVisibility(l-1,true)
+	  	g1.setVisibility(l,true)
 	  }
 	});
     
     
-function valTable() {    
-    //nastaveni filtru
-    var mF = Number($("#ledsetup-filter-module").val());
-    var chF = Number($("#ledsetup-filter-ledchan").val());
-    var mS = 0;
-    var mE = dtmo.length;
-    chS = 1;
-    chE = 8;
-    if (mF != 0) {
-    	mS = mF-1;
-    	mE = mF;	
-    } 
-    
-    if (chF != 0) {
-    	chS = chF;
-    	chE = chF+1;
-    }
-    
-	$('#chvals > tbody > tr').not($('#chvals > tbody > tr').eq(0)).remove();
-	for (i=mS; i<mE;i++) {	   
-	   for (x=1;x<dtmo[i].length-1;x++) {		 
-		 for(y=chS;y<chE;y++) {
-		   if (dtmo[i][x][y] !== null) {
-			var div = $("<tr>");
-			var modul = $("<td>",{text:""+(i+1)});
-			modul.attr("data-label","Modul");
-			var kanal = $("<td>",{text:""+y});
-			kanal.attr("data-label","Channel");
-			var cas = $("<td>",{text:""+dtmo[i][x][0]});
-			cas.attr("data-label","Time");
-			var intenzita = $("<td>",{text:""+dtmo[i][x][y]});	    
-			intenzita.attr("data-label","Value");
-			var efekt = $("<td>");
-			efekt.attr("data-label","efect");
-			var btn=$("<td>");
-			var delled = $("<button>",{text:"-"});
-			delled[0].addEventListener ("click", function() {
-			  div.remove();
-			  return(false);
-			});
-	
-			btn.append(delled);		 	    
-			div.append(modul);
-			div.append(kanal);
-			div.append(cas);
-			div.append(intenzita);
-			div.append(efekt);
-			div.append(btn); 
-			$('#chvals tr').last().after(div);
-		   }
-		 }
-	   } 
-	}
-}
 
-function saveInfo(data, sel) {
+function saveInfo(data) {
 	var title;
 	var opt;
 	console.log("saveInfo");
 	var cnt = Number(data.timeSlotValues.length);
-	modulesCount = data.modulescount;
-	
-	pSelectBox('#ledsetup-filter-module',modulesName,modulesCount, 0, false);
-	
+		
 	$('ul#ml').empty();
-    	console.log(data.modulesTemperature);	 
-	if (cnt > 0 ) {
-		for (var i = 1; i <= cnt; i++) {			
-			temperature = data.modulesTemperature[i-1] != -128?''+data.modulesTemperature[i-1]:' - ';
-			console.log(temperature);
-			opt = '<li id="mo-'+i+'" class="tooltip pure-menu-item'+(i==sel?' pure-menu-selected':'')+ '"><span class="tooltiptext">'+temperature+'&nbsp;&#8451;</span><a href="#" val="'+i+'" class="pure-menu-link">'+J42R.get('led.module-name.'+i)+'</a></li>';			
-			x = $(opt).appendTo('ul#ml');
-			if (i == sel ) {
-				var b = data.timeSlotValues[i-1];
-				title = J42R.get('led.module-name.'+i) ;
-							
-				for (var x=0; x < 7; x++) {					
-					var v = b[x];
-					var sliders = $('#chvx .slider');					
-					sliders[x].noUiSlider.set(v/(MAX_LED_VAL/100));
-				}	
-			}
-		}	
+    console.log(data.moduleTemperature);	 
+	temperature = data.moduleTemperature != -128?''+data.moduleTemperature:' - ';
+	console.log(temperature);
+	opt = '<div>'+temperature+'&nbsp;&#8451;</div>';			
+	x = $(opt).appendTo('ul#ml');
+	
+	var b = data.timeSlotValues;				
+	for (var x=0; x < 7; x++) {					
+		var v = b[x];
+		var sliders = $('#chvx .slider');					
+		sliders[x].noUiSlider.set(v/(MAX_LED_VAL/100));
+	}	
 
-		g0.updateOptions( { 'title': J42R.get(title) } );
-	}
+	g0.updateOptions( { } );
+
 	
 	if (config.isManual == true) { 
 		//if (isRealValue(timersled)) 
@@ -1529,7 +1411,7 @@ function getInfo() {
 	    processData: false,
 	    contentType:"application/json; charset=utf-8",
 		success:function(data) {												
-				saveInfo(data, selModule);				
+				saveInfo(data);				
 		},
 		error:function(xhr,type){
 			console.log(xhr);
@@ -1554,62 +1436,50 @@ function getConfig() {
 }
 
 $("#addled").click(function( event ) {
-        var modul = $('form#ledform select#ledmodul').val();
         var kanal = $('form#ledform select#ledchan').val();
         var time = $('form#ledform select#ledtime').val();
         var intenzita = $('form#ledform input#ledval').val();        
 
-        addPoint(modul, kanal, time,intenzita,true);  
+        addPoint( kanal, time,intenzita,true);  
         //prepocet pole a zobrazeni bodu
          
-	    valTable();	
 });
 
-function updLedCh(m, t, ch, v, d) {
-	var idx = findIn2dArray(dtmo[m],t);
-    
+function updLedCh(t, ch, v, d) {
+	console.log(t, ch, v, d);
+	var idx = findIn2dArray(dtmo,t);
+    console.log(idx);
     if ((d == false) && (idx >= 0) ){ //delete
-    	dtmo[m][idx][ch] = null;
+    	dtmo[idx][ch+1] = null;
     }
     
     if ((d)  && (idx >= 0)) { //update
-    	dtmo[m][idx][ch] = v;
+    	dtmo[idx][ch+1] = v;
     } 
 
     if ((d)  && (idx < 0)) { //add
-    	dtmo[m].push([t,ch==1?v:null,ch==2?v:null,ch==3?v:null,ch==4?v:null,ch==5?v:null,ch==6?v:null,ch==7?v:null,null]);
+    	dtmo.push([t,ch==0?v:null,ch==1?v:null,ch==2?v:null,ch==3?v:null,ch==4?v:null,ch==5?v:null,ch==6?v:null,null]);
     }
     
     
-    dtmo[m].sort();
+    dtmo.sort((a, b) => { return a[0] - b[0]});
+	console.log(dtmo);
     return;
 }
 
 //function addPoint(m, ch, t, v, a, e) {
-function addPoint(m, ch, t, v, a) {
-	mo = Number(m);
+function addPoint(ch, t, v, a) {
+	console.log(ch, t, v, a);
 	cha = Number(ch);
 	time = Number(t)
 	value= Number(v);
 	
-	if (mo > 0) {
-		if (cha > 0) {
-			updLedCh(mo-1, time, cha, value, a);
-		} else {
-			for (i=1;i<8;i++) {
-				updLedCh(mo-1, time, i, value, a);
-			}
-		}
+	if (cha >= 0) {
+		updLedCh(time, cha, value, a);
 	} else {
-   		for (var i = 0; i <= Number(MAX_MODULES_COUNT)-1; i++) {
-			if (cha > 0) {
-				updLedCh(i, time, cha, value, a);
-			} else {
-				for (var x=1;x<8;x++) {
-					updLedCh(i, time, x, value, a);
-				}
-			}				
-		}		    	    					
+		for (i=0;i<7;i++) {
+			updLedCh(time, i, value, a);
+		}
 	}
 }
 
@@ -1622,13 +1492,10 @@ $('#autoOnOff .Switch').click(function() {
 		manual = true;
 		config.isManual = true;		
 		//stop timer reload
-
-		selModule = 1;
 		setManual(true);
 		g0.updateOptions( { 'file': reChannels() } );					
 	} else {		
 		manual = false;
-		selModule = 1;
 		setManual(false);
 		$('#chv-submit').hide();
 		$('#chvx .slider').attr('disabled',true);
@@ -1966,12 +1833,11 @@ function showConfigData() {
 
 }
 
-function point(m, ch, px, py, a) {
+function point(ch, px, py, a) {
 	
-	addPoint(m, ch,$('#chT').val(), $('#chV').val()*(MAX_LED_VAL/100), a);
+	addPoint(ch,$('#chT').val(), $('#chV').val()*(MAX_LED_VAL/100), a);
 	clcHandler=false;
 	$('#cursor').hide();
-	valTable();	
 	reG1();
 	msDown = false; 	
 };
@@ -2114,7 +1980,6 @@ $( document ).ready(function() {
 	g0 = new Dygraph(document.getElementById("g0"),
 					reChannels(),
 					 {	 height:300,
-  					 	 title: J42R.get('led.module-name.1'),
 						 valueRange:[0,2400],
 						 legend: 'never',				 
 						 animatedZooms: false,
@@ -2131,7 +1996,7 @@ $( document ).ready(function() {
 		dtmoEmpty,
 		 {	
  		 	 height:300, 		 	
-			 title: J42R.get('led.module-select'),
+			 title: J42R.get('led.profil'),
 			 labels:["Time","CH 1","CH 2","CH 3","CH 4","CH 5","CH 6","CH 7","Effect"],
 			 colors:ledcolorsArr,
    		     visibility: [true, true, true, true, true, true, true, true],
@@ -2193,9 +2058,9 @@ $( document ).ready(function() {
 									var y = Dygraph.pageY(event) - pos.y;
 									px = Math.round(g1.toDataXCoord(x)); if (px < 0) px = 0;
 									py = Math.round(g1.toDataYCoord(y)); if (py < 0) py = 0; if (py > MAX_LED_VAL) py = MAX_LED_VAL;
-									var m = Number($("#ledsetup-filter-module").val());
-									var ch = Number($("#ledsetup-filter-ledchan").val());
-									var p = ''+m+','+ch+','+px+','+py+',';
+									var ch = $("#ledsetup-filter-ledchan").val();
+									var p = ''+ch+','+px+','+py+',';
+									console.log(p);
 									var dX = px>72?-200:10;
 									 var dY = py<10?-50:10;
 									$("#cursor").empty();
@@ -2245,20 +2110,6 @@ $( document ).ready(function() {
                   }
              }        
 		 });
-// Add effect to g1   		
-
-	  /*
-	  g1.ready(function() {
-		g1.setAnnotations([		
-		{
-		  series: "Effect",
-		  x: "48",
-		  shortText: "L",
-		  text: "Coldest Day"
-		}
-		]);
-	  });		 
-	  */
 
    // get current led values
    getInfo();   
@@ -2339,57 +2190,44 @@ $('ul#ml').on('click', 'a', function(e){
 });
 
 function getBinProfile(fln) {
-	
-	fln = fln+"?"+new Date().getTime();
-	var oReq = new XMLHttpRequest();
-	oReq.responseType = "arraybuffer";
-	oReq.timeout = 1000;
-
-	oReq.onload = function (e) {
-	  if (oReq.status === 200) {
-		  var arrayBuffer = oReq.response;
-		  if (arrayBuffer) {
-			processData(arrayBuffer);
-		  }
-	  } else {
-		console.log("Error", oReq.statusText); 
-	  }
-	};
-
-	oReq.ontimeout = function (e) { console.log("Timeout"); } ;		
-	oReq.onerror = function (e) { console.log("Error", oReq.statusText); } ;		
-	oReq.upload.onerror = function(){console.log("Error" + oReq.status)} ;
-
-	oReq.open("GET", fln, true);
-	oReq.send(null);
-
-
+	$.ajax({
+		type: 'GET',
+		url: fln,
+		dataType:"json",
+		cache:false,
+		  contentType:"application/json; charset=utf-8",
+		 success:function(data) {
+			unixtime = data.utc;
+			unixtimestamp = data.utc;
+			console.log(data["data"].length);
+			console.log(data);
+			processData(data);
+		 },
+		error:function(xhr,type){
+		  console.log(xhr);
+		}
+	});
 }
 
 function processData(d) {
 	console.log("processData");
-	var arrayBuffer = new Uint8Array(d);	
 	
 	var v = 0;
 	var idx = 0;
 
 	//fill dtmo
-	
+
 	dtmo = emptyDtmo();
-	
-	for (var b = 0; b < 896; b++) {
-			
-			var modul    = arrayBuffer[idx+0];
-			var channel  = arrayBuffer[idx+1];
-			var timeslot = arrayBuffer[idx+2];
-			var effect   = arrayBuffer[idx+3];			
-			var value    =  (arrayBuffer[idx+5] << 8) | (arrayBuffer[idx+4]);
-			if (modul == 255)  break;
-			addPoint(modul, channel, timeslot, value, true);
-			idx = idx + 6;			
+
+	for (var b = 0; b < 864; b++) {
+			var channel  = d['data'][b][0];
+			var timeslot = d['data'][b][1];
+			var value    = d['data'][b][2];
+			var effect   = d['data'][b][3];
+			if (channel == 255)  break;
+			addPoint(channel, timeslot, value, true);
 	}
-	$('#ledsetup-filter-module').val(0);	
-	g1.updateOptions( { 'file': dtmoEmpty,  title: J42R.get('led.module-select') } );	
+	reG1();
 }
 
 function setManual(t) {
@@ -2411,15 +2249,14 @@ $('#led-man-send').click(function(e){
 	e.preventDefault();
 	var ledarr = {};
 	var sldrs = $('#chvx .slider');
-	var module = $('#ml .pure-menu-item.pure-menu-selected a').attr('val');
-	var cpMod = $('#led-cp-man-val').prop('checked');
-	module = cpMod==true?0:Number(module);
-	ledarr[0] = module;
-	for (led=1;led<8;led++) {
-		ledarr[led] = (Number(sldrs[led-1].noUiSlider.get()))*(MAX_LED_VAL/100);
+	var obj = new Object();
+	var ledarr = [];
+	for (led=0;led<7;led++) {
+		ledarr.push(Math.round((Number(sldrs[led].noUiSlider.get()))*(MAX_LED_VAL/100),0));
 	}
-	var d = JSON.stringify(ledarr);
-	
+	obj.data = ledarr;
+	var d = JSON.stringify(obj);
+	console.log(d);
 	$.ajax({
 		type: 'POST',
 		url: 'setled.cgi',
@@ -2432,68 +2269,37 @@ $('#led-man-send').click(function(e){
 		error:function(xhr,type){
 			console.log(xhr);
 		}		
-	});		
-	
-	
+	});
 });
 
 $('#led-save-profile').click(function(e){
 	e.preventDefault();
-	var arrSize=(6*896)+2;          //max 8 bodu na kanal
-	var d = new Uint8Array(arrSize);
-	
-	var copyToMod = $('#led-cp-profile').prop('checked');
-	
-	
-    for (var x=0; x<arrSize;x++) {
-        d[x]=255;
-    }
-    d[arrSize-1]=0; d[arrSize-2]=0;
-    
-	var pocet=0;
-	var idx=0;
-	
-	if (copyToMod) { //copy from first to all modulest
-		for (var i=0; i<MAX_MODULES_COUNT;i++) {
-			for (var x=0;x<dtmo[0].length; x++) {
-				for (var y=1;y<9;y++) {
-					if (dtmo[0][x][y] != null) {
-						d[idx] = i+1; //modul
-						d[idx+1] = y; //channel 
-						d[idx+2] = dtmo[0][x][0]; //timeslot
-						d[idx+3] = 0; //TODO: efect
-						d[idx+4] = dtmo[0][x][y] & 255;      //value low					
-						d[idx+5] = (dtmo[0][x][y] >> 8)&255; //value high
-						idx = idx + 6;
-						pocet++;					
-					}
-				}
-			}
-		}			
-	} else { //write as is
-		for (i=0; i<config.modulescount;i++) {
-			for (var x=0;x<dtmo[i].length; x++) {
-				for (var y=1;y<9;y++) {
-					if (dtmo[i][x][y] != null) {
-						d[idx] = i+1; //modul
-						d[idx+1] = y; //channel 
-						d[idx+2] = dtmo[i][x][0]; //timeslot
-						d[idx+3] = 0; //TODO: efect
-						d[idx+4] = dtmo[i][x][y] & 255;      //value low					
-						d[idx+5] = (dtmo[i][x][y] >> 8)&255; //value high
-						idx = idx + 6;
-						pocet++;					
-					}
-				}
+	//prevedeme dtmo na profile.pjs
+	// {"used":0,"data":[
+	//   [ch,time,value,effect]
+	// ]}
+	var obj = new Object();
+	var data = [];
+	var idx = 0;
+	dtmo.forEach(function(d) {
+		for (x=1;x<9;x++) {
+			if (d[x] != null) {
+				var sArr = [];
+				sArr[0] = x;  //channel
+				sArr[1] = d[0]; //time
+				sArr[2] = d[x]; //value
+				sArr[3] = d[8] == null?0:d[8]; //effect
+				data.push(sArr);
+				idx++;
 			}
 		}
-	}	
-	d[arrSize-1] = (pocet >> 8)&255;
-	d[arrSize-2] = pocet & 255; 
-
-    var aBlob = new Blob([d]);
-	
-		
+	});
+	data.sort((a, b) => { return a[0] - b[0]});
+	obj.used = idx;
+	obj.data = data;
+	var json = JSON.stringify(obj);
+	console.log(json);
+	var blob = new Blob([json], { type: 'text/json' });
 	var fd = new FormData();
 	var pfn = $('#profilename').val();
 	if (pfn == "") {
@@ -2502,7 +2308,7 @@ $('#led-save-profile').click(function(e){
 	pfn = pfn +".pjs";
 	
 	fd.append('filename', pfn);
-	fd.append('datafile', aBlob, pfn);
+	fd.append('file', blob, pfn);
 	
 	$.ajax({
 		type: 'POST',
@@ -2513,7 +2319,6 @@ $('#led-save-profile').click(function(e){
 		success:function(data, status, xhr) {
 			if (status=="success") {
 				 $('#profilename').val("");
- 			 	 $('#pfCpToMod').prop('checked', false);
 				 showResult('#led-save-result', "Saved", 10000); 
 				 
 				 //reload config
@@ -2530,7 +2335,6 @@ $('#led-save-profile').click(function(e){
 			showResult('#led-save-result', "Error", 10000);
 		}		
 	});	
-
 });
 
 $('#timeform').on('submit', function(e) { 

@@ -8,13 +8,13 @@
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-#include <FS.h>
+//#include <FS.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
 #include <MyTimeLib.h>
-
+#include <FS.h>
 #include "tz.h"
 #include "common.h"
 #include "RlcWebFw.h"
@@ -55,11 +55,11 @@ public:
 void sendJsonResultResponse(AsyncWebServerRequest *request, bool cond,
 		String okResultText, String errorResultText, uint32_t processedTime) {
 	AsyncResponseStream *response = request->beginResponseStream("text/json");
-	DynamicJsonBuffer jsonBuffer;
-	JsonObject &root = jsonBuffer.createObject();
-	root["result"] = (cond) ? okResultText : errorResultText;
-	root["time"] = processedTime;
-	root.printTo(*response);
+	DynamicJsonDocument jsonBuffer(256);
+	jsonBuffer["result"] = (cond) ? okResultText : errorResultText;
+	jsonBuffer["time"] = processedTime;
+	serializeJson(jsonBuffer, *response);
+	//root.printTo(*response);
 	request->send(response);
 }
 
@@ -118,11 +118,10 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index,
 		uint8_t *data, size_t len, bool final) {
 
 	File f;
-	String name = "/" + filename;
 	if (!index) {
-		f = SPIFFS.open(name.c_str(), "w");
+		f = SPIFFS.open(("/"+filename).c_str(), "w");
 	} else {
-		f = SPIFFS.open(name.c_str(), "a");
+		f = SPIFFS.open(("/"+filename).c_str(), "a");
 	}
 
 	for (size_t i = 0; i < len; i++)
@@ -269,13 +268,22 @@ void webserver_begin() {
 		shouldReboot = true;
 	});
 
+
+	server.on("/avrUpdate", HTTP_GET, [](AsyncWebServerRequest *request) {
+		sendJsonResultResponse(request,true);
+		config.startUpdate = true;
+		saveConfig();
+		shouldReboot = true;
+	});	
+
 	server.on("/meminfo", HTTP_GET,
 			[](AsyncWebServerRequest *request) {
 				uint32_t startTime = millis();
 				AsyncJsonResponse * response = new AsyncJsonResponse();
-				JsonObject& root = response->getRoot();
+				JsonObject root = response->getRoot();
 				FlashMode_t ideMode = ESP.getFlashChipMode();
 				root["heap"] = ESP.getFreeHeap();
+				root["freeBloskSize"] = ESP.getMaxFreeBlockSize() - 512;
 				root["flashid"] = ESP.getFlashChipId();
 				root["realSize"] = ESP.getFlashChipRealSize();
 				root["ideSize"] = ESP.getFlashChipSize();
@@ -385,7 +393,7 @@ void webserver_begin() {
 		uint32_t startTime=millis();
 
 		AsyncJsonResponse *response = new AsyncJsonResponse();
-		JsonObject& root = response->getRoot();
+		JsonObject root = response->getRoot();
 
 		root["mode"] = str_wifimode[WiFi.getMode()];
 		root["chan"] = WiFi.channel();
@@ -543,9 +551,9 @@ void webserver_begin() {
 				uint32_t startTime=millis();
 
 				AsyncJsonResponse * response = new AsyncJsonResponse();
-				JsonObject& root = response->getRoot();
+				JsonObject root = response->getRoot();
 				root["mode"] = mode;
-				root["modulescount"] = modulesCount;
+				root["modulescount"] = 1;
 
 				time_t localtime = now();
 				if (config.useDST) {
@@ -554,24 +562,18 @@ void webserver_begin() {
 				}
 
 				root["timeslot"] = (uint32_t)hour(localtime)*3600+(uint32_t)minute(localtime)*60+(uint32_t)second(localtime)%900;
-				JsonArray& tsv = root.createNestedArray("timeSlotValues");
+				JsonArray tsv = root.createNestedArray("timeSlotValues");
 
-				for(uint8_t i=1;i<modulesCount+1;i++) {
-					JsonArray& led = tsv.createNestedArray();
-					for(uint8_t j=1;j<8;j++) {
-						if (config.manual == true) {
-							led.add((int)config.manualValues[i-1][j-1]);
-						} else {
-							led.add((int)getSamplingValue(i,j));
-						}
+				JsonArray led = tsv.createNestedArray();
+				for(uint8_t j=1;j<8;j++) {
+					if (config.manual == true) {
+						led.add((int)config.manualValues[j-1]);
+					} else {
+						led.add((int)getSamplingValue(j));
 					}
-
 				}
 
-				JsonArray& mt = root.createNestedArray("modulesTemperature");
-				for(uint8_t i=0;i<modulesCount;i++) {
-					mt.add( modulesTemperature[i]);
-				}
+				root["moduleTemperature"] =  modulesTemperature;				
 				root["time"] = millis()-startTime;
 				response->setLength();
 				request->send(response);
@@ -583,8 +585,7 @@ void webserver_begin() {
 		DEBUG_MSG("%s\n","getconfig.cgi");
 		AsyncJsonResponse * response = new AsyncJsonResponse();
 
-		JsonObject& root = response->getRoot();
-		root["modulescount"] = modulesCount;
+		JsonObject root = response->getRoot();
 		root["lang"] = str_lang[config.lang];
 		root["dst"] = config.useDST;
 		root["useNTP"] = config.useNtp;
@@ -604,8 +605,6 @@ void webserver_begin() {
 		root["dstEndOffset"] = config.tzRule.dstEnd.offset;
 		root["isManual"] = config.manual;
 		root["profileFileName"] = config.profileFileName.c_str();
-		root["lcdTimeout"] = config.lcdTimeout;
-		root["menuTimeout"] = config.menuTimeout;
 		root["time"] = millis()-startTime;
 		response->setLength();
 		request->send(response);
@@ -614,10 +613,10 @@ void webserver_begin() {
 	server.on("/gettime.cgi", HTTP_GET, [](AsyncWebServerRequest *request) {
 		time_t utc = now();    //current time from the Time Library
 			AsyncResponseStream *response = request->beginResponseStream("text/json");
-			DynamicJsonBuffer jsonBuffer;
-			JsonObject &root = jsonBuffer.createObject();
-			root["utc"] = utc;
-			root.printTo(*response);
+			DynamicJsonDocument jsonBuffer(256);
+			jsonBuffer["utc"] = utc;
+			//jsonBuffer.printTo(*response);
+			serializeJson(jsonBuffer, *response);
 			request->send(response);
 		});
 
@@ -633,14 +632,13 @@ void webserver_begin() {
 		} else {
 			nfilename=String(profileName);
 		}
-
-		bool ok=loadSamplingStruct(nfilename,&samplings);
+		DEBUG_MSG("Open %s\n",nfilename.c_str());
+		bool ok=loadSamplingStructFromJson(nfilename,&samplings);
 		if (ok) {
 			config.profileFileName=String(nfilename);
-			ok=saveConfig();
+			changed = LED;
 		}
 		sendJsonResultResponse(request,ok,"OK","ERROR",millis()-startTime);
-		changed = LED;
 	});
 
 	server.on("/setmanual.cgi", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -656,44 +654,28 @@ void webserver_begin() {
 			[](AsyncWebServerRequest *request) {
 				uint32_t startTime = millis();
 				AsyncResponseStream *response = request->beginResponseStream("text/json");
-				DynamicJsonBuffer jsonBuffer;
-				JsonObject &root = jsonBuffer.createObject();
-				root["coreVersion"] = coreVersion;
-				root["masterVersion"] = versionInfo.mainModule;
-				JsonArray& mv = root.createNestedArray("modulesVersion");
-				for(uint8_t i=0;i<modulesCount;i++) {
-					mv.add(versionInfo.slaveModules[i]);
-				}
-
-				root["time"] = millis()-startTime;
-
-				root.printTo(*response);
+				DynamicJsonDocument doc(512);
+				doc["coreVersion"] = coreVersion;
+				doc["masterVersion"] = versionInfo.mainModule;
+				doc["modulesVersion"] = versionInfo.slaveModule;
+				doc["time"] = millis()-startTime;
+				serializeJson(doc, *response);
 				request->send(response);
 			});
 
 	server.on("/setled.cgi", HTTP_POST, [](AsyncWebServerRequest *request) {
 		String json = (String)request->arg("body");
-		DynamicJsonBuffer jsonBuffer;
-		JsonObject& root = jsonBuffer.parseObject(json);
-
-		if (!root.success()) {
-			Serial.println("parseObject() failed");
+		DynamicJsonDocument doc(256);
+		DeserializationError error = deserializeJson(doc, json);
+		if (error) {
+			DEBUG_MSG("Error parsing manual values: %s\n",error.c_str());
 			sendJsonResultResponse(request,false);
 			return;
 		}
-
-		int m = root["0"];
-
-		for (uint8_t i=(m>0?m-1:0); i < (m==0?MAX_MODULES:m); i++) {
-			config.manualValues[i][0] = (uint16_t)root["1"];
-			config.manualValues[i][1] = (uint16_t)root["2"];
-			config.manualValues[i][2] = (uint16_t)root["3"];
-			config.manualValues[i][3] = (uint16_t)root["4"];
-			config.manualValues[i][4] = (uint16_t)root["5"];
-			config.manualValues[i][5] = (uint16_t)root["6"];
-			config.manualValues[i][6] = (uint16_t)root["7"];
+		JsonArray data = doc["data"];
+		for(uint8_t i=0;i<CHANNELS;i++) {
+			config.manualValues[i] = (uint16_t)data[i];
 		}
-		saveConfig();
 		sendJsonResultResponse(request,true);
 		changed = MANUAL;
 	});
