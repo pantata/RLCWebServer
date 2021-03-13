@@ -2,14 +2,19 @@
 /// @mainpage	RlcWebFw
 /// @details    WiFi chip firmware
 /// @date		01.03.21
-/// @version    v0.5
+
+/*
+*  TODO: ESP NOW pro spolupraci mezi svetly
+*
+*
+*/
 
 #include <Esp.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
-//#include <FS.h>
+#include <LittleFS.h>
 #include <time.h>
 #include <Hash.h>
 #include <ESPAsyncTCP.h>
@@ -21,28 +26,24 @@
 #include <ESP8266mDNS.h>
 #include <Wire.h>
 #include <ESP8266AVRISP.h>
-#include <FS.h>
 #include <JsonListener.h>
 #include <JsonStreamingParser.h>
+#include <jled.h>
 #include "common.h"
 #include "RlcWebFw.h"
 #include "webserver.h"
 #include "sampling.h"
 #include "tz.h"
 #include "twi_registry.h"
+#include "version.h"
 
 extern "C" {
 	#include "user_interface.h"
 }
 
-#define _TASK_TIMECRITICAL
-
-#define COREVERSION 0x0108
-const uint16_t coreVersion = COREVERSION;
-
+const uint16_t coreVersion = BUILD_NUMBER;
 #define BYTELOW(v)   (*(((unsigned char *) (&v))))
 #define BYTEHIGH(v)  (*((unsigned char *) (&v)+1))
-
 
 WiFiUDP Udp;
 NTPClient ntpClient(Udp, TIMESERVER, 0, NTPSYNCINTERVAL);
@@ -60,17 +61,11 @@ bool updateExited = false;
 bool isDNSStarted = false;
 bool incomingLedValues = false;
 
-String inputString = "";
-uint8_t inStr = 0;
-
 uint8_t lang = 0;
 t_changed changed = NONE;
 
 uint8_t slaveAddr;
-uint16_t slaveVersion;
-
 int8_t modulesTemperature;
-uint8_t mode = 0;
 
 bool _is_static_ip = false;
 uint8_t _wifi_retry_count = 0;
@@ -78,7 +73,7 @@ uint32_t _wifi_retry_timeout = 0;
 
 bool syncTime = false;
 
-int dstOffset[] = { -720, -660, -600, -540, -480, -420, -360, -300, -240, -210,
+const int dstOffset[] = { -720, -660, -600, -540, -480, -420, -360, -300, -240, -210,
 		-180, -120, -60, 0, 60, 120, 180, 210, 240, 270, 300, 330, 345, 360,
 		390, 420, 480, 540, 570, 600, 660, 720, 780 };
 
@@ -98,16 +93,9 @@ const char* str_lang[] = { "en", "cs", "pl", "de" };
 union Unixtime unixtime;
 ESP8266AVRISP avrprog(port, 16);
 
-void t1SendToSlave() {
-	//DEBUG_MSG("SendToSlave\n");
-	modulesTemperature = readTemperature();
-	//DEBUG_MSG("Slave temperature: %d\n",modulesTemperature);
-	sendValToSlave();
-}
-
-void t2SyncTime() {
-	DEBUG_MSG("Synctime\n");
-}
+#if DEBUG  == 0
+auto led = JLed(STATUSLED);
+#endif
 
 uint16_t crc16_update(uint16_t crc, uint8_t a) {
   int i;
@@ -118,7 +106,6 @@ uint16_t crc16_update(uint16_t crc, uint8_t a) {
     else
       crc = (crc >> 1);
   }
-
   return crc;
 }
 
@@ -141,24 +128,6 @@ uint16_t getCrc(char *data) {
 	}
 	return crc;
 }
-
-//LED
-int16_t channelVal[CHANNELS]; //16x7x2
-
-WiFiEventHandler connectedEventHandler, disconnectedEventHandler;
-
-/*--- Internet test ----------*/
-/*
- bool inetTest() {
- const IPAddress test_ip(8,8,8,8);
-
- if(Ping.ping(test_ip)) {
- return true;
- } else {
- return false;
- }
- }
- */
 
 /*-------- NTP code ----------*/
 time_t getNtpTime() {
@@ -189,7 +158,8 @@ uint8_t waitForConnectResult(unsigned long _connectTimeout) {
 	return status;
 }
 
-void connectWifi(String ssid, String pass) {
+bool connectWifi(String ssid, String pass) {
+	bool ret = false;
 	//fix for auto connect racing issue
 	WiFi.setAutoReconnect(false);
 	if (WiFi.isConnected()) {
@@ -197,15 +167,15 @@ void connectWifi(String ssid, String pass) {
 		WiFi.disconnect();
 	}
 
-	if (WiFi.getMode() != WIFI_STA) {
+	if (WiFi.getMode() != WIFI_AP_STA) {
 		DEBUG_MSG("%s\n", "Set STA mode");
-		WiFi.mode(WIFI_STA);
+		WiFi.mode(WIFI_AP_STA);
 	}
 
 	if (ssid != "") {
 		DEBUG_MSG("Connecting to ::%s:: and ::%s:: \n", ssid.c_str(),
 				pass.c_str());
-		WiFi.begin(ssid.c_str(), pass.c_str());
+		if (WiFi.begin(ssid.c_str(), pass.c_str()) == WL_CONNECTED) ret = true;
 	} else {
 		if (WiFi.SSID()) {
 			DEBUG_MSG("%s\n", "Using last saved values, should be faster");
@@ -217,76 +187,50 @@ void connectWifi(String ssid, String pass) {
 			DEBUG_MSG("%s\n", "No saved credentials");
 		}
 	}
+	return ret;
 }
 
-void wifiConnect() {
+bool wifiConnect() {
+	bool ret = false;
 	normalizeConfig();
-	if (config.wifimode == WIFI_STA) {
-		if (!config.wifidhcp) {
-			IPAddress ip = IPAddress((uint32_t) 0);
-			IPAddress gw = IPAddress((uint32_t) 0);
-			IPAddress mask = IPAddress((uint32_t) 0);
-			IPAddress dns1 = IPAddress((uint32_t) 0);
-			IPAddress dns2 = IPAddress((uint32_t) 0);
-			gw.fromString(config.wifigw);
-			mask.fromString(config.wifimask);
-			ip.fromString(config.wifiip);
-			dns1.fromString(config.wifidns1);
-			dns2.fromString(config.wifidns1);
 
-			WiFi.config(ip, gw, mask, dns1, dns2);
+	if (!config.wifidhcp) {
+		IPAddress ip = IPAddress((uint32_t) 0);
+		IPAddress gw = IPAddress((uint32_t) 0);
+		IPAddress mask = IPAddress((uint32_t) 0);
+		IPAddress dns1 = IPAddress((uint32_t) 0);
+		IPAddress dns2 = IPAddress((uint32_t) 0);
+		gw.fromString(config.wifigw);
+		mask.fromString(config.wifimask);
+		ip.fromString(config.wifiip);
+		dns1.fromString(config.wifidns1);
+		dns2.fromString(config.wifidns1);
 
-		} else {
-			WiFi.config(0U, 0U, 0U, 0U, 0U);
-		}
-		connectWifi(config.ssid.c_str(), config.pwd.c_str());
+		WiFi.config(ip, gw, mask, dns1, dns2);
+
 	} else {
-		WiFi.mode(WIFI_AP);
-		IPAddress apip = IPAddress((uint32_t) 0);
-		IPAddress apmask = IPAddress((uint32_t) 0);
-		if ((apip.fromString(config.apip))
-				&& (apmask.fromString(config.apmask))) {
-			WiFi.softAPConfig(apip, apip, apmask);
-		}
-		WiFi.hostname(config.hostname.c_str());
-		WiFi.softAP(config.hostname.c_str(),
-				config.appwd.length() == 0 ? NULL : config.appwd.c_str(),
-				config.apchannel);
-		//_wifi_is_connected = WIFI_AP_STARTED;
-		delay(500);
-		DEBUG_MSG("Start DNS server, IP: %s, PORRT %d \n",
-				WiFi.softAPIP().toString().c_str(), DNS_PORT);
-		if (isDNSStarted)
-			dnsServer.stop();
-		isDNSStarted = dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+		WiFi.config(0U, 0U, 0U, 0U, 0U);
 	}
-}
 
-void wifiFailover() {
-	DEBUG_MSG("%s\n", "STA FAIL ...");
-	normalizeConfig();
+	if (config.wifimode == WIFI_STA) {
+		ret = connectWifi(config.ssid.c_str(), config.pwd.c_str());
+	}
 
-	WiFi.mode(WIFI_AP);
 	IPAddress apip = IPAddress((uint32_t) 0);
 	IPAddress apmask = IPAddress((uint32_t) 0);
-
-	apip.fromString(AP_IP);
-	apmask.fromString(AP_MASK);
-
-	WiFi.softAPConfig(apip, apip, apmask);
-	WiFi.hostname(config.hostname.c_str());
-	WiFi.softAP(config.hostname.c_str());
-
-	DEBUG_MSG("Not connected %s, start AP: %s\n", config.ssid.c_str(),
-			config.hostname.c_str());
-	//_wifi_is_connected = WIFI_AP_STARTED;
+	if ((apip.fromString(config.apip))
+		&& (apmask.fromString(config.apmask))) {
+		WiFi.softAPConfig(apip, apip, apmask);
+	}
+	WiFi.hostname(HOSTNAME);
+	WiFi.softAP(HOSTNAME,
+	config.appwd.length() == 0 ? NULL : config.appwd.c_str());
 	delay(500);
-	//start DNS server
 	DEBUG_MSG("Start DNS server, IP: %s, PORRT %d \n",
-			WiFi.softAPIP().toString().c_str(), DNS_PORT);
-	if (isDNSStarted)
-		dnsServer.stop();
+		WiFi.softAPIP().toString().c_str(), DNS_PORT);
+	if (isDNSStarted) dnsServer.stop();
 	isDNSStarted = dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
+	return ret;
 }
 
 void normalizeConfig() {
@@ -340,20 +284,12 @@ void normalizeConfig() {
 }
 
 bool loadConfig(Config *conf) {
-	if (SPIFFS.exists(CFGNAME)) {
-		File configFile = SPIFFS.open(CFGNAME, "r");
+	if (LittleFS.exists(CFGNAME)) {
+		File configFile = LittleFS.open(CFGNAME, "r");
 		if (!configFile) {
 			DEBUG_MSG("Config not exist\n");
 			return false;
 		}
-		/*
-		size_t size = configFile.size();
-
-		char * pf = new char[size];
-		std::unique_ptr<char[]> buf(pf);
-		configFile.readBytes(buf.get(), size);
-		configFile.close();
-		*/
 		DynamicJsonDocument json(2048);
 		DeserializationError error = deserializeJson(json, configFile);
 
@@ -463,46 +399,25 @@ bool loadConfig(Config *conf) {
 
 		/* Normalize config file */
 		normalizeConfig();
+		configFile.close();		
 		return true;
-		configFile.close();
 	} 
-	return false;
-}
-
-
-bool saveSamplingStruct(String filename) {
-	
-	File f = SPIFFS.open(("/"+filename).c_str(), "w");
-	if (!f) {
-		DEBUG_MSG("Failed to open file %s for writing\n", filename.c_str());
-		return false;
-	}
-	if (f.write((const uint8_t *) &samplings, sizeof(samplings))) {
-		f.close();
-		DEBUG_MSG("File %s saved\n", filename.c_str());
-		return true;
-	} else {
-		f.close();
-		return false;
-	}
-
 	return false;
 }
 
 bool saveSamplingStructToJson(String filename) {
 	
-	File f = SPIFFS.open(("/"+filename).c_str(), "w");
+	File f = LittleFS.open(filename.c_str(), "w");
 	if (!f) {
 		DEBUG_MSG("Failed to open file %s for writing\n", filename.c_str());
 		return false;
 	}
 	f.printf("{\"used\":%d,\"data\":[",samplings.usedSamplingCount);
 	for (uint16_t i = 0; i< SAMPLING_MAX; i++) {
-		f.printf("[%d,%d,%u,%d]",
+		f.printf("[%d,%d,%u,0]",
 			samplings.sampling[i].channel,
 			samplings.sampling[i].timeSlot,
-			samplings.sampling[i].value,
-			samplings.sampling[i].efect);
+			samplings.sampling[i].value);
 		if (i < (SAMPLING_MAX-1)) f.printf(",");
 	}
 	f.printf("]}");
@@ -515,54 +430,72 @@ bool saveSamplingStructToJson(String filename) {
 JsonStreamingParser parser;
 SamplingJsonListener listener;
 String currentKey;
-String currentValue;
 bool isArr = false;
 uint8_t arrIdx = 0;
-uint8_t samplingIdx = 0;
+uint16_t samplingIdx = 0;
 
 void SamplingJsonListener::whitespace(char c) {}
-void SamplingJsonListener::startDocument() {}
+void SamplingJsonListener::startDocument() { samplingIdx = 0; arrIdx = 0; }
 void SamplingJsonListener::endObject() {}
-void SamplingJsonListener::endDocument() {}
+void SamplingJsonListener::endDocument() {
+	DEBUG_MSG("JSON Loaded: %d\n",samplings.usedSamplingCount);
+	PRINT_CONFIG();
+}
 void SamplingJsonListener::startObject() {}
 void SamplingJsonListener::key(String key) {currentKey = key;}
-void SamplingJsonListener::endArray() {isArr = false;arrIdx = 0; }
-void SamplingJsonListener::startArray() { isArr = true; }
+void SamplingJsonListener::endArray() {
+#if DEBUG > 1	
+	DEBUG_MSG("]\n");
+#endif	
+	isArr = false;arrIdx = 0; 
+}
+void SamplingJsonListener::startArray() {
+#if DEBUG > 1
+	DEBUG_MSG("["); 
+#endif	
+	isArr = true; 
+}
 void SamplingJsonListener::value(String value) {
-  currentValue = value;
-  if (currentKey == "used") {  	  
-	  samplings.usedSamplingCount = value.toInt();
-	  currentKey = "";
-  }
-  if (currentKey == "data") {  
-	if (isArr  && (samplingIdx < SAMPLING_MAX)) {
-		switch (arrIdx) {
-			case 0:
-				samplings.sampling[samplingIdx].channel=value.toInt();
-				break;
-			case 1:
-				samplings.sampling[samplingIdx].timeSlot=value.toInt();
-				break;
-			case 2:
-				samplings.sampling[samplingIdx].value=value.toDouble();
-				break;
-			case 3:
-				samplings.sampling[samplingIdx].efect=value.toInt();
-				samplingIdx++;
-				break;
-		}
-		arrIdx++;
+	if (currentKey == "used") {  	  
+		DEBUG_MSG("Key: %s:%s",currentKey.c_str(),value.c_str());
+		samplings.usedSamplingCount = value.toInt();
+		currentKey = "";
 	}
-  }
+	if (isArr) {
+		if (samplingIdx < SAMPLING_MAX) {
+			int v = value.toInt();
+			switch (arrIdx) {			
+				case 0:
+					samplings.sampling[samplingIdx].channel=v;
+					break;
+				case 1:
+					samplings.sampling[samplingIdx].timeSlot=v;
+					break;
+				case 2:
+					samplings.sampling[samplingIdx].value=v;
+					break;
+				case 3:
+					samplingIdx++;
+					break;
+			}	
+#if DEBUG > 1			
+			DEBUG_MSG("%d,",v);	
+#endif			
+			arrIdx++;
+		}
+	}
+ 
 }
 
-bool loadSamplingStructFromJson(String filename, Samplings *s) {
-	if (!SPIFFS.exists(("/"+filename).c_str())) {
+bool loadSamplingStructFromJson(String filename) {
+	DEBUG_MSG("Load sampling: %s\n",filename.c_str());
+	if (!LittleFS.exists(filename.c_str())) {
 		return false;
 	}
-	File f = SPIFFS.open(("/"+filename).c_str(), "r");
-	if (f) {
+	File f = LittleFS.open(filename.c_str(), "r");
+	if (f) {		
 		initSamplingValues();
+		parser.setListener(&listener);
 		while(f.available()) {
 			char json = f.read();
 			parser.parse(json);
@@ -570,24 +503,6 @@ bool loadSamplingStructFromJson(String filename, Samplings *s) {
 	}
 	f.close();
 	return true;
-}
-
-bool loadSamplingStruct(String filename, Samplings *s) {
-	if (!SPIFFS.exists(("/"+filename).c_str())) {
-		return false;
-	}
-	File f = SPIFFS.open(("/"+filename).c_str(), "r");
-	if (f) {
-		if (f.read((uint8_t *) s, sizeof(samplings)) != -1) {
-			f.close();
-			return true;
-		} else {
-			f.close();
-			return false;
-		}
-	}
-
-	return false;
 }
 
 bool saveConfig() {
@@ -649,7 +564,7 @@ bool saveConfig() {
 	data.add(config.manualValues[6]);
 	
     DEBUG_MSG("JSON OK\n");
-	File configFile = SPIFFS.open(CFGNAME, "w");
+	File configFile = LittleFS.open(CFGNAME, "w");
 	if (!configFile) {
 		DEBUG_MSG("Config save failed \n");	
 		return false;
@@ -668,8 +583,8 @@ static uint8_t searchSlave() {
 	slaveAddr = 0;
 	for (address = 1; address < 127; address++) {
 		Wire.beginTransmission(address);
-		//Wire.write(reg_MASTER);
-		//Wire.write(0xff); //value 0xFF = controller presence
+		Wire.write(reg_MASTER);
+		Wire.write(0xff); //value 0xFF = controller presence
     	error = Wire.endTransmission();
 		if (error == 0) {
 			slaveAddr = address;
@@ -680,9 +595,9 @@ static uint8_t searchSlave() {
 	return idx;
 }
 
+int16_t ledValue[CHANNELS] = {0};
 void sendValToSlave() {
 	uint8_t error = 0;
-	int ledValue[CHANNELS] = {0};
 	//TODO: remap led position from web page to hardware
 	#define c_white  0
 	#define c_uv     1
@@ -708,15 +623,23 @@ void sendValToSlave() {
 		if (config.manual) { 
 			ledValue[x] = config.manualValues[x];
 		} else {
-			ledValue[x] = getSamplingValue(led_colors[x]);
-		}
+			ledValue[x] = getSamplingValue(x);
+		}		
 		uint16_t c_val = ledValue[x];
 		uint8_t lb = LOW_BYTE(c_val);
 		uint8_t hb = HIGH_BYTE(c_val);
 		crc = crc16_update(crc, lb);
 		crc = crc16_update(crc, hb);
 	}
-
+	DEBUG_MSG("Led values[%d,%d,%d,%d,%d,%d,%d]\n",
+		ledValue[0],
+		ledValue[1],
+		ledValue[2],
+		ledValue[3],
+		ledValue[4],
+		ledValue[5],
+		ledValue[6]
+	);
 	//posleme data vcetne crc
 	Wire.beginTransmission(slaveAddr);
 	Wire.write(reg_LED_START); //register address
@@ -820,84 +743,67 @@ void updateAvr() {
 	}
 }
 
-void blinkLed(uint8_t color=5, uint8_t count=3, uint16_t tm=1000) {
-	if (searchSlave() > 0 ) {
-		config.manual = true;
-		config.manualValues[0] = 0;
-		config.manualValues[1] = 0;
-		config.manualValues[2] = 0;
-		config.manualValues[3] = 0;
-		config.manualValues[4] = 0;
-		config.manualValues[6] = 0;
-		for (uint8_t x=0; x<count; x++) {
-			config.manualValues[color] = 200;
-			sendValToSlave();
-			delay(tm);
-			config.manualValues[color] = 0;
-			sendValToSlave();
-			delay(tm);
-		}
+#if DEBUG > 0
+void debugPrintSampling() {
+	for (int16_t i=0;i<SAMPLING_MAX;i++) {
+		DEBUG_MSG("%d:CH: %d T: %d, V:%u\n",
+		i,
+		samplings.sampling[i].channel,
+		samplings.sampling[i].timeSlot,
+		samplings.sampling[i].value);
 	}
 }
+#endif
 
 void setup() {
-  #ifdef DEBUG
-	DEBUGSER.begin(DEBUGBAUD);
+	DEBUGSER_BEGIN(DEBUGBAUD);
 	DEBUG_MSG("\n");
-  #endif
 
-  //reset avr, set pin to high
-  digitalWrite(RESET_AVR,LOW);
-  delay(20);
-  digitalWrite(RESET_AVR,HIGH);
+#if DEBUG  == 0
+	pinMode(STATUSLED,OUTPUT);
+#endif
 
-  parser.setListener(&listener);
-/*
-	WiFi.persistent(false);
-	WiFi.setAutoConnect(false);
-	WiFi.setAutoReconnect(false);
-*/
-
-/*
-	connectedEventHandler = WiFi.onStationModeConnected(
-			[](const WiFiEventStationModeConnected& event) {
-				saveConfig();
-				if ( isDNSStarted ) dnsServer.stop();
-			});
-
-	disconnectedEventHandler = WiFi.onStationModeDisconnected(
-			[](const WiFiEventStationModeDisconnected& event)			{
-				;
-			});
-*/
+  	//reset avr, set pin to high
+  	digitalWrite(RESET_AVR,LOW);
+  	delay(20);
+  	digitalWrite(RESET_AVR,HIGH);
 
 	ArduinoOTA.onStart([]() {
-		//blinkLed(LEDRED,3,1000);
-		SPIFFS.end();
+#if DEBUG > 0		
+		DEBUG_MSG("OTA update start\n");
+#else
+		led.Blink(500,500).Repeat(3);
+#endif		
+		LittleFS.end();
 	});
 
 	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-		//TODO: add green led blink
-		;
+#if DEBUG > 0				
+		DEBUG_MSG("#");
+#else
+		led.Blink(100,100);
+#endif		
   	});
 
   	ArduinoOTA.onEnd([]() {
-		//TODO: add green led blink
-		//blinkLed(LEDGREEN,3,1000);
+#if DEBUG > 0				
+		DEBUG_MSG("\nOTA update end, reboot\n");
+#else
+		led.Blink(500,500).Repeat(3);
+#endif		
   	});
 
 	initSamplingValues();
-
-	DEBUG_MSG("Init config\n");
-	
-	if (SPIFFS.begin() ) {
+	if (LittleFS.begin() ) {
+		DEBUG_MSG("FS start\n");
 		if (loadConfig(&config)) {
+			DEBUG_MSG("Load config\n");
 			if (config.version != coreVersion) {
 				config.version = coreVersion;
 				//UPDATE ....
 				normalizeConfig();
 				DEBUG_MSG("Update config\n");
-				saveSamplingStructToJson("profile.pjs");
+				//saveSamplingStructToJson("profile.pjs");
 				saveConfig();
 			}			
 		} else {
@@ -907,57 +813,57 @@ void setup() {
 			saveSamplingStructToJson("profile.pjs");
 		}
 	} else {
-		DEBUG_MSG("ERROR\n");
+#if DEBUG > 0
+		DEBUG_MSG("FILESYSTEM ERROR\n");
 		while (1) {;} 
+#else		
+		//Serial.println("FILESYSTEM ERROR");
+		led.Blink(300,300).Forever();
+		while (1) {led.Update();} 
+#endif		
 	}
-#ifdef DEBUG
-	for (int16_t i=0;i<SAMPLING_MAX;i++) {
-		DEBUG_MSG("CH: %d T: %d, V:%u, E:%d\n",
-		samplings.sampling[i].channel,
-		samplings.sampling[i].timeSlot,
-		samplings.sampling[i].value,
-		samplings.sampling[i].efect);
-	}
-#endif
 
 	//if startUpdate, start SPI and update, otherwise start I2C
 	if (config.startUpdate) {
 		DEBUG_MSG("Start update avr\n");
 		DEBUG_MSG("Set AP: %s\n", config.hostname.c_str());
-		WiFi.mode(WIFI_AP);
+		WiFi.mode(WIFI_AP_STA);
 		WiFi.hostname(config.hostname.c_str());
-		WiFi.softAP(config.hostname.c_str());
+		WiFi.softAP(HOSTNAME);
 
 		MDNS.begin(config.hostname.c_str());
     	MDNS.addService("avrisp", "tcp", port);
-		//TODO:  blink yellow led
-		blinkLed(LEDAMBER,3,1000);
+#if DEBUG == 0
+		led.Blink(100,500);
+#endif		
 		avrprog.begin();
 		startUpdate = true;
 		config.startUpdate = false;
 		saveConfig();
-		
 	} else {
-
 		if (config.profileFileName.length() > 0) {
-			bool lok = loadSamplingStructFromJson(config.profileFileName, &samplings);
+			bool lok = loadSamplingStructFromJson(config.profileFileName);
 			DEBUG_MSG("Sampling config load: %s %s\n",config.profileFileName.c_str(),lok==1?"OK":"Fail");
+#if DEBUG == 2
+			debugPrintSampling();
+#endif			
 		}
 
 		WiFi.hostname(config.hostname.c_str());
-		uint8_t res = WL_DISCONNECTED;
+  		WiFi.softAP(HOSTNAME);
 
-		if (config.wifimode == WIFI_STA) {  //&& (config.wifimode != WIFI_OFF) ) {
-			wifiConnect();
-			if (waitForConnectResult(WAIT_FOR_WIFI) != WL_CONNECTED) {
-				wifiFailover();
-			}
-		} else {
+		//&& (config.wifimode != WIFI_OFF) ) {
+		wifiConnect();
+		if (waitForConnectResult(WAIT_FOR_WIFI) == WL_CONNECTED) syncTime = true;
+		
+/*		
+		else {
 			DEBUG_MSG("Set AP: %s\n", config.hostname.c_str());
 			WiFi.mode(WIFI_AP);
 			WiFi.softAP(config.hostname.c_str());
 			//_wifi_is_connected = WIFI_AP_STARTED;
 		}
+*/		
 		startUpdate = false;
 		ntpClient.begin();
 		setSyncInterval(NTPSYNCINTERVAL);
@@ -983,10 +889,14 @@ void setup() {
 }
 
 uint32_t t1_mm;
+uint32_t t2_mm;
 
+bool result = false;
 void loop() {
 	uint32_t mm = millis();
-
+#if DEBUG  == 0	
+	led.Update();
+#endif	
 	if (startUpdate) {
 		updateAvr();
 	} else {
@@ -995,53 +905,19 @@ void loop() {
 
 		ArduinoOTA.handle();
 
-		//wifi change
-		if (shouldReconnect) {
-			wifiConnect();
-			syncTime = true;
-			shouldReconnect = false;
-		}
-
-		//reboot. manual or after fw update
-		if (shouldReboot) {
-			DEBUG_MSG("%s\n", "Rebooting...");
-			delay(100);
-			ESP.restart();
-		}
-
-		/* TODO: 
-			Periodicka kontrola wifi pripojeni ???
-			- nebo to nechame na ESP
-			- ale, pokud nam padne wifi, chceme dal ridit svetla, takze by bylo dobre pustit AP
-		*/
-	/*
-		if ((WiFi.status() != WL_CONNECTED) && ((millis() - _wifi_retry_timeout) > WIFI_RETRY_TIMEOUT) && (config.wifimode == WIFI_STA)) {
-			//odpojeno a vyprsel timeout na test
-			_wifi_retry_timeout = millis();
-			_wifi_retry_count++;
-			if (_wifi_retry_count > WIFI_RETRY_COUNT) {
-				wifiFailover();
-				_wifi_retry_count = 0;
-			} else {
-				//pokusime se pripojit
-				wifiConnect();
-			}
-		}
-	*/
-
-		/*
-		*/
-		/*
-		if (syncTime) {
-			now(true);
-			if (timeStatus() == timeSet)
-				changed = TIME;
-			syncTime = false;
-		}
-		*/
 		switch (changed) {
 			case LED:
-				saveConfig();
+				DEBUG_MSG("Change profile to %s:\n",config.profileFileName.c_str());
+				result = loadSamplingStructFromJson(config.profileFileName);
+				if (result) {
+					DEBUG_MSG("loadSamplingStructFromJson OK\n");
+#if DEBUG == 2
+					debugPrintSampling();
+#endif
+					saveConfig();
+				} else {
+					ESP.reset();
+				}
 				changed = NONE;
 				break;
 			case MANUAL:
@@ -1049,24 +925,33 @@ void loop() {
 				changed = NONE;
 				break;
 			case TIME:
+				normalizeConfig();
+				saveConfig();
 				changed = NONE;
 				break;
 			case WIFI:
+		//wifi change
+				wifiConnect();
+		wifiConnect();
+				if (waitForConnectResult(WAIT_FOR_WIFI) == WL_CONNECTED) {
+					syncTime = true;
+					saveConfig();
+				}
 				changed = NONE;
-				break;
-			case VERSIONINFO:
-				//getVersionInfo();
-				changed = NONE;
-				break;
-			case TEMPERATUREINFO:
-				//getTemperatureInfo();
-				changed = NONE;
-				break;
-			case IP:
 				break;
 			case LANG:
+				saveConfig();
+				changed = NONE;
 				break;
-			case TIME_CONFIG:
+			case RESET:
+				//reboot. manual or after fw update
+				DEBUG_MSG("%s\n", "Rebooting...");
+				delay(100);
+				ESP.restart();			
+				break;
+			case AVRUPDATE:
+				changed = RESET;
+				saveConfig();
 				break;
 			default:
 				break;
@@ -1074,7 +959,13 @@ void loop() {
 
 		if (mm - t1_mm > TASK1) {
 			t1_mm = mm;
-			t1SendToSlave();
+			modulesTemperature = readTemperature();
+			sendValToSlave();
+		}
+
+		if (mm - t2_mm > TASK2) {
+			t2_mm = mm;
+			if (syncTime) now(true);
 		}
 	}
 }

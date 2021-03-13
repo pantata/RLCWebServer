@@ -8,18 +8,18 @@
 
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
-//#include <FS.h>
+#include <LittleFS.h>
 #include <ESPAsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
 #include <MyTimeLib.h>
-#include <FS.h>
 #include "tz.h"
 #include "common.h"
 #include "RlcWebFw.h"
 #include "sampling.h"
 #include "webserver.h"
+#include "common.h"
 
 AsyncWebServer server(80);
 
@@ -65,52 +65,36 @@ void sendJsonResultResponse(AsyncWebServerRequest *request, bool cond,
 
 void printDirectory(Dir dir, int numTabs, AsyncResponseStream *response) {
 	bool isDirectory = false;
-	response->print(
-			"<table><tr><td><i>File Name</i></td><td  align=\"right\"><i>Size</i></td></tr>");
+	response->printf_P(list_header_table);
 	while (dir.next()) {
-
 		File entry = dir.openFile("r");
 		if (!entry) {
-			// no more files
-			//Serial.println("**nomorefiles**");
 			isDirectory = true;
 		} else {
 			isDirectory = false;
 		}
-		/*for (uint8_t i=0; i<numTabs; i++) {
-		 response->print('\t');
-		 }*/
-		response->print("<tr><td><a href=\"");
+		response->printf_P(PSTR("<tr><td><a href=\""));
 		String e = String((const char *) entry.name());
 		e.replace(".gz", "");
 		response->print(e.c_str());
 		response->print("\">");
 		response->print(entry.name());
 		response->print("</a>");
-		response->print("</td><td align=\"right\">");
+		response->printf_P(PSTR("</td><td align=\"right\">"));
 		if (isDirectory) {
-			Dir dir1 = SPIFFS.openDir(dir.fileName() + "/" + entry.name());
+			Dir dir1 = LittleFS.openDir(dir.fileName() + "/" + entry.name());
 			printDirectory(dir1, numTabs + 1, response);
 		} else {
 			// files have sizes, directories do not
-
 			response->println(entry.size(), DEC);
-			response->print("</td>");
+			response->printf_P(PSTR("</td>"));
 		}
-		response->print("</tr>");
+		response->printf_P(PSTR("</tr>"));
 	}
 	FSInfo info;
-	SPIFFS.info(info);
-	response->print("<tr><td></td></tr>");
-	response->print("<tr><td>Bytes Total</td>");
-	response->printf("<td align=\"right\">%d</td></tr>", info.totalBytes);
-	response->print("<tr><td>Bytes Used</td>");
-	response->printf("<td align=\"right\">%d</td></tr>", info.usedBytes);
-	response->print("<tr><td>Bytes Free</td>");
-	response->printf("<td align=\"right\">%d</td></tr>",
-			(info.totalBytes - info.usedBytes));
-
-	response->print("</table>");
+	LittleFS.info(info);
+	response->printf_P(list_footer_html,info.totalBytes,info.usedBytes,(info.totalBytes - info.usedBytes));
+	response->printf_P(upload_html);
 }
 
 //Handle upload file
@@ -119,18 +103,22 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index,
 
 	File f;
 	if (!index) {
-		f = SPIFFS.open(("/"+filename).c_str(), "w");
+		f = LittleFS.open(filename.c_str(), "w");
+		DEBUG_MSG("UPLOAD:%s\n",filename.c_str());
 	} else {
-		f = SPIFFS.open(("/"+filename).c_str(), "a");
+		f = LittleFS.open(filename.c_str(), "a");
 	}
 
-	for (size_t i = 0; i < len; i++)
+	for (size_t i = 0; i < len; i++) {
 		f.write(data[i]);
+		DEBUG_MSG("#");
+	}
 
 	f.close();
 
 	if (final) {
-		request->send_P(200, "text/html", "File was successfully uploaded\n");
+		DEBUG_MSG("\nUpload finish\n");
+		request->send_P(200, "text/html", PSTR("File was successfully uploaded\n"));
 	}
 }
 
@@ -140,19 +128,19 @@ void onUpdate(AsyncWebServerRequest *request, String filename, size_t index,
 	if (!index) {
 		Update.runAsync(true);
 		if (!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)) {
-			request->send_P(200, "text/html", "Error");
+			request->send_P(200, "text/html", HTMLERROR);
 		}
 	}
 	if (!Update.hasError()) {
 		if (Update.write(data, len) != len) {
-			request->send_P(200, "text/html", "Error");
+			request->send_P(200, "text/html", HTMLERROR);
 		}
 	}
 	if (final) {
 		if (Update.end(true)) {
-			request->send_P(200, "text/html", "Success");
+			request->send_P(200, "text/html", HTMLOK);
 		} else {
-			request->send_P(200, "text/html", "Error");
+			request->send_P(200, "text/html", HTMLERROR);
 		}
 	}
 }
@@ -168,8 +156,7 @@ void setLang(AsyncWebServerRequest *request) {
 	String lang = request->arg("lang");
 	int size = sizeof(str_lang) / sizeof(str_lang[0]);
 	config.lang = findIndex(str_lang, size, lang.c_str());
-	request->send_P(200, "text/html", "OK");
-	saveConfig();
+	request->send_P(200, "text/html", HTMLOK);	
 }
 
 void setTimeCgi(AsyncWebServerRequest *request) {
@@ -233,10 +220,6 @@ void setTimeCgi(AsyncWebServerRequest *request) {
 
 	config.tmFormat = atoi(timeFormat.c_str());
 	config.dtFormat = atoi(dateFormat.c_str());
-
-	normalizeConfig();
-	saveConfig();
-
 	request->send_P(200, "text/html", "OK");
 
 }
@@ -244,7 +227,7 @@ void setTimeCgi(AsyncWebServerRequest *request) {
 void webserver_begin() {
 
 	server.addHandler(new CaptiveRequestHandler()).setFilter(ON_AP_FILTER);
-	server.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html").setCacheControl(
+	server.serveStatic("/", LittleFS, "/").setDefaultFile("index.html").setCacheControl(
 			"no-cache, must-revalidate");
 
 	server.onNotFound([](AsyncWebServerRequest *request) {
@@ -255,9 +238,10 @@ void webserver_begin() {
 		request->send(200);
 	}, onUpload);
 
+
 	server.on("/updater.html", HTTP_POST,
 			[](AsyncWebServerRequest *request) {
-				shouldReboot = !Update.hasError();
+				if (!Update.hasError()) changed = RESET;
 				AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK - Wait 30 sec for restart":"FAIL");
 				response->addHeader("refresh","30;url=/");
 				request->send(response);
@@ -265,15 +249,13 @@ void webserver_begin() {
 
 	server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request) {
 		sendJsonResultResponse(request,true);
-		shouldReboot = true;
+		changed = RESET;
 	});
-
 
 	server.on("/avrUpdate", HTTP_GET, [](AsyncWebServerRequest *request) {
 		sendJsonResultResponse(request,true);
 		config.startUpdate = true;
-		saveConfig();
-		shouldReboot = true;
+		changed = AVRUPDATE;
 	});	
 
 	server.on("/meminfo", HTTP_GET,
@@ -306,31 +288,31 @@ void webserver_begin() {
 	server.on("/list", HTTP_GET,
 			[](AsyncWebServerRequest *request) {
 				AsyncResponseStream *response = request->beginResponseStream("text/html");
-				response->print("<html><body>");
-				response->print("<h1>Files List</h1>\n");
-				Dir root = SPIFFS.openDir("/");
+				response->printf_P(PSTR("<html><body>"));
+				response->printf_P(PSTR("<h1>Files List</h1>\n"));
+				Dir root = LittleFS.openDir("/");
 				printDirectory(root,0,response);
-				response->print("</body></html>");
+				response->printf_P(PSTR("</body></html>"));
 				request->send(response);
 			});
 
 	server.on("/delete", HTTP_GET,
 			[](AsyncWebServerRequest *request) {
 				AsyncResponseStream *response = request->beginResponseStream("text/html");
-				response->print("<html><body>");
-				response->print("<h1>Files deleting</h1>");
-				response->print("<form  action=\"/delete\" method=\"POST\">");
-				response->printf("<select name=\"%s\">","filename");
-				Dir root = SPIFFS.openDir("/");
+				response->printf_P(PSTR("<html><body>"));
+				response->printf_P(PSTR("<h1>Files deleting</h1>"));
+				response->printf_P(PSTR("<form  action=\"/delete\" method=\"POST\">"));
+				response->printf_P(PSTR("<select name=\"%s\">"),"filename");
+				Dir root = LittleFS.openDir("/");
 				while(root.next()) {
 					File entry = root.openFile("r");
 					response->print("<option>");
 					response->print(entry.name());
 					response->print("</option>");
 				}
-				response->print("</select>");
-				response->print("<input type=\"submit\" value=\"Delete\">");
-				response->print("</form></body></html>");
+				response->printf_P(PSTR("</select>"));
+				response->printf_P(PSTR("<input type=\"submit\" value=\"Delete\">"));
+				response->printf_P(PSTR("</form></body></html>"));
 				request->send(response);
 
 			});
@@ -339,14 +321,14 @@ void webserver_begin() {
 			[](AsyncWebServerRequest *request) {
 				if(request->hasArg("filename")) {
 					String arg = request->arg("filename");
-					bool ok=SPIFFS.remove(arg);
+					bool ok=LittleFS.remove(arg);
 					if (ok) {
-						request->send_P(200, "text/html", "File was successfully deleted");
+						request->send_P(200, "text/html", PSTR("File was successfully deleted"));
 					} else {
-						request->send_P(200, "text/html", "File was not deleted");
+						request->send_P(200, "text/html", PSTR("File was not deleted"));
 					}
 				} else {
-					request->send_P(200, "text/html", "Unknown parameter");
+					request->send_P(200, "text/html", PSTR("Unknown parameter"));
 				}
 			});
 
@@ -354,11 +336,13 @@ void webserver_begin() {
 		request->send(200,"text/html",update_html);
 	});
 
+#if DEBUG > 0
 	server.on("/formatfs", HTTP_GET, [](AsyncWebServerRequest *request) {
 		uint32_t startTime=millis();
-		bool ok=SPIFFS.format();
+		bool ok=LittleFS.format();
 		sendJsonResultResponse(request,ok,"OK","ERROR",millis()-startTime);
 	});
+#endif	
 
 	/*
 	 *  WiFi scan handler
@@ -368,13 +352,13 @@ void webserver_begin() {
 		int count = WiFi.scanComplete();
 		//send result
 			AsyncResponseStream *response = request->beginResponseStream("application/json");
-			response->print("{\"result\": {\n");
-			response->printf("\"inProgress\": \"%d\",\n",count>=0?0:-1);
-			response->print("\"APs\": [\n");
+			response->printf_P(PSTR("{\"result\": {\n"));
+			response->printf_P(PSTR("\"inProgress\": \"%d\",\n"),count>=0?0:-1);
+			response->printf_P(PSTR("\"APs\": [\n"));
 
 			for(int i=0;i<count;i++) {
 				if (i>0) response->printf(",\n");
-				response->printf("{\"essid\": \"%s\", \"rssi\": \"%d\", \"enc\": \"%d\", \"ch\": \"%d\"}",WiFi.SSID(i).c_str(),WiFi.RSSI(i),WiFi.encryptionType(i),WiFi.channel(i));
+				response->printf_P(PSTR("{\"essid\": \"%s\", \"rssi\": \"%d\", \"enc\": \"%d\", \"ch\": \"%d\"}"),WiFi.SSID(i).c_str(),WiFi.RSSI(i),WiFi.encryptionType(i),WiFi.channel(i));
 			}
 			response->printf("\n");
 
@@ -414,69 +398,6 @@ void webserver_begin() {
 		request->send(response);
 	});
 
-/*
-	  server.on("/wifistatus.cgi",HTTP_GET,[](AsyncWebServerRequest *request) {
-	        DEBUG_MSG("%s\n","WifiStatus started");
-
-	        AsyncResponseStream *response = request->beginResponseStream("text/json");
-	        PRINT_CONFIG(config);
-	        DEBUG_MSG("%s\n","WifiStatus response stream created");
-
-	        response->print("{");
-	        DEBUG_MSG("%s\n","{");
-
-	        response->printf("\"mode\":\"%s\",\n",str_wifimode[WiFi.getMode()]);
-	        DEBUG_MSG("\"mode\":\"%d\",\n",WiFi.getMode());
-
-	        response->printf("\"chan\":\"%d\",\n",WiFi.channel());
-	        DEBUG_MSG("\"chan\":\"%d\",\n",WiFi.channel());
-
-	        response->printf("\"ssid\":\"%s\",\n",WiFi.SSID().c_str());
-	        DEBUG_MSG("\"ssid\":\"%s\",\n",WiFi.SSID().c_str());
-
-	        response->printf("\"status\":\"%s\",\n",str_wifistatus[WiFi.status()]);
-	        DEBUG_MSG("\"status\":\"%d\",\n",WiFi.status());
-
-	        response->printf("\"localIp\":\"%s\",\n",WiFi.localIP().toString().c_str());
-	        DEBUG_MSG("\"localIp\":\"%s\",\n",WiFi.localIP().toString().c_str());
-
-	        response->printf("\"localMask\":\"%s\",\n",WiFi.subnetMask().toString().c_str());
-	        DEBUG_MSG("\"localIp\":\"%s\",\n",WiFi.subnetMask().toString().c_str());
-
-	        response->printf("\"localGw\":\"%s\",\n",WiFi.gatewayIP().toString().c_str());
-	        DEBUG_MSG("\"localIp\":\"%s\",\n",WiFi.gatewayIP().toString().c_str());
-
-	        response->printf("\"apIp\":\"%s\",\n",WiFi.softAPIP().toString().c_str());
-	        DEBUG_MSG("\"apIp\":\"%s\",\n",WiFi.softAPIP().toString().c_str());
-
-	        response->printf("\"rssi\":\"%d\",\n",WiFi.RSSI());
-	        DEBUG_MSG("\"rssi\":\"%d\",\n",WiFi.RSSI());
-
-	        response->printf("\"phy\":\"%d\",\n",WiFi.getPhyMode());
-	        DEBUG_MSG("\"phy\":\"%d\",\n",WiFi.getPhyMode());
-
-	        response->printf("\"mac\":\"%s\",\n",WiFi.macAddress().c_str());
-	        DEBUG_MSG("\"mac\":\"%s\",\n",WiFi.macAddress().c_str());
-
-	        response->printf("\"psk\":\"%s\",\n",WiFi.psk().c_str());
-	        DEBUG_MSG("\"psk\":\"%s\",\n",WiFi.psk().c_str());
-
-	        response->printf("\"bssid\":\"%s\",\n",WiFi.BSSIDstr().c_str());
-	        DEBUG_MSG("\"bssid\":\"%s\",\n",WiFi.BSSIDstr().c_str());
-
-	        response->printf("\"host\":\"%s\",\n",WiFi.hostname().c_str());
-	        DEBUG_MSG("\"bssid\":\"%s\",\n",WiFi.BSSIDstr().c_str());
-
-	        response->printf("\"warn\":\"%s\"\n","");
-	        DEBUG_MSG("\"warn\":\"%s\"\n","");
-
-	        response->print("}\n");
-	        DEBUG_MSG("%s\n","}");
-
-	        request->send(response);
-	    });
-*/
-
 	server.on("/wificonnect.cgi", HTTP_GET,
 			[](AsyncWebServerRequest *request) {
 				config.wifimode=atoi(request->arg("apmode").c_str());
@@ -502,7 +423,6 @@ void webserver_begin() {
 						config.wifidns2=request->arg("dns2");
 					}
 				}
-				shouldReconnect = true;
 				changed = WIFI;
 				AsyncWebServerResponse *response = request->beginResponse(200);
 				response->addHeader("refresh","20;url=http://"+config.hostname+".local");
@@ -525,7 +445,7 @@ void webserver_begin() {
 
 				AsyncResponseStream *response = request->beginResponseStream("application/json");
 
-				Dir root = SPIFFS.openDir("/");
+				Dir root = LittleFS.openDir("/");
 				response->print("{\"profileList\": [");
 				bool started=false;
 				while(root.next()) {
@@ -552,8 +472,7 @@ void webserver_begin() {
 
 				AsyncJsonResponse * response = new AsyncJsonResponse();
 				JsonObject root = response->getRoot();
-				root["mode"] = mode;
-				root["modulescount"] = 1;
+				root["mode"] = config.manual;
 
 				time_t localtime = now();
 				if (config.useDST) {
@@ -561,15 +480,13 @@ void webserver_begin() {
 					localtime = tzlocal.toLocal(now());
 				}
 
-				root["timeslot"] = (uint32_t)hour(localtime)*3600+(uint32_t)minute(localtime)*60+(uint32_t)second(localtime)%900;
+				root["timeslot"] = (uint32_t)hour(localtime)*3600+(uint32_t)minute(localtime)*60+(uint32_t)second(localtime)%600;
 				JsonArray tsv = root.createNestedArray("timeSlotValues");
-
-				JsonArray led = tsv.createNestedArray();
-				for(uint8_t j=1;j<8;j++) {
+				for(uint8_t j=0;j<CHANNELS;j++) {
 					if (config.manual == true) {
-						led.add((int)config.manualValues[j-1]);
+						tsv.add((int)config.manualValues[j]);
 					} else {
-						led.add((int)getSamplingValue(j));
+						tsv.add((int)ledValue[j]);
 					}
 				}
 
@@ -579,6 +496,20 @@ void webserver_begin() {
 				request->send(response);
 				PRINT_CONFIG();
 			});
+ 
+ #if DEBUG > 0
+	server.on("/samplings.cgi", HTTP_GET,
+			[](AsyncWebServerRequest *request) {
+				AsyncResponseStream *response = request->beginResponseStream("text/html");
+				response->printf_P(PSTR("<html><body>"));
+				response->printf_P(PSTR("<h1>Data:</h1>\n"));
+				for(int16_t j=0;j<samplings.usedSamplingCount;j++) {
+					response->printf_P(PSTR("[%d,%d,%d]<br>"),samplings.sampling[j].channel,samplings.sampling[j].timeSlot,samplings.sampling[j].value);
+				}
+				response->printf_P(PSTR("</body></html>"));
+				request->send(response);				
+		});
+#endif		
 
 	server.on("/getconfig.cgi", HTTP_GET, [](AsyncWebServerRequest *request) {
 		uint32_t startTime=millis();
@@ -632,21 +563,19 @@ void webserver_begin() {
 		} else {
 			nfilename=String(profileName);
 		}
-		DEBUG_MSG("Open %s\n",nfilename.c_str());
-		bool ok=loadSamplingStructFromJson(nfilename,&samplings);
-		if (ok) {
-			config.profileFileName=String(nfilename);
-			changed = LED;
-		}
-		sendJsonResultResponse(request,ok,"OK","ERROR",millis()-startTime);
+		DEBUG_MSG("Get %s\n",nfilename.c_str());		
+		
+		config.profileFileName=String(nfilename);
+		changed = LED;
+		
+		sendJsonResultResponse(request,true,"OK","ERROR",millis()-startTime);
 	});
 
 	server.on("/setmanual.cgi", HTTP_POST, [](AsyncWebServerRequest *request) {
 		DEBUG_MSG("%s\n","setmanual.cgi");
 		int m = StringToInt((String)request->arg("m"));
 		config.manual = m==0?false:true;
-		sendJsonResultResponse(request,true);
-		saveConfig();
+		sendJsonResultResponse(request,true);		
 		changed = MANUAL;
 	});
 

@@ -32,5 +32,28 @@ const char update_html[] PROGMEM = R"html(
 </body></html>
 )html";
 
+const char upload_html[] PROGMEM = R"html(
+<h1>File uploader</h1>
+<form enctype="multipart/form-data" action="/upload" method="POST">
+<input name="datafile" type="file">
+<input value="File Upload" type="submit">
+</form>
+)html";
+
+const char list_header_table[] PROGMEM = "<table><tr><td><i>File Name</i></td><td  align=\"right\"><i>Size</i></td></tr>";
+const char list_footer_html[] PROGMEM = R"html(
+<tr><td></td></tr>
+<tr><td>Bytes Total</td>
+<td align="right">%d</td></tr>
+<tr><td>Bytes Used</td>
+<td align="right">%d</td></tr>
+<tr><td>Bytes Free</td>
+<td align="right">%d</td></tr>
+</table>
+)html";
+
+const char HTMLERROR[] PROGMEM = "Error";
+const char HTMLOK[] PROGMEM = "Success";
+
 
 #endif /* webserver_h */

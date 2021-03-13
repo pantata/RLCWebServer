@@ -10,7 +10,7 @@
         "ctrl": "Verze:",
         "info": "Informace",
         "modul": "Verze led modulu:",
-        "web": "Verze html:",
+        "ui": "Verze ui:",
         "file":"Aktualizace firmware:",
         "upload":"Spustit aktualizaci"
     },

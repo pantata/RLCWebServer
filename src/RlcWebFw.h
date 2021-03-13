@@ -15,10 +15,9 @@
 bool saveConfig();
 void normalizeConfig();
 bool loadConfig(Config *conf);
-bool saveSamplingStruct(String filename);
-bool loadSamplingStruct(String filename,Samplings *s );
+
 bool saveSamplingStructToJson(String filename);
-bool loadSamplingStructFromJson(String filename, Samplings *s);
+bool loadSamplingStructFromJson(String filename);
 
 time_t getNtpTime();
 

@@ -17,6 +17,7 @@ void initSamplingValues() {
     for (int x=0; x<SAMPLING_MAX;x++) {
         samplings.sampling[x].channel=SAMPLING_UINT8_MAX_VALUE;
         samplings.sampling[x].timeSlot=SAMPLING_UINT8_MAX_VALUE;
+        samplings.sampling[x].value=0;
     }
     samplings.usedSamplingCount=0;
     DEBUG_MSG("Sampling structure initialised\n");
@@ -29,7 +30,6 @@ void copySamplingUp(int x)
             samplings.sampling[i+1].channel=samplings.sampling[i].channel;
             samplings.sampling[i+1].timeSlot=samplings.sampling[i].timeSlot;
             samplings.sampling[i+1].value=samplings.sampling[i].value;
-            samplings.sampling[i+1].efect=samplings.sampling[i].efect;
         }
     }
     
@@ -41,13 +41,12 @@ void copySamplingDown(int x){
             samplings.sampling[i].channel=samplings.sampling[i+1].channel;
             samplings.sampling[i].timeSlot=samplings.sampling[i+1].timeSlot;
             samplings.sampling[i].value=samplings.sampling[i+1].value;
-            samplings.sampling[i].efect=samplings.sampling[i+1].efect;
         }
     }
 }
 
 
-bool insertOrUpdateSampling(uint8_t channel,uint8_t timeSlot,uint16_t value,uint8_t efect) {
+bool insertOrUpdateSampling(uint8_t channel,uint8_t timeSlot,uint16_t value) {
     bool ok=false;
     for (int x=0; x<SAMPLING_MAX;x++) {
         if (samplings.sampling[x].channel==SAMPLING_UINT8_MAX_VALUE||
@@ -59,7 +58,6 @@ bool insertOrUpdateSampling(uint8_t channel,uint8_t timeSlot,uint16_t value,uint
                 samplings.sampling[x].channel=channel;
                 samplings.sampling[x].timeSlot=timeSlot;
                 samplings.sampling[x].value=value;
-                samplings.sampling[x].efect=efect;
                 samplings.usedSamplingCount++;
                 ok=true;
                 break;
@@ -76,7 +74,6 @@ bool insertOrUpdateSampling(uint8_t channel,uint8_t timeSlot,uint16_t value,uint
         {
             DEBUG_MSG("\n\ninsertOrUpdateSampling EQUALS channel=%d,timeSlot=%d\n\n",channel,timeSlot);
             samplings.sampling[x].value=value;
-            samplings.sampling[x].efect=efect;
             ok=true;
             break;
         }
@@ -92,7 +89,6 @@ bool insertOrUpdateSampling(uint8_t channel,uint8_t timeSlot,uint16_t value,uint
                 samplings.sampling[x+1].channel=channel;
                 samplings.sampling[x+1].timeSlot=timeSlot;
                 samplings.sampling[x+1].value=value;
-                samplings.sampling[x+1].efect=efect;
                 samplings.usedSamplingCount++;
                 ok=true;
                 break;
@@ -106,7 +102,6 @@ bool insertOrUpdateSampling(uint8_t channel,uint8_t timeSlot,uint16_t value,uint
                 samplings.sampling[x].channel=channel;
                 samplings.sampling[x].timeSlot=timeSlot;
                 samplings.sampling[x].value=value;
-                samplings.sampling[x].efect=efect;
                 samplings.usedSamplingCount++;
                 ok=true;
                 break;
@@ -120,7 +115,6 @@ bool insertOrUpdateSampling(uint8_t channel,uint8_t timeSlot,uint16_t value,uint
                 samplings.sampling[x+1].channel=channel;
                 samplings.sampling[x+1].timeSlot=timeSlot;
                 samplings.sampling[x+1].value=value;
-                samplings.sampling[x+1].efect=efect;
                 samplings.usedSamplingCount++;
                 ok=true;
                 break;
@@ -133,7 +127,6 @@ bool insertOrUpdateSampling(uint8_t channel,uint8_t timeSlot,uint16_t value,uint
                 samplings.sampling[x].channel=channel;
                 samplings.sampling[x].timeSlot=timeSlot;
                 samplings.sampling[x].value=value;
-                samplings.sampling[x].efect=efect;
                 samplings.usedSamplingCount++;
                 ok=true;
                 break;
@@ -218,17 +211,14 @@ uint16_t getSamplingValue(uint8_t channel) {
 
             startTime=(uint32_t)(samplings.sampling[i].timeSlot*SLOTTOSEC);
             startval=samplings.sampling[i].value;
-            DEBUG_MSG("Ch: %d startTime %u  startVal %d\n",channel,startTime, startval);
         }
         
         //find end val
         if ( (samplings.sampling[i].channel==channel) &&
 			 (currentTime<=(uint32_t)(samplings.sampling[i].timeSlot*SLOTTOSEC))
 		   ) {
-
             endTime=(uint32_t)(samplings.sampling[i].timeSlot*SLOTTOSEC);
             endval=samplings.sampling[i].value;
-            DEBUG_MSG("Ch: %d endTime %u  endVal %d\n",channel,endTime, endval);            
             break;
         }
     }
@@ -236,7 +226,7 @@ uint16_t getSamplingValue(uint8_t channel) {
     //TODO: revize
     if (startTime != endTime) {
         ret = map(currentTime, startTime , endTime, startval ,endval);
-    }    else {
+    }else {
         return startval;
     }
 

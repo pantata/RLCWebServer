@@ -6,3 +6,5 @@
 .travis.yml
 lib/MyTime/.DS_Store
 .DS_Store
+html/*.gz
+.DS_Store

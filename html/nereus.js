@@ -861,7 +861,7 @@ function showResult(id, text, tout) {
 
 function vT(n) {
  var r='<select name=">'+n+'" id="'+n+ '">';
- for (i=0;i<=96;i++) {
+ for (i=0;i<=144;i++) {
  	r += '<option value="'+i+'">'+minToTime(i)+'</option>';
  }
  r += '</select>';
@@ -1074,7 +1074,7 @@ $('div#menu a.pure-menu-link').click(function(event) {
 });
 
 function minToTime( min) {
-	tmStr = pad('00',Math.floor(min/4),true)+":"+ pad('00',(min%4)*10,true);
+	tmStr = pad('00',Math.floor(min/6),true)+":"+ pad('00',(min%6)*10,true);
 	return tmStr;
 }
 
@@ -1146,7 +1146,6 @@ function dec2hex(i) {
 }
 
 function showFwInfo(data) {
-	console.log(data);
 	  Object.keys(data).forEach(function(v) {
 		  if (Array.isArray(data[v])) {
 			  data[v].forEach(function(x) {
@@ -1155,7 +1154,8 @@ function showFwInfo(data) {
 		  } else {
 			  $("#fw-" + v).text(dec2hex(data[v]));
 		  }		  
-	 });	 	
+	 });
+	 $("#fw-uiVersion").text(uiversion);	 	
 };
 
 function createInputForAp(ap) {
@@ -1249,7 +1249,7 @@ function showWifiInfo(data) {
 	  $("#wifi-spinner").hide();
 	  $("#wifi-table").show();
 	  currAp = data.ssid;
-	  if (data['mode'] == 'STA') {
+	  if (data['status'] == 'WL_CONNECTED') {
 	  	  if ($("#apmode .Switch").hasClass("Off")) {  	  	      	
 		  	  $('#apmode .Switch').toggleClass('Off').toggleClass('On');
 		  	  var text = J42R.get('wifi.assoc') + ' ' + currAp;
@@ -1291,8 +1291,6 @@ $("select[name='lang']").on("change", function () {
         cache:false,
         success: function (data) {
         	showResult('#lang-save-result', "Saved", 10000); 
-            console.log(data);
-            //TODO: doplnit zobrazeni OK
         },        
 		error:function(xhr,type){
 		  showResult('#lang-save-result', "Error", 10000); 
@@ -1372,13 +1370,10 @@ $("#ledsetup-filter-ledchan").change(function( event ) {
 function saveInfo(data) {
 	var title;
 	var opt;
-	console.log("saveInfo");
 	var cnt = Number(data.timeSlotValues.length);
 		
 	$('ul#ml').empty();
-    console.log(data.moduleTemperature);	 
 	temperature = data.moduleTemperature != -128?''+data.moduleTemperature:' - ';
-	console.log(temperature);
 	opt = '<div>'+temperature+'&nbsp;&#8451;</div>';			
 	x = $(opt).appendTo('ul#ml');
 	
@@ -1403,7 +1398,7 @@ function saveInfo(data) {
 
 
 function getInfo() {
-	console.log("getinfo");
+
 	$.ajax({ url:'getinfo.cgi',
 		type:"GET",
 	    dataType:"json",
@@ -1446,9 +1441,7 @@ $("#addled").click(function( event ) {
 });
 
 function updLedCh(t, ch, v, d) {
-	console.log(t, ch, v, d);
 	var idx = findIn2dArray(dtmo,t);
-    console.log(idx);
     if ((d == false) && (idx >= 0) ){ //delete
     	dtmo[idx][ch+1] = null;
     }
@@ -1463,13 +1456,11 @@ function updLedCh(t, ch, v, d) {
     
     
     dtmo.sort((a, b) => { return a[0] - b[0]});
-	console.log(dtmo);
     return;
 }
 
 //function addPoint(m, ch, t, v, a, e) {
 function addPoint(ch, t, v, a) {
-	console.log(ch, t, v, a);
 	cha = Number(ch);
 	time = Number(t)
 	value= Number(v);
@@ -1696,6 +1687,7 @@ function pSelectBox(x, arr, y, z, sel) {
 }
 
 function getProfileValues() {
+	console.log(config.profileFileName);
 	getBinProfile(config.profileFileName);
 }
  	
@@ -1709,12 +1701,12 @@ function setProfileList() {
 			$('#profileList').empty();
             //$('#profileList').append($('<option>').text("Select"));
 			$.each(data['profileList'],function(k, v) {
-			    var f = v.filename.substr(1).slice(0, -4);
+			    var f = v.filename.slice(0, -4); // .substr(1).slice(0, -4);
 			    //f = f.slice(1,f.length);
 			    $('#profileList').append($('<option>').text(f).attr('value', f));
 			});
 			//set selected value
-			$('#profileList').val(config.profileFileName.slice(0,-4));
+			$('#profileList').val(config.profileFileName.slice(0, -4));
 		},
 		error:function(xhr,type){
 			  console.log(xhr);
@@ -1734,7 +1726,8 @@ $('#setProfile').on('submit', function(e) {
             showResult('#set-profile-result', "OK", 10000);  
 				 getConfig();
 		 	     setProfileList();
-	             getProfileValues();				 
+				 var fln = $("#profileList").val() + ".pjs";  
+				 getBinProfile(fln);			 
 				 getInfo();
             
         },
@@ -1744,8 +1737,6 @@ $('#setProfile').on('submit', function(e) {
         }
      }); 				
 });
-
-
 
 $('#profileList').change(function() { 
 	if ($("#profileList").val() != "Select") {
@@ -1979,7 +1970,7 @@ $( document ).ready(function() {
 	// g1 = led settings 
 	g0 = new Dygraph(document.getElementById("g0"),
 					reChannels(),
-					 {	 height:300,
+					 {	 height:150,
 						 valueRange:[0,2400],
 						 legend: 'never',				 
 						 animatedZooms: false,
@@ -2060,7 +2051,6 @@ $( document ).ready(function() {
 									py = Math.round(g1.toDataYCoord(y)); if (py < 0) py = 0; if (py > MAX_LED_VAL) py = MAX_LED_VAL;
 									var ch = $("#ledsetup-filter-ledchan").val();
 									var p = ''+ch+','+px+','+py+',';
-									console.log(p);
 									var dX = px>72?-200:10;
 									 var dY = py<10?-50:10;
 									$("#cursor").empty();
@@ -2141,7 +2131,6 @@ $( document ).ready(function() {
 		
 		sliders[i].noUiSlider.on('update', function(values, handle){
 			var id = this.target.id.slice(-1);
-			console.log(values[0]);
 			$('#va'+id).val(values[0]);
 			g0.updateOptions( { 'file': reChannels()});
 		});
@@ -2199,8 +2188,6 @@ function getBinProfile(fln) {
 		 success:function(data) {
 			unixtime = data.utc;
 			unixtimestamp = data.utc;
-			console.log(data["data"].length);
-			console.log(data);
 			processData(data);
 		 },
 		error:function(xhr,type){
@@ -2210,21 +2197,15 @@ function getBinProfile(fln) {
 }
 
 function processData(d) {
-	console.log("processData");
-	
-	var v = 0;
-	var idx = 0;
-
 	//fill dtmo
-
 	dtmo = emptyDtmo();
 
-	for (var b = 0; b < 864; b++) {
+	for (var b = 0; b < d['used']; b++) {
 			var channel  = d['data'][b][0];
 			var timeslot = d['data'][b][1];
 			var value    = d['data'][b][2];
 			var effect   = d['data'][b][3];
-			if (channel == 255)  break;
+			if (channel == 255) break;
 			addPoint(channel, timeslot, value, true);
 	}
 	reG1();
@@ -2256,7 +2237,6 @@ $('#led-man-send').click(function(e){
 	}
 	obj.data = ledarr;
 	var d = JSON.stringify(obj);
-	console.log(d);
 	$.ajax({
 		type: 'POST',
 		url: 'setled.cgi',
@@ -2264,7 +2244,6 @@ $('#led-man-send').click(function(e){
 		dataType: 'json',
 		success:function(data) {
 			showResult('#led-man-result', "Success", 10000);
-			console.log(data);
 		},
 		error:function(xhr,type){
 			console.log(xhr);
@@ -2285,7 +2264,7 @@ $('#led-save-profile').click(function(e){
 		for (x=1;x<9;x++) {
 			if (d[x] != null) {
 				var sArr = [];
-				sArr[0] = x;  //channel
+				sArr[0] = x-1;  //channel
 				sArr[1] = d[0]; //time
 				sArr[2] = d[x]; //value
 				sArr[3] = d[8] == null?0:d[8]; //effect
@@ -2298,7 +2277,6 @@ $('#led-save-profile').click(function(e){
 	obj.used = idx;
 	obj.data = data;
 	var json = JSON.stringify(obj);
-	console.log(json);
 	var blob = new Blob([json], { type: 'text/json' });
 	var fd = new FormData();
 	var pfn = $('#profilename').val();
@@ -2355,6 +2333,7 @@ $('#timeform').on('submit', function(e) {
          });       
 });
 
+var uiversion = "1.0";
 
 
 

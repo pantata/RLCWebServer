@@ -8,6 +8,7 @@ Pouzite knihovny:
  Time
  ESPAsyncWebServer
  ESPAsyncTCP
- 
- 
+
+convert aip xml to pjs with search
+ \t*<point>\n\t*<intensity>(.+?)</intensity>\n\t*<time>(.+?)</time>\n\t*</point>(\n|.*)
 
