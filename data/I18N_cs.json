@@ -5,14 +5,16 @@
     "WL_CONNECTED":"Připojeno",
     "AP":"WiFi server",
     "STA":"WiFi klient",
+    "confirmSlvRem":"Odstranit světlo?",
     "fw": {
         "check": "Zkontrolovat",
+        "run": "Spustit aktualizaci",
         "ctrl": "Verze:",
         "info": "Informace",
         "modul": "Verze led modulu:",
-        "ui": "Verze ui:",
+        "web": "Verze html:",
         "file":"Aktualizace firmware:",
-        "upload":"Spustit aktualizaci"
+        "upload":"Spustit aktualizaci?"
     },
     "header": {
         "channelsettings": "Nastavení LED",
@@ -41,7 +43,7 @@
         "ch6": "Červená",
         "ch7": "Jantarová",
         "profil": "Profil",
-        "channel": "Seznam hodnot pro jednotlivé kanály",
+        "channel": "Nastavení pro jednotlivé kanály",
         "manual": "Ruční nastavení",
         "saveAs":"Uložit profil",
         "profileName":"Název profilu:",
@@ -49,7 +51,10 @@
         "send":"Nastavit",
         "profile":"Vyberte profil",
         "profile-set":"Zapnout profil",
-        "time":"Aktuální čas"
+        "time":"Aktuální čas",
+        "slaves":"Připojená světla:",
+        "slaves-scan":"Vyhledat",
+        "slaves-save":"Uložit"
     },
     "menu": {
         "chansetings": "Nastavení LED",

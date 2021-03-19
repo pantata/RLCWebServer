@@ -12,6 +12,8 @@
 #include <Esp.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>
+//#include <espnow.h>
+#include <WifiEspNow.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <LittleFS.h>
@@ -26,6 +28,8 @@
 #include <ESP8266mDNS.h>
 #include <Wire.h>
 #include <ESP8266AVRISP.h>
+#include <ESP8266HTTPClient.h>
+#include <ESP8266httpUpdate.h>
 #include <JsonListener.h>
 #include <JsonStreamingParser.h>
 #include <jled.h>
@@ -59,17 +63,14 @@ bool shouldReconnect = false;
 bool startUpdate = false;
 bool updateExited = false;
 bool isDNSStarted = false;
-bool incomingLedValues = false;
+
+bool isUpdateAvailable = false;
 
 uint8_t lang = 0;
 t_changed changed = NONE;
 
 uint8_t slaveAddr;
-int8_t modulesTemperature;
-
-bool _is_static_ip = false;
-uint8_t _wifi_retry_count = 0;
-uint32_t _wifi_retry_timeout = 0;
+int8_t moduleTemperature;
 
 bool syncTime = false;
 
@@ -83,7 +84,8 @@ const char* str_wifistatus[] = { "WL_IDLE_STATUS", "WL_NO_SSID_AVAIL",
 
 const char* str_wifimode[] = { "OFF", "STA", "AP", "AP_STA" };
 
-const char* str_wifiauth[] = { "AUTH_OPEN", "AUTH_WEP", "AUTH_WPA_PSK",
+const char* str_wifiauth[] = { 
+	"AUTH_OPEN", "AUTH_WEP", "AUTH_WPA_PSK",
 		"AUTH_WPA2_PSK", "AUTH_WPA_WPA2_PSK", "AUTH_MAX" };
 
 const char* str_timestatus[] = { "timeNotSet", "timeNeedsSync", "timeSet" };
@@ -93,9 +95,16 @@ const char* str_lang[] = { "en", "cs", "pl", "de" };
 union Unixtime unixtime;
 ESP8266AVRISP avrprog(port, 16);
 
+//uint8_t peers[PEERS][6] = {0};
+uint8_t peersCount = 0;
+bool findingPeers = false;
+
 #if DEBUG  == 0
 auto led = JLed(STATUSLED);
 #endif
+
+// Init ESP Now with fallback
+
 
 uint16_t crc16_update(uint16_t crc, uint8_t a) {
   int i;
@@ -212,7 +221,7 @@ bool wifiConnect() {
 		WiFi.config(0U, 0U, 0U, 0U, 0U);
 	}
 
-	if (config.wifimode == WIFI_STA) {
+	if (config.ssid.length() > 0) {
 		ret = connectWifi(config.ssid.c_str(), config.pwd.c_str());
 	}
 
@@ -243,13 +252,9 @@ void normalizeConfig() {
 		config.hostname = HOSTNAME;
 
 	if (config.ssid.length() == 0) {
-		config.ssid = HOSTNAME;
-		config.wifimode = WIFI_AP;
 		config.useNtp = false;
 	}
 
-	if (config.wifimode == 0)
-		config.wifimode = WIFI_AP;
 	if (config.apip.length() == 0)
 		config.apip = AP_IP;
 	if (config.apmask.length() == 0)
@@ -281,6 +286,7 @@ void normalizeConfig() {
 	config.tmFormat = constrain(config.tmFormat, 0, 7);
 	config.lang = constrain(config.lang, 0, 3);
 	if (config.startUpdate == NULL) config.startUpdate = false;
+	config.peersCount = constrain(config.peersCount, 0, 16);
 }
 
 bool loadConfig(Config *conf) {
@@ -305,8 +311,6 @@ bool loadConfig(Config *conf) {
 			conf->pwd = String((const char *) json["pwd"]);
 		if (json.containsKey("hostname"))
 			conf->hostname = String((const char *) json["hostname"]);
-		if (json.containsKey("wifimode"))
-			conf->wifimode = json["wifimode"];
 		if (json.containsKey("ntpServer"))
 			conf->ntpServer = String((const char*) json["ntpServer"]);
 		if (json.containsKey("localPort"))
@@ -396,7 +400,19 @@ bool loadConfig(Config *conf) {
 				conf->manualValues[6] = json["manualValues"][6];
 			}
 		}
+		
+		if (json.containsKey("peersCount")) {
+			conf->peersCount = json["peersCount"];
+		}
 
+		if (json.containsKey("peers")) {
+			for (int i = 0; i < conf->peersCount; i++) {
+				for (int ii = 0; ii < 6; ii++) {
+					conf->peers[i].mac[ii] = json["peers"][i][ii];
+				}
+			}
+		}
+			
 		/* Normalize config file */
 		normalizeConfig();
 		configFile.close();		
@@ -438,7 +454,7 @@ void SamplingJsonListener::whitespace(char c) {}
 void SamplingJsonListener::startDocument() { samplingIdx = 0; arrIdx = 0; }
 void SamplingJsonListener::endObject() {}
 void SamplingJsonListener::endDocument() {
-	DEBUG_MSG("JSON Loaded: %d\n",samplings.usedSamplingCount);
+	DEBUG_MSG("\nJSON Loaded: %d\n",samplings.usedSamplingCount);
 	PRINT_CONFIG();
 }
 void SamplingJsonListener::startObject() {}
@@ -513,13 +529,12 @@ bool saveConfig() {
 		DEBUG_MSG("Config no changes, not saving");
 		return false;
 	}
-	DEBUG_MSG("Create json\n");
-	DynamicJsonDocument doc(2048);
+	DEBUG_MSG("Create config json\n");
+	DynamicJsonDocument doc(3072);
 	doc["version"] = coreVersion;
 	doc["ssid"] = config.ssid.c_str();
 	doc["pwd"] = config.pwd.c_str();
 	doc["hostname"] = config.hostname.c_str();
-	doc["wifimode"] = config.wifimode;
 	doc["ntpServer"] = config.ntpServer.c_str();
 	doc["localPort"] = config.localPort;
 	doc["useNtp"] = (config.useNtp) ? "true" : "false";
@@ -563,6 +578,15 @@ bool saveConfig() {
 	data.add(config.manualValues[5]);
 	data.add(config.manualValues[6]);
 	
+	doc["peersCount"] = config.peersCount;
+	JsonArray peers = doc.createNestedArray("peers");
+	for (uint8_t i = 0; i < config.peersCount; i++) {
+		JsonArray m = peers.createNestedArray();
+		for (uint8_t ii = 0; ii<6; ii++) {
+			m.add(config.peers[i].mac[ii]);
+		}
+	}
+
     DEBUG_MSG("JSON OK\n");
 	File configFile = LittleFS.open(CFGNAME, "w");
 	if (!configFile) {
@@ -661,6 +685,25 @@ void sendValToSlave() {
 	Wire.write(error);
 	Wire.endTransmission();
 	//DEBUG_MSG("Data to slave send\n");
+
+	//send to peers
+	if (config.peersCount > 0) {
+		DEBUG_MSG("Send to peer\n");
+		uint8_t _data[]= {11,
+			LOW_BYTE(ledValue[0]),HIGH_BYTE(ledValue[0]),
+			LOW_BYTE(ledValue[1]),HIGH_BYTE(ledValue[1]),
+			LOW_BYTE(ledValue[2]),HIGH_BYTE(ledValue[2]),
+			LOW_BYTE(ledValue[3]),HIGH_BYTE(ledValue[3]),
+			LOW_BYTE(ledValue[4]),HIGH_BYTE(ledValue[4]),
+			LOW_BYTE(ledValue[5]),HIGH_BYTE(ledValue[5]),
+			LOW_BYTE(ledValue[6]),HIGH_BYTE(ledValue[6])
+		};
+
+		for (uint8_t i = 0; i < config.peersCount; i++) {
+			WifiEspNow.send(config.peers[i].mac, reinterpret_cast<const uint8_t*>(_data), 17);
+			DEBUG_MSG("Send status %d\n",WifiEspNow.getSendStatus());
+		}
+	}
 }
 
 int8_t readTemperature() {
@@ -755,6 +798,185 @@ void debugPrintSampling() {
 }
 #endif
 
+
+void checkForFwUpdate(bool run) {
+	int newVersion = 0;
+	t_httpUpdate_return ret;
+	String mac = WiFi.macAddress();
+	mac.replace(":","");
+	String fwURL = String( fwUrlBase );
+	fwURL.concat( mac );
+	String fwVersionURL = fwURL;
+	fwVersionURL.concat( ".version" );
+	DEBUG_MSG("Checking for firmware updates.\nMAC address: %s\nFirmware version URL: %s\n",mac.c_str(),fwVersionURL.c_str());
+
+	HTTPClient httpClient;
+	httpClient.begin( fwVersionURL );
+	int httpCode = httpClient.GET();
+	if( httpCode == 200 ) {
+		String newFWVersion = httpClient.getString();
+		DEBUG_MSG("Current firmware version: %d\nAvailable firmware version: %s\n",coreVersion,newFWVersion.c_str());
+		newVersion = newFWVersion.toInt();
+	}
+
+	if( newVersion > coreVersion ) {
+		isUpdateAvailable = true;
+		if (run) {
+			DEBUG_MSG( "Preparing to update.\n" );
+			String fwImageURL = fwURL;
+			fwImageURL.concat( ".bin" );
+			ret = ESPhttpUpdate.update( fwImageURL );
+			switch(ret) {
+				case HTTP_UPDATE_FAILED:
+					DEBUG_MSG("HTTP_UPDATE_FAILED Error (%d): %s\n", 
+						ESPhttpUpdate.getLastError(), 
+						ESPhttpUpdate.getLastErrorString().c_str());
+					break;
+				case HTTP_UPDATE_NO_UPDATES:
+					DEBUG_MSG("HTTP_UPDATE_NO_UPDATES\n");
+					break;
+				case HTTP_UPDATE_OK:
+					DEBUG_MSG("HTTP_UPDATE_OK\n");
+					break;
+			}
+		}	
+	}
+	httpClient.end();
+}
+  
+void OnDataRecv(const uint8_t mac[6], const uint8_t* data, size_t count, void* cbarg) {
+	char macStr[18];
+	snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+           mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+	DEBUG_MSG("Inc msg: %s, len:%d, type:%d\n",macStr,count,data[0]);
+	//TODO: zkontrolovat crc a rozparsovat paket na data
+	//[0] - typ: 11 = prikaz k nastaveni do manual modu, 
+	//[1..2] - led[0], [3..4] - led[1], [5..6] - led[2]
+	//[7..8] - led[3], [9..10] - led[4], [11..12] - led[5]
+	//[13..14] - led[6]
+	//[15..16] - crc
+	config.peerMode = data[0];
+	if (config.peerMode == 11) {		
+		config.manual = true;
+		config.manualValues[0] = (data[2]<<8)|data[1];
+		config.manualValues[1] = (data[4]<<8)|data[3];
+		config.manualValues[2] = (data[6]<<8)|data[5];
+		config.manualValues[3] = (data[8]<<8)|data[7];
+		config.manualValues[4] = (data[10]<<8)|data[9];
+		config.manualValues[5] = (data[12]<<8)|data[11];
+		config.manualValues[6] = (data[14]<<8)|data[13];
+	}
+}
+
+/*
+void OnDataSent(uint8_t *mac_addr, uint8_t status) {
+	char macStr[18];
+	snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
+           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+	DEBUG_MSG("Last Packet Send Status: %d\n",status);
+}
+*/
+
+int managePeers(bool state, uint8_t *mac) {	
+	if (state) { //ADD
+		for (uint8_t i=0; i <  peersCount; i++) {
+			DEBUG_MSG("Add peer: %02x:%02x:%02x:%02x:%02x:%02x\n",config.peers[i].mac[0],
+				config.peers[i].mac[1],
+				config.peers[i].mac[2],
+				config.peers[i].mac[3],
+				config.peers[i].mac[4],
+				config.peers[i].mac[5]);
+			if (!WifiEspNow.addPeer(config.peers[i].mac))
+				DEBUG_MSG("Registering peer failed\n");
+		}
+	} else { //REMOVE
+		DEBUG_MSG("Delete peer: %02x:%02x:%02x:%02x:%02x:%02x\n",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+		if (WifiEspNow.hasPeer(mac) ) {
+			//send unpair mesage				
+			uint8_t _data[]= {0};
+			WifiEspNow.send(mac, reinterpret_cast<const uint8_t*>(_data), 1);
+			DEBUG_MSG("Send status %d\n",WifiEspNow.getSendStatus());
+			if (!WifiEspNow.removePeer(mac));
+				DEBUG_MSG("Delete peer failed\n");
+		}
+	}
+	config.peersCount = peersCount;
+}
+
+void removeFromPeers(uint8_t *mac) {
+	DEBUG_MSG("Remove peer: %02x:%02x:%02x:%02x:%02x:%02x\n",mac[0],mac[1],mac[2],mac[3],mac[4],mac[5]);
+	int8_t idx = -1;
+	for (int8_t i=0; i<peersCount;i++) {
+		DEBUG_MSG("Test peer: %02x:%02x:%02x\n",
+			config.peers[i].mac[3],
+			config.peers[i].mac[4],
+			config.peers[i].mac[5]);
+		
+		if ((config.peers[i].mac[3] == mac[3]) &&
+			(config.peers[i].mac[4] == mac[4]) &&
+			(config.peers[i].mac[5] == mac[5]) ) {
+				idx = i;
+				DEBUG_MSG("MAC find in peers: %d\n",idx);
+			}
+	}
+	if (idx >= 0) {
+		for (int8_t i=idx; i<(PEERS-1);i++) { 
+			config.peers[i].mac[0] = config.peers[i+1].mac[0];
+			config.peers[i].mac[1] = config.peers[i+1].mac[1];
+			config.peers[i].mac[2] = config.peers[i+1].mac[2];
+			config.peers[i].mac[3] = config.peers[i+1].mac[3];
+			config.peers[i].mac[4] = config.peers[i+1].mac[4];
+			config.peers[i].mac[5] = config.peers[i+1].mac[5];
+		}
+		//clear last 
+		config.peers[PEERS-1].mac[0] = 0;
+		config.peers[PEERS-1].mac[1] = 0;
+		config.peers[PEERS-1].mac[2] = 0;
+		config.peers[PEERS-1].mac[3] = 0;
+		config.peers[PEERS-1].mac[4] = 0;
+		config.peers[PEERS-1].mac[5] = 0;
+		if (peersCount > 0)  peersCount--;
+		DEBUG_MSG("Remove & sort, count=%d\n",peersCount);
+		managePeers(false,mac);
+	}
+}
+
+// Scan for slaves in AP mode
+uint8_t searchPeers() {
+  int8_t slaveCnt = 0;
+  int8_t scanResults = WiFi.scanNetworks();
+  //reset slaves
+  memset(config.peers, 0, sizeof(config.peers));
+  if (scanResults == 0) {
+    DEBUG_MSG("No peers found'n");
+  } else {
+    DEBUG_MSG("Found %d devices\n ",scanResults);
+    for (int i = 0; i < scanResults; ++i) {
+      String SSID = WiFi.SSID(i);
+	  String BSSIDstr = WiFi.BSSIDstr(i);
+      int32_t RSSI = WiFi.RSSI(i);
+	  // Print SSID and RSSI for each device found
+	  DEBUG_MSG("%d: %s [%s] (%u)\n",i+1,SSID.c_str(),BSSIDstr.c_str(),RSSI);
+      delay(10);
+      // Check if the current device starts with `Slave`
+      if (SSID.indexOf(MAINNAME) == 0) {
+		DEBUG_MSG("%d: %s [%s] (%u)\n",i+1,SSID.c_str(),BSSIDstr.c_str(),RSSI);
+        // Get BSSID => Mac Address of the Slave
+        int mac[6];
+        if ( 6 == sscanf(BSSIDstr.c_str(), "%02x:%02x:%02x:%02x:%02x:%02x",  &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5] ) ) {
+			for (int ii = 0; ii < 6; ++ii ) {
+				config.peers[slaveCnt].mac[ii] = (uint8_t) mac[ii];
+			}        
+			slaveCnt++;
+		}
+      }
+    }
+  }
+  DEBUG_MSG("%d Slave(s) found, processing..\n",slaveCnt);
+  WiFi.scanDelete();
+  return slaveCnt;
+}
+
 void setup() {
 	DEBUGSER_BEGIN(DEBUGBAUD);
 	DEBUG_MSG("\n");
@@ -830,6 +1052,8 @@ void setup() {
 		WiFi.mode(WIFI_AP_STA);
 		WiFi.hostname(config.hostname.c_str());
 		WiFi.softAP(HOSTNAME);
+		wifiConnect();
+		waitForConnectResult(WAIT_FOR_WIFI);
 
 		MDNS.begin(config.hostname.c_str());
     	MDNS.addService("avrisp", "tcp", port);
@@ -841,6 +1065,7 @@ void setup() {
 		config.startUpdate = false;
 		saveConfig();
 	} else {
+		startUpdate = false;
 		if (config.profileFileName.length() > 0) {
 			bool lok = loadSamplingStructFromJson(config.profileFileName);
 			DEBUG_MSG("Sampling config load: %s %s\n",config.profileFileName.c_str(),lok==1?"OK":"Fail");
@@ -848,23 +1073,15 @@ void setup() {
 			debugPrintSampling();
 #endif			
 		}
-
+		WiFi.mode(WIFI_AP_STA);
 		WiFi.hostname(config.hostname.c_str());
   		WiFi.softAP(HOSTNAME);
 
-		//&& (config.wifimode != WIFI_OFF) ) {
 		wifiConnect();
-		if (waitForConnectResult(WAIT_FOR_WIFI) == WL_CONNECTED) syncTime = true;
-		
-/*		
-		else {
-			DEBUG_MSG("Set AP: %s\n", config.hostname.c_str());
-			WiFi.mode(WIFI_AP);
-			WiFi.softAP(config.hostname.c_str());
-			//_wifi_is_connected = WIFI_AP_STARTED;
+		if (waitForConnectResult(WAIT_FOR_WIFI) == WL_CONNECTED) {
+			syncTime = true;
 		}
-*/		
-		startUpdate = false;
+
 		ntpClient.begin();
 		setSyncInterval(NTPSYNCINTERVAL);
 		setSyncProvider(getNtpTime);
@@ -883,13 +1100,25 @@ void setup() {
 		} else {
 			DEBUG_MSG("fail, no slave found\n");
 		}
-		ArduinoOTA.begin();					
+		ArduinoOTA.begin();
+
+		//search ESP now slave	
+		config.peerMode = 0;
+		if (!WifiEspNow.begin()) {
+			DEBUG_MSG("WifiEspNow.begin() failed\n");
+		} else {
+			WifiEspNow.onReceive(OnDataRecv, nullptr);
+			peersCount = config.peersCount;			
+			if (peersCount > 0) {
+				managePeers(true);		
+			}
+		}
 	}	
-	
 }
 
 uint32_t t1_mm;
 uint32_t t2_mm;
+uint32_t t3_mm;
 
 bool result = false;
 void loop() {
@@ -920,27 +1149,17 @@ void loop() {
 				}
 				changed = NONE;
 				break;
-			case MANUAL:
-				saveConfig();
-				changed = NONE;
-				break;
-			case TIME:
-				normalizeConfig();
+			case CONFIG:
 				saveConfig();
 				changed = NONE;
 				break;
 			case WIFI:
 		//wifi change
 				wifiConnect();
-		wifiConnect();
 				if (waitForConnectResult(WAIT_FOR_WIFI) == WL_CONNECTED) {
 					syncTime = true;
 					saveConfig();
 				}
-				changed = NONE;
-				break;
-			case LANG:
-				saveConfig();
 				changed = NONE;
 				break;
 			case RESET:
@@ -953,19 +1172,38 @@ void loop() {
 				changed = RESET;
 				saveConfig();
 				break;
+			case SEARCHPEERS:
+				changed = NONE;
+				peersCount = searchPeers();
+				DEBUG_MSG("Add peers: %d\n",peersCount);
+				break;
+			case CONFIRMPEERS:
+				changed = CONFIG;
+				managePeers(true);
+				break;
+			case UPDATE:
+				changed = NONE;				
+				checkForFwUpdate(true);
+				break;				
 			default:
 				break;
 		}
 
 		if (mm - t1_mm > TASK1) {
 			t1_mm = mm;
-			modulesTemperature = readTemperature();
+			moduleTemperature = readTemperature();
 			sendValToSlave();
 		}
 
 		if (mm - t2_mm > TASK2) {
 			t2_mm = mm;
 			if (syncTime) now(true);
-		}
+		}	
+		//search updates
+		if (mm - t3_mm > TASK3) {
+			t3_mm = mm;
+			//search;
+			checkForFwUpdate(false);
+		}			
 	}
 }

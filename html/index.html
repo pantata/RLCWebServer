@@ -617,6 +617,26 @@ margin-top:-5px;
     visibility: visible;
 }
 
+a.boxclose{
+    float:right;
+    margin-top:-20px;
+    margin-right:-20px;
+    cursor:pointer;
+    color: #fff;
+    border: 0px solid #AEAEAE;
+    border-radius: 20px;
+    background: #908f91;
+    font-size: 15px;
+    font-weight: normal;
+    display: inline-block;
+    line-height: 0px;
+    padding: 11px 3px;       
+}
+
+.boxclose:before {
+    content: "×";
+}
+
 		</style>
 	</head>
 <body>
@@ -686,12 +706,11 @@ margin-top:-5px;
 		    <div class="pure-u-1-1"> 		        
 		        <div class="card">
 		           <div id="mM" class="pure-menu pure-menu-horizontal pure-menu-scrollable">
-                    </div>
-                    <span class="ml-tooltip"></span>		
+                        <span class="ml-tooltip"></span>		    
+                   </div> 
 					<form class="pure-form" action="#">
 					<fieldset>
-					  <legend></legend>
-											  
+					  <div class="I18N">led.channel</div>											  
 					  <div id="chvx">	
 						  <div><input type="number" name="va0" id="va0" class="ledValLbl"><div class="slider a" id="a0"></div></div>
 						  <div><input type="number" name="va1" id="va1" class="ledValLbl"><div class="slider a" id="a1"></div></div>
@@ -713,6 +732,18 @@ margin-top:-5px;
 					</form>						    	
 				</div> <!-- card -->				
 	        </div>
+            <div class="pure-u-1-1" id="slv"> 		        
+	            <div class="card">
+                    <form class="pure-form" action="#" id="slaveform" name="slaveform">
+                        <div class="pure-control-group">		
+                            <label for="slaves-scan" class='I18N'>led.slaves</label>
+                            <button type="submit" id="slaves-scan" class="pure-button pure-button-primary I18N">led.slaves-scan</button>
+                            <button id="slaves-save" class="pure-button pure-button-primary I18N">led.slaves-save</button>                            
+                        </div>
+                    </form>
+                </div>
+            </div>            
+
         </div> 
     </div><!-- home -->	
 	
@@ -1005,9 +1036,12 @@ margin-top:-5px;
 						  <div id="fw-table">
 							 <form enctype="multipart/form-data" action="/updater.html" method="POST" id="fwform" name="fwform" class="pure-form pure-form-aligned">
 								<fieldset>
-									<legend class='I18N'>fw.info</legend>
+									<legend class='I18N'></legend>
 									<div class="pure-control-group"><label for="fwUI" class="I18N">fw.ui</label><span id="fw-uiVersion"></span></div>
-									<div class="pure-control-group"><label for="fwCTRL" class="I18N">fw.ctrl</label><span id="fw-coreVersion"></span></div>
+									<div class="pure-control-group">
+                                        <label for="fwCTRL" class="I18N">fw.ctrl</label><span id="fw-coreVersion"></span>
+                                        <span class="pure-controls"><a class='pure-button I18N' href="#" id="fwcheck">fw.run</a></span>
+                                    </div>
 									<div class="pure-control-group"><label for="fwMDL" class="I18N">fw.modul</label><span id="fw-modulesVersion"></span></div>
 									<!--div class="pure-controls"><a class='pure-button I18N' href="#" id="fwcheck">fw.check</a></div-->
 									<!--div style="display:none;" class="spinner spinner-small" id="fw-spinner"></div>	

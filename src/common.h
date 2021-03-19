@@ -33,15 +33,20 @@
 #define MAX_MODULES 1
 #define CHANNELS 7
 
+#define PEERS 16
+
 #define STATUSLED 3   //statusled output
 
 #define AP_IP   String("192.168.4.1")
 #define AP_MASK String("255.255.255.0")
 #define APPWD   "nereus"
+#define MAINNAME "NEREUS"
 #define HOSTNAME String("NEREUS_") + String(ESP.getChipId(), HEX)
 #define DNS_PORT 53
 #define TIMESERVER "pool.ntp.org"
 #define CFGNAME    "/nereus.cfg"
+
+#define fwUrlBase "http://192.168.1.82:8080/nereus/"
 
 #define WIFITIMEOUT  15
 #define SAMPLING_MAX 840 //6*12 bodu na kanal
@@ -70,7 +75,8 @@
 #define LEDUV      6
 
 #define TASK1      1000  //ms
-#define TASK2      60000 
+#define TASK2      60000   //time sync
+#define TASK3      24*60*1000   //finding fw updates 
 
 typedef enum {
     W_DISCONNECT       =  0,
@@ -78,12 +84,16 @@ typedef enum {
     W_AP_STARTED   	   =  2
 } wifi_is_connected_t;
 
+struct esp_now_peer_info_t {
+	uint8_t mac[6];
+};
+
+
 struct Config {
     uint16_t version;
     String ssid; // par ssid
     String pwd;  // par pwd
     String hostname; // par apname
-    uint8_t wifimode = 0; // par apmode
     String ntpServer;
     unsigned int localPort;
     bool useNtp = true;
@@ -107,12 +117,15 @@ struct Config {
     uint8_t lang;
     uint16_t manualValues[7];
     bool startUpdate;
+    uint8_t peersCount;
+    uint8_t peerMode;
+    esp_now_peer_info_t peers[PEERS];
 };
 
 //var dateFormat = ["DD.MM.YY","DD/MM/YY","DD-MM-YY","YY/MM/DD","YY-MM-DD"];
 //var timeFormat = ["HH:MI:SS P","HH.MI:SS P","HH24:MI:SS","HH24.MI:SS","HH:MI P","HH.MI P","HH24:MI","HH24.MI"];
 
-struct Sampling {
+struct __attribute__((packed)) Sampling {
     uint8_t channel; 
     uint8_t timeSlot;
     uint16_t value;
@@ -141,6 +154,7 @@ struct VersionInfo {
 	uint16_t slaveModule;      //LSB main, MSB subversion
 };
 
+
 extern int16_t ledValue[];
 extern struct VersionInfo versionInfo;
 extern struct Samplings samplings;
@@ -150,37 +164,39 @@ extern struct WifiNetworks wifinetworks[];
 
 extern union Unixtime unixtime;
 
+extern bool isWifiClient;
 extern bool shouldReconnect;
 extern bool shouldReboot;
-extern byte modulesCount;
+//extern byte modulesCount;
 
 extern const char* str_wifistatus[];
 extern const char* str_wifimode[];
 extern const char* str_wifiauth[];
 extern const char* str_timestatus[];
 
-extern int8_t modulesTemperature;
+extern int8_t moduleTemperature;
 
-enum t_changed  {NONE, LED, MANUAL, TIME, WIFI, LANG, RESET, AVRUPDATE} ;
+enum t_changed  {NONE, CONFIG, LED, WIFI, RESET, AVRUPDATE, SEARCHPEERS, CONFIRMPEERS, UPDATE} ;
 
 extern t_changed changed;
 extern uint8_t lang;
 extern uint8_t modulesCount;
 extern uint8_t mode;
-
+extern uint8_t peersCount;
 extern const int dstOffset[];
 extern bool syncTime;
 extern const char *str_lang[4];
+extern bool isUpdateAvailable;
 
 #define LOW_BYTE(x)        	(x & 0xff)
 #define HIGH_BYTE(x)       	((x >> 8) & 0xff)
 
+/*
 extern String inputString;
 extern boolean stringComplete;
 extern bool incomingLedValues;
-
+*/
 extern const uint16_t coreVersion;
-
 const uint16_t port = 328;
 
 //bool saveSamplingStruct(String filename);
@@ -188,6 +204,10 @@ const uint16_t port = 328;
 
 int8_t readTemperature();
 void sendValToSlave();
+uint8_t searchPeers();
+int managePeers(bool state, uint8_t *mac = nullptr);
+void removeFromPeers(uint8_t *mac);
+void checkForFwUpdate();
 
 class SamplingJsonListener: public JsonListener {
   public:

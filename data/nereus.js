@@ -1157,12 +1157,7 @@ function showFwInfo(data) {
 			  $("#fw-" + v).text(dec2hex(data[v]));
 		  }		  
 	 });
-	 $("#fw-uiVersion").text(uiversion);
-	 if (data.isUpdateAvailable == true) {
-		$('#fwcheck').show();
-	 } else {
-		$('#fwcheck').hide();
-	 }
+	 $("#fw-uiVersion").text(uiversion);	 	
 };
 
 function createInputForAp(ap) {
@@ -1758,8 +1753,7 @@ function showConfigData() {
     
 	$('#ledprofile').text(config.profileFileName.slice(0,-4));
 	setSlaves(config);
-
-
+		
 	if (config.isManual == true) {
 		$('#autoOnOff .Switch').removeClass('Off');
 		$('#autoOnOff .Switch').addClass('On');
@@ -1773,15 +1767,7 @@ function showConfigData() {
 		$('#chvx .slider').attr('disabled',true);
 		$('#chvx input').attr('disabled',true);		
 	}
-
-	if (config.peerMode == 11) {
-		$('#slv').hide();
-		$('#chvx .slider').attr('disabled',true);
-		$('#chvx input').attr('disabled',true);	
-		$('#autoOnOff .Switch').hide();	
-		$('#chv-submit').hide();
-	} 
-
+		
 	if (config.useNTP == true) {
 		$('#ntpOnOff .Switch').removeClass('Off');
 		$('#ntpOnOff .Switch').addClass('On');
@@ -2396,7 +2382,7 @@ function setSlaves(_data){
 					<a class='boxclose' id='boxclose' onclick='closebox(this)'></a> \
 					<div>\
 						<img src='nereus-icn.png' width='100%'/>\
-						<figcaption style='font-size:10px;font-size:1vw;'> "+d+"</figcaption> \
+						<figcaption> "+d+"</figcaption> \
 					</div>\
 				</div>\
 			</div>\
@@ -2409,25 +2395,8 @@ $('#slaveform').on('submit', function(e) {
 	getSlaves();
 });
 
-$('#slaves-save').click(function(e){
-	e.preventDefault();
+$('#slaves-save').click(function(){
 	saveSlaves();
-});
-
-$('#fwcheck').click(function(e){
-	e.preventDefault();
-	if (confirm(J42R.get('fw.upload'))) {
-		console.log("UPDATE CORE");
-		var d = 's=1';
-		$.ajax({
-			url:'update.cgi',
-			type:"POST",
-			data:d,
-			success: function (data) {  
-				console.log(data);
-			}
-		}); 
-	};
 });
 
 function removeSlaves(t) {

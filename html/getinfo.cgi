@@ -1,0 +1,1 @@
+{"mode":false,"timeslot":47763,"timeSlotValues":[187,1973,778,789,44,44,0],"moduleTemperature":-128,"time":1}

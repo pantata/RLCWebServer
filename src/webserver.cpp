@@ -336,6 +336,11 @@ void webserver_begin() {
 		request->send(200,"text/html",update_html);
 	});
 
+	server.on("/update.cgi", HTTP_POST, [](AsyncWebServerRequest *request) {
+		changed = UPDATE;
+		sendJsonResultResponse(request,true);
+	});
+
 #if DEBUG > 0
 	server.on("/formatfs", HTTP_GET, [](AsyncWebServerRequest *request) {
 		uint32_t startTime=millis();
@@ -400,29 +405,23 @@ void webserver_begin() {
 
 	server.on("/wificonnect.cgi", HTTP_GET,
 			[](AsyncWebServerRequest *request) {
-				config.wifimode=atoi(request->arg("apmode").c_str());
+				config.appwd=request->arg("appwd");
+				//config.apchannel=atoi(request->arg("apchannel").c_str());
+				config.apip=request->arg("apip");
+				config.apmask=request->arg("apmask");
+				config.apgw=request->arg("apgw");
 
-				if (config.wifimode == WIFI_AP) {
-					config.hostname=request->arg("apname");
-					config.appwd=request->arg("appwd");
-					config.apchannel=atoi(request->arg("apchannel").c_str());
-					config.apip=request->arg("apip");
-					config.apmask=request->arg("apmask");
-					config.apgw=request->arg("apgw");
+				config.ssid=request->arg("ssid");
+				config.pwd=request->arg("pwd");
+				config.wifidhcp=String(request->arg("dhcponoff")).equals("1");
+				if (!config.wifidhcp) {
+					config.wifiip=request->arg("ip");
+					config.wifimask=request->arg("mask");
+					config.wifigw=request->arg("gw");
+					config.wifidns1=request->arg("dns1");
+					config.wifidns2=request->arg("dns2");
 				}
 
-				if (config.wifimode == WIFI_STA) {
-					config.ssid=request->arg("ssid");
-					config.pwd=request->arg("pwd");
-					config.wifidhcp=String(request->arg("dhcponoff")).equals("1");
-					if (!config.wifidhcp) {
-						config.wifiip=request->arg("ip");
-						config.wifimask=request->arg("mask");
-						config.wifigw=request->arg("gw");
-						config.wifidns1=request->arg("dns1");
-						config.wifidns2=request->arg("dns2");
-					}
-				}
 				changed = WIFI;
 				AsyncWebServerResponse *response = request->beginResponse(200);
 				response->addHeader("refresh","20;url=http://"+config.hostname+".local");
@@ -431,12 +430,12 @@ void webserver_begin() {
 
 	server.on("/settime.cgi", HTTP_POST, [](AsyncWebServerRequest *request) {
 		setTimeCgi(request);
-		changed = TIME;
+		changed = CONFIG;
 	});
 
 	server.on("/setlang.cgi", HTTP_POST, [](AsyncWebServerRequest *request) {
 		setLang(request);
-		changed = LANG;
+		changed = CONFIG;
 	});
 
 	server.on("/getTimeSlotProfiles.cgi", HTTP_GET,
@@ -490,7 +489,7 @@ void webserver_begin() {
 					}
 				}
 
-				root["moduleTemperature"] =  modulesTemperature;				
+				root["moduleTemperature"] =  moduleTemperature;				
 				root["time"] = millis()-startTime;
 				response->setLength();
 				request->send(response);
@@ -535,7 +534,18 @@ void webserver_begin() {
 		root["dstEndHour"] = config.tzRule.dstEnd.hour;
 		root["dstEndOffset"] = config.tzRule.dstEnd.offset;
 		root["isManual"] = config.manual;
+		root["peerMode"] = config.peerMode;
 		root["profileFileName"] = config.profileFileName.c_str();
+		JsonArray slv = root.createNestedArray("slaves");
+		char buffer[14]  = {'\0'};
+		for(uint8_t j=0;j<config.peersCount;j++) {
+			snprintf(buffer,14,"NEREUS_%02x%02x%02x", 
+			 config.peers[j].mac[3],
+			 config.peers[j].mac[4], 
+			 config.peers[j].mac[5]);
+			slv.add(buffer);
+			buffer[0] = '\0';
+		}
 		root["time"] = millis()-startTime;
 		response->setLength();
 		request->send(response);
@@ -576,7 +586,7 @@ void webserver_begin() {
 		int m = StringToInt((String)request->arg("m"));
 		config.manual = m==0?false:true;
 		sendJsonResultResponse(request,true);		
-		changed = MANUAL;
+		changed = CONFIG;
 	});
 
 	server.on("/showversions.cgi", HTTP_GET,
@@ -587,6 +597,7 @@ void webserver_begin() {
 				doc["coreVersion"] = coreVersion;
 				doc["masterVersion"] = versionInfo.mainModule;
 				doc["modulesVersion"] = versionInfo.slaveModule;
+				doc["isUpdateAvailable"] = isUpdateAvailable;
 				doc["time"] = millis()-startTime;
 				serializeJson(doc, *response);
 				request->send(response);
@@ -606,7 +617,60 @@ void webserver_begin() {
 			config.manualValues[i] = (uint16_t)data[i];
 		}
 		sendJsonResultResponse(request,true);
-		changed = MANUAL;
+		changed = CONFIG;
+	});
+
+	server.on("/getslaves.cgi", HTTP_GET, [](AsyncWebServerRequest *request) {
+		uint32_t startTime=millis();
+		changed = SEARCHPEERS;
+		sendJsonResultResponse(request,true);
+	});
+
+	server.on("/showslaves.cgi", HTTP_GET, [](AsyncWebServerRequest *request) {
+		uint32_t startTime=millis();
+		AsyncJsonResponse * response = new AsyncJsonResponse();
+		JsonObject root = response->getRoot();
+		JsonArray slv = root.createNestedArray("slaves");
+		char buffer[14]  = {'\0'};
+		for(uint8_t j=0;j<peersCount;j++) {
+			snprintf(buffer,14,"NEREUS_%02x%02x%02x", 
+			 config.peers[j].mac[3] ,
+			 config.peers[j].mac[4] ,
+			 config.peers[j].mac[5] );
+			slv.add(buffer);
+			buffer[0] = '\0';
+		}
+		root["time"] = millis()-startTime;
+		response->setLength();
+		request->send(response);
+	});
+
+	server.on("/peers.cgi", HTTP_GET, [](AsyncWebServerRequest *request) {
+		changed = CONFIRMPEERS;
+		sendJsonResultResponse(request,true);
+	});	
+
+	server.on("/removeslave.cgi", HTTP_POST, [](AsyncWebServerRequest *request) {
+		String json = (String)request->arg("body");
+		StaticJsonDocument<48> doc;
+		DeserializationError error = deserializeJson(doc, json);
+		if (error) {
+			DEBUG_MSG("Error parsing slave: %s\n",error.c_str());
+			sendJsonResultResponse(request,false);
+			return;
+		}
+		String name = doc["slave"];
+		DEBUG_MSG("Input: %s\n",name.c_str());		
+		uint8_t mac[6] = {0x5E,0xCF,0x7F,0,0,0};
+		int x[3];
+		if ( 3 == sscanf(name.c_str(), "NEREUS_%02x%02x%02x",  &x[0], &x[1], &x[2] ) ) {
+			mac[3]=(uint8_t)x[0];
+			mac[4]=(uint8_t)x[1];
+			mac[5]=(uint8_t)x[2];
+			removeFromPeers(mac);
+		}
+		sendJsonResultResponse(request,true);
+		changed = CONFIG;
 	});
 
 	server.begin();
