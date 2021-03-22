@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "ledMaster"
+		},
+		{
+			"path": "ledSlave"
+		}
+	],
+	"settings": {}
+}
