@@ -33,6 +33,8 @@
 #include <JsonListener.h>
 #include <JsonStreamingParser.h>
 #include <jled.h>
+#include <RTC8563.h>
+
 #include "common.h"
 #include "RlcWebFw.h"
 #include "webserver.h"
@@ -95,6 +97,8 @@ const char* str_lang[] = { "en", "cs", "pl", "de" };
 union Unixtime unixtime;
 ESP8266AVRISP avrprog(port, 16);
 
+RTC_8563 rtc;
+
 //uint8_t peers[PEERS][6] = {0};
 uint8_t peersCount = 0;
 bool findingPeers = false;
@@ -145,6 +149,9 @@ time_t getNtpTime() {
 		l = ntpClient.getEpochTime();
 	}
 	DEBUG_MSG("Epoch: %lu\n", l);
+	if (l) {
+		rtc.adjust(DateTime(l));
+	}
 	return l;
 }
 
@@ -1015,6 +1022,13 @@ void setup() {
 #endif		
   	});
 
+	//init rtc
+	//if OK, set locat time
+	if (rtc.isrunning()) {
+		DateTime dt = rtc.now();	
+		setTime(dt.unixtime());
+	}
+
 	initSamplingValues();
 	if (LittleFS.begin() ) {
 		DEBUG_MSG("FS start\n");
@@ -1120,7 +1134,7 @@ uint32_t t1_mm;
 uint32_t t2_mm;
 uint32_t t3_mm;
 
-bool result = false;
+
 void loop() {
 	uint32_t mm = millis();
 #if DEBUG  == 0	
@@ -1133,9 +1147,10 @@ void loop() {
 			dnsServer.processNextRequest();
 
 		ArduinoOTA.handle();
-
+		
+		bool result = false;
 		switch (changed) {
-			case LED:
+			case LED:		
 				DEBUG_MSG("Change profile to %s:\n",config.profileFileName.c_str());
 				result = loadSamplingStructFromJson(config.profileFileName);
 				if (result) {
@@ -1195,15 +1210,13 @@ void loop() {
 			sendValToSlave();
 		}
 
-		if (mm - t2_mm > TASK2) {
-			t2_mm = mm;
-			if (syncTime) now(true);
-		}	
 		//search updates
 		if (mm - t3_mm > TASK3) {
 			t3_mm = mm;
 			//search;
 			checkForFwUpdate(false);
-		}			
+		}
+		
+		if (syncTime) now();			
 	}
 }

@@ -951,6 +951,7 @@ var J42R = {
 	    async:false,
 	    contentType:"application/json; charset=utf-8",
 		success:function(data) {
+			console.log(data);
 			self.put(lang,data).t();
 		},
 		error:function(xhr,type){
@@ -1355,7 +1356,8 @@ $("div.slider input[type=number]").change(function( event ) {
 	});
 
 function reG1() {
-   	g1.updateOptions( { 'file': dtmo , dateWindow: [0,144]} );
+	$('#profilename').val($('select#profileList option:checked').val());
+   	g1.updateOptions( { title:$('select#profileList option:checked').val() ,'file': dtmo , dateWindow: [0,144]} );
 }
 
 $("#ledsetup-filter-ledchan").change(function( event ) {

@@ -23,7 +23,8 @@
         "status": "Stav",
         "time": "Datum a čas",
         "wi-fi": "WI-FI",
-        "settings":"Nastavení"
+        "settings":"Nastavení",
+        "help":"Nápověda"
     },
     "lang": {
         "czech": "Čeština",
@@ -54,7 +55,9 @@
         "time":"Aktuální čas",
         "slaves":"Připojená světla:",
         "slaves-scan":"Vyhledat",
-        "slaves-save":"Uložit"
+        "slaves-save":"Uložit",
+        "profileUpload":"Nahrát profil",
+        "profileDownload":"Stáhnout profil"
     },
     "menu": {
         "chansetings": "Nastavení LED",
@@ -123,5 +126,20 @@
         "ap_pwd":"Heslo:",
         "ap_ip":"IP adresa:",
         "ap_mask":"Maska:"
+    },
+    "help":{
+        "h1":"Karta Stav",
+        "h2":"Ruční nastavení.",
+        "h3":"Po přepnutí do stavu ON lze ručně nastavit intenzitu jednotlivých led. Nastavení je nutno potvrdit tlačítkem.",
+        "h4":"Připojená světla.",
+        "h5":"Tlačítkem lze vyhledat dostupné světla a připojit jako podřízená. Vybraná světla je nutno potvrdit.",
+        "h6":"Karta Nastavení LED.",
+        "h7":"V seznamu lze vybrat jeden z předdefinovaných profilů a tlačítkem zapnout.",
+        "h8":"U Vybraného profilu je možné upravit tažením myší čas počátku a max. hodnotu jasu. Kliknutim myši v grafu lze přidat nebo odebrat body průběhu svícení. Výběrový seznam nad grafem umožňuje určit kanál LED, na který se nastavení bude vztahovat.",
+        "h9":"Upravený profil lze uložit pod stejným názvem pomocí tl. \"Uložit profil\", nebo lze určit nový název. Profily lze stáhnout do počítače. Uložený profil lze nahrát z počítače do zařízení.",
+        "h10":"Karta Nastavení",
+        "h11":"Zde je možné nastavit WiFi připojení, datum, čas a časovou zónu",
+        "h12":"Firmware",
+        "h13":"V této kartě je možné zkontrolovat, zda je k dispozici update firmware"
     }
 }
