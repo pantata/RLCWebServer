@@ -847,6 +847,16 @@ var channels = [
 [749,3.87,0,0,0,0,0,3.47]
 ];	
 
+var c_uv    = 6;
+var c_rb    = 5;
+var c_green = 4;
+var c_red   = 3;
+var c_white = 2;
+var c_amber = 1;
+var c_blue  = 0;
+
+var led_colors = [c_white,c_uv,c_rb,c_blue,c_green,c_red,c_amber];
+
 function emptyDtmo() {
 	d = [
 		[0,null,null,null,null,null,null,null,null],
@@ -1371,13 +1381,19 @@ function saveInfo(data) {
 	var cnt = Number(data.timeSlotValues.length);
 		
 	$('ul#ml').empty();
-	temperature = data.moduleTemperature != -128?''+data.moduleTemperature:' - ';
-	opt = '<div>'+temperature+'&nbsp;&#8451;</div>';			
+	temperature_0 = data.moduleTemperature_0 != -128?''+data.moduleTemperature_0:' - ';
+	temperature_1 = data.moduleTemperature_1 != -128?''+data.moduleTemperature_1:' - ';
+	temperature_2 = data.moduleTemperature_2 != -128?''+data.moduleTemperature_2:' - ';
+	temperature_3 = data.moduleTemperature_3 != -128?''+data.moduleTemperature_3:' - ';
+	opt = '<span>'+temperature_0+'&nbsp;&#8451;</span>';	
+	opt = opt + '<span>'+temperature_1+'&nbsp;&#8451;</span>';
+	opt = opt + '<span>'+temperature_2+'&nbsp;&#8451;</span>';
+	opt = opt + '<span>'+temperature_3+'&nbsp;&#8451;</span>';
 	x = $(opt).appendTo('ul#ml');
 	
 	var b = data.timeSlotValues;				
 	for (var x=0; x < 7; x++) {					
-		var v = b[x];
+		var v = b[led_colors[x]];
 		var sliders = $('#chvx .slider');					
 		sliders[x].noUiSlider.set(v/(MAX_LED_VAL/100));
 	}	

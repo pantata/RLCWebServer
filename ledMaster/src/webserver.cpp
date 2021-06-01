@@ -488,8 +488,10 @@ void webserver_begin() {
 						tsv.add((int)ledValue[j]);
 					}
 				}
-
-				root["moduleTemperature"] =  moduleTemperature;				
+				root["moduleTemperature_0"] =  moduleTemperature[0];
+				root["moduleTemperature_1"] =  moduleTemperature[1];
+				root["moduleTemperature_2"] =  moduleTemperature[2];
+				root["moduleTemperature_3"] =  moduleTemperature[3];
 				root["time"] = millis()-startTime;
 				response->setLength();
 				request->send(response);
@@ -593,10 +595,13 @@ void webserver_begin() {
 			[](AsyncWebServerRequest *request) {
 				uint32_t startTime = millis();
 				AsyncResponseStream *response = request->beginResponseStream("text/json");
-				DynamicJsonDocument doc(512);
+				DynamicJsonDocument doc(1024);
 				doc["coreVersion"] = coreVersion;
 				doc["masterVersion"] = versionInfo.mainModule;
-				doc["modulesVersion"] = versionInfo.slaveModule;
+				doc["Version_0"] = versionInfo.slaveModule[0];
+				doc["modulesVersion_1"] = versionInfo.slaveModule[1];
+				doc["modulesVersion_2"] = versionInfo.slaveModule[2];
+				doc["modulesVersion_3"] = versionInfo.slaveModule[3];
 				doc["isUpdateAvailable"] = isUpdateAvailable;
 				doc["time"] = millis()-startTime;
 				serializeJson(doc, *response);

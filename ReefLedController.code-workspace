@@ -5,6 +5,12 @@
 		},
 		{
 			"path": "ledSlave"
+		},
+		{
+			"path": "data"
+		},
+		{
+			"path": "html"
 		}
 	],
 	"settings": {}

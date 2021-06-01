@@ -70,8 +70,9 @@ bool isUpdateAvailable = false;
 uint8_t lang = 0;
 t_changed changed = NONE;
 
-uint8_t slaveAddr;
-int8_t moduleTemperature;
+uint8_t slaves = 0;
+uint8_t slaveAddr[4] = {0};
+int8_t moduleTemperature[4] = {0};
 
 bool syncTime = false;
 
@@ -228,7 +229,8 @@ bool wifiConnect() {
 	}
 
 	if (config.ssid.length() > 0) {
-		ret = connectWifi(config.ssid.c_str(), config.pwd.c_str());
+		connectWifi(config.ssid.c_str(), config.pwd.c_str());
+		ret = waitForConnectResult(WAIT_FOR_WIFI);
 	}
 
 	IPAddress apip = IPAddress((uint32_t) 0);
@@ -608,17 +610,15 @@ bool saveConfig() {
 
 static uint8_t searchSlave() {
 	uint8_t error, address, idx = 0;
-	Wire.begin(13,14);
-	Wire.setClock(100000);
-	slaveAddr = 0;
-	for (address = 1; address < 127; address++) {
+	slaveAddr[0] = 0;slaveAddr[1] = 0;slaveAddr[2] = 0;slaveAddr[3] = 0;
+	for (address = 1; address <= 32; address++) {
 		Wire.beginTransmission(address);
 		Wire.write(reg_MASTER);
 		Wire.write(0xff); //value 0xFF = controller presence
     	error = Wire.endTransmission();
 		if (error == 0) {
-			slaveAddr = address;
-			DEBUG_MSG("Slave: %03xh\n", slaveAddr);
+			slaveAddr[idx] = address;
+			DEBUG_MSG("Slave: 0x%02x\n", slaveAddr);
 			idx++;
 		} 
 	}
@@ -629,31 +629,27 @@ int16_t ledValue[CHANNELS] = {0};
 void sendValToSlave() {
 	uint8_t error = 0;
 	//TODO: remap led position from web page to hardware
-	#define c_white  0
-	#define c_uv     1
-	#define c_rb     2
-	#define c_blue   3
+	#define c_uv     6
+	#define c_rb     5
 	#define c_green  4
-	#define c_red    5
-	#define c_amber  6
+	#define c_red    3
+	#define c_white  2
+	#define c_amber  1
+	#define c_blue   0
 	//a takto jsou zapojeny
 	//TODO: revize
-	uint8_t led_colors[CHANNELS] = {c_blue,c_amber,c_white,c_red,c_green,c_rb,c_uv};
-
+	//uint8_t led_colors[CHANNELS] = {c_blue,c_amber,c_white,c_red,c_green,c_rb,c_uv};
+	//uint8_t led_colors[CHANNELS] = {c_uv,c_rb,c_green,c_red,c_white,c_amber, c_blue};
+	uint8_t led_colors[CHANNELS] = {c_white,c_uv,c_rb,c_blue,c_green,c_red,c_amber};
 	uint16_t crc = 0xffff;
 
-	//posleme info , ze ridime
-	Wire.beginTransmission(slaveAddr);
-	Wire.write(reg_MASTER); //register address
-	Wire.write(0xff);
-	Wire.endTransmission();
 
 	//spocitame crc
 	for (uint8_t x = 0; x < CHANNELS; x++) {
 		if (config.manual) { 
-			ledValue[x] = config.manualValues[x];
+			ledValue[led_colors[x]] = config.manualValues[x];
 		} else {
-			ledValue[x] = getSamplingValue(x);
+			ledValue[led_colors[x]] = getSamplingValue(x);
 		}		
 		uint16_t c_val = ledValue[x];
 		uint8_t lb = LOW_BYTE(c_val);
@@ -670,27 +666,36 @@ void sendValToSlave() {
 		ledValue[5],
 		ledValue[6]
 	);
-	//posleme data vcetne crc
-	Wire.beginTransmission(slaveAddr);
-	Wire.write(reg_LED_START); //register address
+	//posleme info , ze ridime
+	for (uint8_t s=0; s<slaves;s++) {
+		Wire.beginTransmission(slaveAddr[s]);
+		Wire.write(reg_MASTER); //register address
+		Wire.write(0xff);
+		Wire.endTransmission();
 
-	for (uint8_t x = 0; x < CHANNELS; x++) {
-		uint16_t c_val = ledValue[x];
-		uint8_t lb = LOW_BYTE(c_val);
-		uint8_t hb = HIGH_BYTE(c_val);
 
-		Wire.write(lb);
-		Wire.write(hb);
+		//posleme data vcetne crc
+		Wire.beginTransmission(slaveAddr[s]);
+		Wire.write(reg_LED_START); //register address
+
+		for (uint8_t x = 0; x < CHANNELS; x++) {
+			uint16_t c_val = ledValue[x];
+			uint8_t lb = LOW_BYTE(c_val);
+			uint8_t hb = HIGH_BYTE(c_val);
+
+			Wire.write(lb);
+			Wire.write(hb);
+		}
+
+		//crc
+		Wire.write(LOW_BYTE(crc));
+		Wire.write(HIGH_BYTE(crc));
+
+		//status reg_DATA_OK
+		Wire.write(error);
+		Wire.endTransmission();
+		//DEBUG_MSG("Data to slave send\n");
 	}
-
-	//crc
-	Wire.write(LOW_BYTE(crc));
-	Wire.write(HIGH_BYTE(crc));
-
-	//status reg_DATA_OK
-	Wire.write(error);
-	Wire.endTransmission();
-	//DEBUG_MSG("Data to slave send\n");
 
 	//send to peers
 	if (config.peersCount > 0) {
@@ -712,38 +717,39 @@ void sendValToSlave() {
 	}
 }
 
-int8_t readTemperature() {
+void readTemperature() {
 	uint8_t ret = 0;
 	uint8_t temp = 0xff;
 	uint8_t temp_status = 0xee;
+	for (uint8_t s = 0; s< slaves;s++ ) {
+		Wire.beginTransmission(slaveAddr[s]);
+		Wire.write(reg_THERM_STATUS);
+		Wire.endTransmission();
 
-	Wire.beginTransmission(slaveAddr);
-	Wire.write(reg_THERM_STATUS);
-	Wire.endTransmission();
+		uint8_t cnt = Wire.requestFrom(slaveAddr[s], 2);
+		if (cnt > 1) {
+			temp_status = Wire.read();
+			temp = Wire.read();
+		}
 
-	uint8_t cnt = Wire.requestFrom(slaveAddr, 2);
-	if (cnt > 1) {
-		temp_status = Wire.read();
-		temp = Wire.read();
+		if (temp_status) {
+			ret = temp < 128 ? temp : temp - 256;;
+		} else {
+			ret = ERR_TEMP_READ;
+		}
+
+		moduleTemperature[s] = ret;
 	}
-
-	if (temp_status) {
-		ret = temp < 128 ? temp : temp - 256;;
-	} else {
-		ret = ERR_TEMP_READ;
-	}
-
-	return ret;
 }
 
-uint16_t readSlaveVersion() {
+uint16_t readSlaveVersion(uint8_t s) {
 	uint16_t ret = 0;
 
-	Wire.beginTransmission(slaveAddr);
+	Wire.beginTransmission(slaveAddr[s]);
 	Wire.write(reg_VERSION_MAIN);
 	Wire.endTransmission();
 
-	uint8_t cnt = Wire.requestFrom(slaveAddr, 2);
+	uint8_t cnt = Wire.requestFrom(slaveAddr[s], 2);
 	if (cnt > 1) {
 		BYTELOW(ret) = Wire.read();
 		BYTEHIGH(ret) = Wire.read();
@@ -752,10 +758,12 @@ uint16_t readSlaveVersion() {
 }
 
 void setSlaveDemo( uint8_t start) {
-	Wire.beginTransmission(slaveAddr);
-	Wire.write(reg_MASTER);
-	if (start) Wire.write(0xde); else Wire.write(0xff);
-	Wire.endTransmission();
+	for (uint8_t s=0; s<slaves;s++) {
+		Wire.beginTransmission(slaveAddr[s]);
+		Wire.write(reg_MASTER);
+		if (start) Wire.write(0xde); else Wire.write(0xff);
+		Wire.endTransmission();
+	}
 }
 
 
@@ -1021,12 +1029,7 @@ void setup() {
 #endif		
   	});
 
-	//init rtc
-	//if OK, set locat time
-	if (rtc.isrunning()) {
-		DateTime dt = rtc.now();	
-		setTime(dt.unixtime());
-	}
+
 
 	initSamplingValues();
 	if (LittleFS.begin() ) {
@@ -1066,7 +1069,6 @@ void setup() {
 		WiFi.hostname(config.hostname.c_str());
 		WiFi.softAP(HOSTNAME);
 		wifiConnect();
-		waitForConnectResult(WAIT_FOR_WIFI);
 
 		MDNS.begin(config.hostname.c_str());
     	MDNS.addService("avrisp", "tcp", port);
@@ -1077,7 +1079,24 @@ void setup() {
 		startUpdate = true;
 		config.startUpdate = false;
 		saveConfig();
+
 	} else {
+		
+		Wire.begin(13,14);
+		Wire.setClock(100000);
+		delay(2000);
+		slaves = searchSlave();
+		//init rtc
+		//if OK, set locat time
+		rtc.begin();
+		if (rtc.isrunning()) {
+			DEBUG_MSG("RTC FOUND\n");
+			DateTime dt = rtc.now();	
+			setTime(dt.unixtime());
+		} else {
+			DEBUG_MSG("RTC FAIL\n");
+			
+		}
 		startUpdate = false;
 		if (config.profileFileName.length() > 0) {
 			bool lok = loadSamplingStructFromJson(config.profileFileName);
@@ -1090,8 +1109,7 @@ void setup() {
 		WiFi.hostname(config.hostname.c_str());
   		WiFi.softAP(HOSTNAME);
 
-		wifiConnect();
-		if (waitForConnectResult(WAIT_FOR_WIFI) == WL_CONNECTED) {
+		if (wifiConnect() == WL_CONNECTED) {
 			syncTime = true;
 		}
 
@@ -1107,9 +1125,12 @@ void setup() {
 
 		delay(5000);
 		DEBUG_MSG("Searching slave\n");
-		if (searchSlave() > 0) {
-			versionInfo.slaveModule = readSlaveVersion();
-			DEBUG_MSG("Success,  ver.:0x%04X\n", versionInfo.slaveModule);
+		
+		if (slaves > 0) {
+			for(uint8_t s=0; s < slaves; s++ ) {
+				versionInfo.slaveModule[s] = readSlaveVersion(s);
+				DEBUG_MSG("Success,  ver.:0x%04X\n", versionInfo.slaveModule[s]);
+			}
 		} else {
 			DEBUG_MSG("fail, no slave found\n");
 		}
@@ -1169,8 +1190,7 @@ void loop() {
 				break;
 			case WIFI:
 		//wifi change
-				wifiConnect();
-				if (waitForConnectResult(WAIT_FOR_WIFI) == WL_CONNECTED) {
+				if (wifiConnect() == WL_CONNECTED) {
 					syncTime = true;
 					saveConfig();
 				}
@@ -1205,7 +1225,7 @@ void loop() {
 
 		if (mm - t1_mm > TASK1) {
 			t1_mm = mm;
-			moduleTemperature = readTemperature();
+			readTemperature();
 			sendValToSlave();
 		}
 

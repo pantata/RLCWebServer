@@ -151,7 +151,7 @@ union Unixtime {
 
 struct VersionInfo {
 	uint16_t mainModule;        //LSB main, MSB subversion
-	uint16_t slaveModule;      //LSB main, MSB subversion
+	uint16_t slaveModule[4];      //LSB main, MSB subversion
 };
 
 
@@ -174,7 +174,7 @@ extern const char* str_wifimode[];
 extern const char* str_wifiauth[];
 extern const char* str_timestatus[];
 
-extern int8_t moduleTemperature;
+extern int8_t moduleTemperature[];
 
 enum t_changed  {NONE, CONFIG, LED, WIFI, RESET, AVRUPDATE, SEARCHPEERS, CONFIRMPEERS, UPDATE} ;
 
@@ -202,7 +202,7 @@ const uint16_t port = 328;
 //bool saveSamplingStruct(String filename);
 //bool loadSamplingStruct(String filename,Samplings *s );
 
-int8_t readTemperature();
+void readTemperature();
 void sendValToSlave();
 uint8_t searchPeers();
 int managePeers(bool state, uint8_t *mac = nullptr);
