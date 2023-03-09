@@ -33,6 +33,7 @@
 #include <JsonStreamingParser.h>
 #include <jled.h>
 #include <RTC8563.h>
+#include <WebSocketsServer.h>  
 
 #include "common.h"
 #include "RlcWebFw.h"
@@ -1150,6 +1151,43 @@ void setup() {
 	}	
 }
 
+
+WebSocketsServer webSocket = WebSocketsServer(81);
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght) {
+
+  switch (type) {
+    case WStype_DISCONNECTED:
+      DEBUG_MSG("[%u] Disconnected!\n", num);
+      break;
+    case WStype_CONNECTED:
+      {
+        IPAddress ip = webSocket.remoteIP(num);
+        DEBUG_MSG("[%u] Connected from %s url: %s\n", num, ip.toString().c_str(), payload);
+
+        // send message to client
+        webSocket.sendTXT(num, "Connected to Serial on " + WiFi.localIP().toString() + "\n");
+      }
+      break;
+    case WStype_TEXT:
+      DEBUG_MSG("[%u] get Text: %s\n", num, payload);
+
+      // send message to client
+      // webSocket.sendTXT(num, "message here");
+
+      // send data to all connected clients
+      // webSocket.broadcastTXT("message here");
+      break;
+    case WStype_BIN:
+      DEBUG_MSG("[%u] get binary lenght: %u\n", num, lenght);
+      hexdump(payload, lenght);
+
+      // send message to client
+      // webSocket.sendBIN(num, payload, lenght);
+      break;
+  }
+
+}
+
 uint32_t t1_mm;
 uint32_t t2_mm;
 uint32_t t3_mm;
@@ -1157,6 +1195,7 @@ uint32_t t3_mm;
 
 void loop() {
 	uint32_t mm = millis();
+	webSocket.loop();
 #if DEBUG  == 0	
 	led.Update();
 #endif	
