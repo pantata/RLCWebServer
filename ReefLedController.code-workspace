@@ -1,15 +1,19 @@
 {
 	"folders": [
 		{
-			"path": "ledMaster"
-		},
-		{
-			"path": "ledSlave"
-		},
-		{
+			"name": "data",
 			"path": "data"
 		},
 		{
+			"name": "ledMaster",
+			"path": "ledMaster"
+		},
+		{
+			"name": "ledSlave",
+			"path": "ledSlave"
+		},
+		{
+			"name": "html",
 			"path": "html"
 		}
 	],

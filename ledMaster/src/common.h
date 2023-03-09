@@ -41,7 +41,7 @@
 #define AP_MASK String("255.255.255.0")
 #define APPWD   "nereus"
 #define MAINNAME "NEREUS"
-#define HOSTNAME String("NEREUS_") + String(ESP.getChipId(), HEX)
+#define HOSTNAME String("NEREUS_") + String(getChipID(), HEX)
 #define DNS_PORT 53
 #define TIMESERVER "pool.ntp.org"
 #define CFGNAME    "/nereus.cfg"
@@ -221,6 +221,7 @@ class SamplingJsonListener: public JsonListener {
     virtual void startArray();
     virtual void startObject(); 
 };
+
 
 
 

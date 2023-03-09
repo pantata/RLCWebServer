@@ -7,13 +7,16 @@
 //  @version v0.2-10-gf4a3c71
 
 #include <Arduino.h>
-#include <ESP8266WiFi.h>
+#include <AsyncElegantOTA.h>
+#include <WiFi.h>
+#include "FS.h"
 #include <LittleFS.h>
-#include <ESPAsyncTCP.h>
+#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
 #include <MyTimeLib.h>
+#include <Update.h>
 #include "tz.h"
 #include "common.h"
 #include "RlcWebFw.h"
@@ -30,26 +33,26 @@ DstRule cet = { Oct, Last, Sun, 3, 60 };   //UTC + 1 hours
 Tz tz(cest, cet);
 
 class CaptiveRequestHandler: public AsyncWebHandler {
-public:
-	CaptiveRequestHandler() {
-	}
+	public:
+		CaptiveRequestHandler() {
+		}
 
-	bool canHandle(AsyncWebServerRequest *request) {
-		// redirect if not in wifi client mode (through filter)
-		// and request for different host (due to DNS * response)
-		if (request->host() != WiFi.softAPIP().toString())
-			return true;
-		else
-			return false;
-	}
+		bool canHandle(AsyncWebServerRequest *request) {
+			// redirect if not in wifi client mode (through filter)
+			// and request for different host (due to DNS * response)
+			if (request->host() != WiFi.softAPIP().toString())
+				return true;
+			else
+				return false;
+		}
 
-	void handleRequest(AsyncWebServerRequest *request) {
-		String location = "http://" + WiFi.softAPIP().toString();
-		if (request->host() == config.hostname + ".local")
-			location += request->url();
-		location += "/?page=wifi";
-		request->redirect(location);
-	}
+		void handleRequest(AsyncWebServerRequest *request) {
+			String location = "http://" + WiFi.softAPIP().toString();
+			if (request->host() == config.hostname + ".local")
+				location += request->url();
+			location += "/?page=wifi";
+			request->redirect(location);
+		}
 };
 
 void sendJsonResultResponse(AsyncWebServerRequest *request, bool cond,
@@ -63,37 +66,40 @@ void sendJsonResultResponse(AsyncWebServerRequest *request, bool cond,
 	request->send(response);
 }
 
-void printDirectory(Dir dir, int numTabs, AsyncResponseStream *response) {
+void printDirectory(const char * dirname, int numTabs, AsyncResponseStream *response) {
 	bool isDirectory = false;
+	File dir = LittleFS.open(dirname);
+	if(!dir.isDirectory()){
+        //Serial.println(" - not a directory");
+        return;
+    }
 	response->printf_P(list_header_table);
-	while (dir.next()) {
-		File entry = dir.openFile("r");
-		if (!entry) {
+	File file = dir.openNextFile();
+	while (file) {
+		if(file.isDirectory()) {
 			isDirectory = true;
 		} else {
 			isDirectory = false;
 		}
 		response->printf_P(PSTR("<tr><td><a href=\""));
-		String e = String((const char *) entry.name());
+		String e = String((const char *) file.name());
 		e.replace(".gz", "");
 		response->print(e.c_str());
 		response->print("\">");
-		response->print(entry.name());
+		response->print(file.name());
 		response->print("</a>");
 		response->printf_P(PSTR("</td><td align=\"right\">"));
-		if (isDirectory) {
-			Dir dir1 = LittleFS.openDir(dir.fileName() + "/" + entry.name());
-			printDirectory(dir1, numTabs + 1, response);
-		} else {
+		if (!isDirectory) {
 			// files have sizes, directories do not
-			response->println(entry.size(), DEC);
+			response->println(file.size(), DEC);
 			response->printf_P(PSTR("</td>"));
 		}
 		response->printf_P(PSTR("</tr>"));
+		file = dir.openNextFile();
 	}
-	FSInfo info;
-	LittleFS.info(info);
-	response->printf_P(list_footer_html,info.totalBytes,info.usedBytes,(info.totalBytes - info.usedBytes));
+	//FSInfo info;
+	//LittleFS.info(info);
+	//response->printf_P(list_footer_html,info.totalBytes,info.usedBytes,(info.totalBytes - info.usedBytes));
 	response->printf_P(upload_html);
 }
 
@@ -119,29 +125,6 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index,
 	if (final) {
 		DEBUG_MSG("\nUpload finish\n");
 		request->send_P(200, "text/html", PSTR("File was successfully uploaded\n"));
-	}
-}
-
-//Handle firmware file
-void onUpdate(AsyncWebServerRequest *request, String filename, size_t index,
-		uint8_t *data, size_t len, bool final) {
-	if (!index) {
-		Update.runAsync(true);
-		if (!Update.begin((ESP.getFreeSketchSpace() - 0x1000) & 0xFFFFF000)) {
-			request->send_P(200, "text/html", HTMLERROR);
-		}
-	}
-	if (!Update.hasError()) {
-		if (Update.write(data, len) != len) {
-			request->send_P(200, "text/html", HTMLERROR);
-		}
-	}
-	if (final) {
-		if (Update.end(true)) {
-			request->send_P(200, "text/html", HTMLOK);
-		} else {
-			request->send_P(200, "text/html", HTMLERROR);
-		}
 	}
 }
 
@@ -238,15 +221,6 @@ void webserver_begin() {
 		request->send(200);
 	}, onUpload);
 
-
-	server.on("/updater.html", HTTP_POST,
-			[](AsyncWebServerRequest *request) {
-				if (!Update.hasError()) changed = RESET;
-				AsyncWebServerResponse *response = request->beginResponse(200, "text/plain", shouldReboot?"OK - Wait 30 sec for restart":"FAIL");
-				response->addHeader("refresh","30;url=/");
-				request->send(response);
-			}, onUpdate);
-
 	server.on("/reset", HTTP_GET, [](AsyncWebServerRequest *request) {
 		sendJsonResultResponse(request,true);
 		changed = RESET;
@@ -265,19 +239,19 @@ void webserver_begin() {
 				JsonObject root = response->getRoot();
 				FlashMode_t ideMode = ESP.getFlashChipMode();
 				root["heap"] = ESP.getFreeHeap();
-				root["freeBloskSize"] = ESP.getMaxFreeBlockSize() - 512;
-				root["flashid"] = ESP.getFlashChipId();
-				root["realSize"] = ESP.getFlashChipRealSize();
+				//root["freeBloskSize"] = ESP.getMaxFreeBlockSize() - 512;
+				//root["flashid"] = ESP.getFlashChipId();
+				//root["realSize"] = ESP.getFlashChipRealSize();
 				root["ideSize"] = ESP.getFlashChipSize();
-				root["byIdSize"] = ESP.getFlashChipSizeByChipId();
+				//root["byIdSize"] = ESP.getFlashChipSizeByChipId();
 				root["sketchSpace"] = ESP.getFreeSketchSpace();
 				root["ideSpeed"] = ESP.getFlashChipSpeed();
-				root["ideMode"] = (ideMode == FM_QIO ? "QIO" : ideMode == FM_QOUT ? "QOUT" : ideMode == FM_DIO ? "DIO" : ideMode == FM_DOUT ? "DOUT" : "UNKNOWN");
+				//root["ideMode"] = (ideMode == FM_QIO ? "QIO" : ideMode == FM_QOUT ? "QOUT" : ideMode == FM_DIO ? "DIO" : ideMode == FM_DOUT ? "DOUT" : "UNKNOWN");
 				root["sdkVersion"] = ESP.getSdkVersion();
-				root["coreVersion"] = ESP.getCoreVersion();
+				//root["coreVersion"] = ESP.getCoreVersion();
 				root["cpuFreq"] = ESP.getCpuFreqMHz();
-				root["lastReset"] = ESP.getResetReason();
-				root["lastResetInfo"] = ESP.getResetInfo();
+				//root["lastReset"] = ESP.getResetReason();
+				//root["lastResetInfo"] = ESP.getResetInfo();
 				root["fwMD5"] = ESP.getSketchMD5();
 				root["time"] = millis()-startTime;
 				response->setLength();
@@ -290,8 +264,8 @@ void webserver_begin() {
 				AsyncResponseStream *response = request->beginResponseStream("text/html");
 				response->printf_P(PSTR("<html><body>"));
 				response->printf_P(PSTR("<h1>Files List</h1>\n"));
-				Dir root = LittleFS.openDir("/");
-				printDirectory(root,0,response);
+				//File root = LittleFS.openDir("/");
+				printDirectory("/",0,response);
 				response->printf_P(PSTR("</body></html>"));
 				request->send(response);
 			});
@@ -303,12 +277,17 @@ void webserver_begin() {
 				response->printf_P(PSTR("<h1>Files deleting</h1>"));
 				response->printf_P(PSTR("<form  action=\"/delete\" method=\"POST\">"));
 				response->printf_P(PSTR("<select name=\"%s\">"),"filename");
-				Dir root = LittleFS.openDir("/");
-				while(root.next()) {
-					File entry = root.openFile("r");
+				File root = LittleFS.open("/");
+				if(!root.isDirectory()){
+					//Serial.println(" - not a directory");
+					return;
+				}
+				File entry = root.openNextFile();
+				while(entry) {
 					response->print("<option>");
 					response->print(entry.name());
 					response->print("</option>");
+					entry = root.openNextFile();
 				}
 				response->printf_P(PSTR("</select>"));
 				response->printf_P(PSTR("<input type=\"submit\" value=\"Delete\">"));
@@ -393,11 +372,11 @@ void webserver_begin() {
 		root["localGw"] = WiFi.gatewayIP().toString();
 		root["apIp"] = WiFi.softAPIP().toString();
 		root["rssi"] = WiFi.RSSI();
-		root["phy"] = WiFi.getPhyMode();
+		//root["phy"] = WiFi.getPhyMode();
 		root["mac"] = WiFi.macAddress();
 		root["psk"] = WiFi.psk();
 		root["bssid"] = WiFi.BSSIDstr();
-		root["host"] = WiFi.hostname();
+		root["host"] = WiFi.getHostname();
 		root["time"] = startTime - millis();
 		response->setLength();
 		request->send(response);
@@ -444,12 +423,13 @@ void webserver_begin() {
 
 				AsyncResponseStream *response = request->beginResponseStream("application/json");
 
-				Dir root = LittleFS.openDir("/");
+				File root = LittleFS.open("/");
 				response->print("{\"profileList\": [");
 				bool started=false;
-				while(root.next()) {
+				File entry = root.openNextFile();
+				while(entry) {
 
-					String filename=root.fileName();
+					String filename=entry.name();
 
 					if (filename.endsWith(".pjs"))
 					{
@@ -457,6 +437,7 @@ void webserver_begin() {
 						response->printf("%s{\"filename\":\"%s\"}",ps.c_str(),filename.c_str());
 						started=true;
 					}
+					entry = root.openNextFile();
 
 				}
 				response->printf("],\n\"time\":%ld}",millis()-startTime);
@@ -678,6 +659,7 @@ void webserver_begin() {
 		changed = CONFIG;
 	});
 
+	AsyncElegantOTA.begin(&server); 
 	server.begin();
 }
 

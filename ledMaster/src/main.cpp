@@ -13,28 +13,23 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <WifiEspNow.h>
-#include <ESP8266WiFi.h>
+#include <WiFi.h>
 #include <WiFiUdp.h>
 #include <LittleFS.h>
 #include <time.h>
-#include <Hash.h>
-#include <ESPAsyncTCP.h>
+#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <ArduinoOTA.h>
 #include <NTPClient.h>
 #include <MyTimeLib.h>
 #include <DNSServer.h>
-#include <ESP8266mDNS.h>
+#include <ESPmDNS.h>
 #include <Wire.h>
-#include <ESP8266AVRISP.h>
-#include <ESP8266HTTPClient.h>
-#include <ESP8266httpUpdate.h>
+#include <HTTPClient.h>
+
 #include <JsonListener.h>
 #include <JsonStreamingParser.h>
 #include <jled.h>
-#include <RTC8563.h>
-#include <WebSocketsServer.h>  
-
 #include "common.h"
 #include "RlcWebFw.h"
 #include "webserver.h"
@@ -43,9 +38,10 @@
 #include "twi_registry.h"
 #include "version.h"
 
-extern "C" {
-	#include "user_interface.h"
-}
+
+//extern "C" {
+//	#include "user_interface.h"
+//}
 
 const uint16_t coreVersion = BUILD_NUMBER;
 #define BYTELOW(v)   (*(((unsigned char *) (&v))))
@@ -96,9 +92,6 @@ const char* str_timestatus[] = { "timeNotSet", "timeNeedsSync", "timeSet" };
 const char* str_lang[] = { "en", "cs", "pl", "de" };
 
 union Unixtime unixtime;
-ESP8266AVRISP avrprog(port, 16);
-
-RTC_8563 rtc;
 
 //uint8_t peers[PEERS][6] = {0};
 uint8_t peersCount = 0;
@@ -108,8 +101,15 @@ bool findingPeers = false;
 auto led = JLed(STATUSLED);
 #endif
 
-// Init ESP Now with fallback
 
+uint32_t getChipID() {
+    uint32_t chipId = 0;
+
+    for(int i=0; i<17; i=i+8) {
+        chipId |= ((ESP.getEfuseMac() >> (40 - i)) & 0xff) << i;
+        }
+    return chipId;
+}
 
 uint16_t crc16_update(uint16_t crc, uint8_t a) {
   int i;
@@ -151,7 +151,7 @@ time_t getNtpTime() {
 	}
 	DEBUG_MSG("Epoch: %lu\n", l);
 	if (l) {
-		rtc.adjust(DateTime(l));
+		//rtc.adjust(DateTime(l));
 	}
 	return l;
 }
@@ -196,10 +196,11 @@ bool connectWifi(String ssid, String pass) {
 	} else {
 		if (WiFi.SSID()) {
 			DEBUG_MSG("%s\n", "Using last saved values, should be faster");
+			// TODO: revize pro esp32
 			//trying to fix connection in progress hanging
-			ETS_UART_INTR_DISABLE();
-			wifi_station_disconnect();
-			ETS_UART_INTR_ENABLE();
+			//ETS_UART_INTR_DISABLE();
+			//wifi_station_disconnect();
+			//ETS_UART_INTR_ENABLE();
 		} else {
 			DEBUG_MSG("%s\n", "No saved credentials");
 		}
@@ -210,13 +211,12 @@ bool connectWifi(String ssid, String pass) {
 bool wifiConnect() {
 	bool ret = false;
 	normalizeConfig();
-
+	IPAddress ip = IPAddress((uint32_t) 0);
+	IPAddress gw = IPAddress((uint32_t) 0);
+	IPAddress mask = IPAddress((uint32_t) 0);
+	IPAddress dns1 = IPAddress((uint32_t) 0);
+	IPAddress dns2 = IPAddress((uint32_t) 0);	
 	if (!config.wifidhcp) {
-		IPAddress ip = IPAddress((uint32_t) 0);
-		IPAddress gw = IPAddress((uint32_t) 0);
-		IPAddress mask = IPAddress((uint32_t) 0);
-		IPAddress dns1 = IPAddress((uint32_t) 0);
-		IPAddress dns2 = IPAddress((uint32_t) 0);
 		gw.fromString(config.wifigw);
 		mask.fromString(config.wifimask);
 		ip.fromString(config.wifiip);
@@ -224,10 +224,8 @@ bool wifiConnect() {
 		dns2.fromString(config.wifidns1);
 
 		WiFi.config(ip, gw, mask, dns1, dns2);
-
-	} else {
-		WiFi.config(0U, 0U, 0U, 0U, 0U);
 	}
+	WiFi.config(ip, gw, mask, dns1, dns2);
 
 	if (config.ssid.length() > 0) {
 		connectWifi(config.ssid.c_str(), config.pwd.c_str());
@@ -244,7 +242,7 @@ bool wifiConnect() {
 	WiFi.softAP(HOSTNAME,
 	config.appwd.length() == 0 ? NULL : config.appwd.c_str());
 	delay(500);
-	DEBUG_MSG("Start DNS server, IP: %s, PORRT %d \n",
+	DEBUG_MSG("Start DNS server, IP: %s, PORT %d \n",
 		WiFi.softAPIP().toString().c_str(), DNS_PORT);
 	if (isDNSStarted) dnsServer.stop();
 	isDNSStarted = dnsServer.start(DNS_PORT, "*", WiFi.softAPIP());
@@ -609,26 +607,11 @@ bool saveConfig() {
 }
 
 
-static uint8_t searchSlave() {
-	uint8_t error, address, idx = 0;
-	slaveAddr[0] = 0;slaveAddr[1] = 0;slaveAddr[2] = 0;slaveAddr[3] = 0;
-	for (address = 1; address <= 32; address++) {
-		Wire.beginTransmission(address);
-		Wire.write(reg_MASTER);
-		Wire.write(0xff); //value 0xFF = controller presence
-    	error = Wire.endTransmission();
-		if (error == 0) {
-			slaveAddr[idx] = address;
-			DEBUG_MSG("Slave: 0x%02x\n", slaveAddr);
-			idx++;
-		} 
-	}
-	return idx;
-}
-
 int16_t ledValue[CHANNELS] = {0};
+// TODO: přepracovat do nastavení PWM
 void sendValToSlave() {
 	uint8_t error = 0;
+/*
 	//TODO: remap led position from web page to hardware
 	#define c_uv     6
 	#define c_rb     5
@@ -716,6 +699,7 @@ void sendValToSlave() {
 			DEBUG_MSG("Send status %d\n",WifiEspNow.getSendStatus());
 		}
 	}
+*/		
 }
 
 void readTemperature() {
@@ -743,61 +727,12 @@ void readTemperature() {
 	}
 }
 
-uint16_t readSlaveVersion(uint8_t s) {
-	uint16_t ret = 0;
-
-	Wire.beginTransmission(slaveAddr[s]);
-	Wire.write(reg_VERSION_MAIN);
-	Wire.endTransmission();
-
-	uint8_t cnt = Wire.requestFrom(slaveAddr[s], 2);
-	if (cnt > 1) {
-		BYTELOW(ret) = Wire.read();
-		BYTEHIGH(ret) = Wire.read();
-	}
-	return ret;
-}
-
 void setSlaveDemo( uint8_t start) {
 	for (uint8_t s=0; s<slaves;s++) {
 		Wire.beginTransmission(slaveAddr[s]);
 		Wire.write(reg_MASTER);
 		if (start) Wire.write(0xde); else Wire.write(0xff);
 		Wire.endTransmission();
-	}
-}
-
-
-void updateAvr() {
-	static AVRISPState_t last_state = AVRISP_STATE_IDLE;
-	AVRISPState_t new_state = avrprog.update();
-	if (last_state != new_state) {
-		switch (new_state) {
-			case AVRISP_STATE_IDLE: {
-				DEBUG_MSG("[AVRISP] now idle\r\n");
-				// Use the SPI bus for other purposes
-				break;
-			}
-
-			case AVRISP_STATE_PENDING: {
-				DEBUG_MSG("[AVRISP] connection pending\r\n");
-				// Clean up your other purposes and prepare for programming mode
-				break;
-			}
-
-			case AVRISP_STATE_ACTIVE: {
-				DEBUG_MSG("[AVRISP] programming mode\r\n");
-				// Stand by for completion
-				delay(2000);
-				//ESP.reset();
-				break;
-			}
-		}
-		last_state = new_state;
-	}
-	// Serve the client
-	if (last_state != AVRISP_STATE_IDLE) {
-		avrprog.serve();
 	}
 }
 
@@ -858,7 +793,8 @@ void checkForFwUpdate(bool run) {
 	}
 	httpClient.end();
 }
-  
+
+
 void OnDataRecv(const uint8_t mac[6], const uint8_t* data, size_t count, void* cbarg) {
 	char macStr[18];
 	snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -916,6 +852,7 @@ int managePeers(bool state, uint8_t *mac) {
 		}
 	}
 	config.peersCount = peersCount;
+	return 0;
 }
 
 void removeFromPeers(uint8_t *mac) {
@@ -1062,130 +999,63 @@ void setup() {
 #endif		
 	}
 
-	//if startUpdate, start SPI and update, otherwise start I2C
-	if (config.startUpdate) {
-		DEBUG_MSG("Start update avr\n");
-		DEBUG_MSG("Set AP: %s\n", config.hostname.c_str());
-		WiFi.mode(WIFI_AP_STA);
-		WiFi.hostname(config.hostname.c_str());
-		WiFi.softAP(HOSTNAME);
-		wifiConnect();
 
-		MDNS.begin(config.hostname.c_str());
-    	MDNS.addService("avrisp", "tcp", port);
-#if DEBUG == 0
-		led.Blink(100,500);
-#endif		
-		avrprog.begin();
-		startUpdate = true;
-		config.startUpdate = false;
-		saveConfig();
-
+	//init rtc
+	//if OK, set locat time
+	/*
+	rtc.begin();
+	if (rtc.isrunning()) {
+		DEBUG_MSG("RTC FOUND\n");
+		DateTime dt = rtc.now();	
+		setTime(dt.unixtime());
 	} else {
+		DEBUG_MSG("RTC FAIL\n");
 		
-		Wire.begin(13,14);
-		Wire.setClock(100000);
-		delay(2000);
-		slaves = searchSlave();
-		//init rtc
-		//if OK, set locat time
-		rtc.begin();
-		if (rtc.isrunning()) {
-			DEBUG_MSG("RTC FOUND\n");
-			DateTime dt = rtc.now();	
-			setTime(dt.unixtime());
-		} else {
-			DEBUG_MSG("RTC FAIL\n");
-			
-		}
-		startUpdate = false;
-		if (config.profileFileName.length() > 0) {
-			bool lok = loadSamplingStructFromJson(config.profileFileName);
-			DEBUG_MSG("Sampling config load: %s %s\n",config.profileFileName.c_str(),lok==1?"OK":"Fail");
+	}
+	*/
+
+	if (config.profileFileName.length() > 0) {
+		bool lok = loadSamplingStructFromJson(config.profileFileName);
+		DEBUG_MSG("Sampling config load: %s %s\n",config.profileFileName.c_str(),lok==1?"OK":"Fail");
 #if DEBUG == 2
-			debugPrintSampling();
+		debugPrintSampling();
 #endif			
-		}
-		WiFi.mode(WIFI_AP_STA);
-		WiFi.hostname(config.hostname.c_str());
-  		WiFi.softAP(HOSTNAME);
+	}
+	WiFi.mode(WIFI_AP_STA);
+	WiFi.hostname(config.hostname.c_str());
+	WiFi.softAP(HOSTNAME);
 
-		if (wifiConnect() == WL_CONNECTED) {
-			syncTime = true;
-		}
+	if (wifiConnect() == WL_CONNECTED) {
+		syncTime = true;
+	}
 
-		ntpClient.begin();
-		setSyncInterval(NTPSYNCINTERVAL);
-		setSyncProvider(getNtpTime);
+	ntpClient.begin();
+	setSyncInterval(NTPSYNCINTERVAL);
+	setSyncProvider(getNtpTime);
 
-		webserver_begin();
+	webserver_begin();
 		//add mDNS service
-		if (MDNS.begin(config.hostname.c_str())) {
-			MDNS.addService("http", "tcp", 80);
-		}
+	if (MDNS.begin(config.hostname.c_str())) {
+		MDNS.addService("http", "tcp", 80);
+	}
 
-		delay(5000);
-		DEBUG_MSG("Searching slave\n");
+	delay(5000);
+	DEBUG_MSG("Searching slave\n");
+	
+	ArduinoOTA.begin();
+
+	//search ESP now slave	
+	config.peerMode = 0;
+	if (!WifiEspNow.begin()) {
+		DEBUG_MSG("WifiEspNow.begin() failed\n");
+	} else {
+		WifiEspNow.onReceive(OnDataRecv, nullptr);
+		peersCount = config.peersCount;			
+		if (peersCount > 0) {
+			managePeers(true);		
+		}
+	}
 		
-		if (slaves > 0) {
-			for(uint8_t s=0; s < slaves; s++ ) {
-				versionInfo.slaveModule[s] = readSlaveVersion(s);
-				DEBUG_MSG("Success,  ver.:0x%04X\n", versionInfo.slaveModule[s]);
-			}
-		} else {
-			DEBUG_MSG("fail, no slave found\n");
-		}
-		ArduinoOTA.begin();
-
-		//search ESP now slave	
-		config.peerMode = 0;
-		if (!WifiEspNow.begin()) {
-			DEBUG_MSG("WifiEspNow.begin() failed\n");
-		} else {
-			WifiEspNow.onReceive(OnDataRecv, nullptr);
-			peersCount = config.peersCount;			
-			if (peersCount > 0) {
-				managePeers(true);		
-			}
-		}
-	}	
-}
-
-
-WebSocketsServer webSocket = WebSocketsServer(81);
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t lenght) {
-
-  switch (type) {
-    case WStype_DISCONNECTED:
-      DEBUG_MSG("[%u] Disconnected!\n", num);
-      break;
-    case WStype_CONNECTED:
-      {
-        IPAddress ip = webSocket.remoteIP(num);
-        DEBUG_MSG("[%u] Connected from %s url: %s\n", num, ip.toString().c_str(), payload);
-
-        // send message to client
-        webSocket.sendTXT(num, "Connected to Serial on " + WiFi.localIP().toString() + "\n");
-      }
-      break;
-    case WStype_TEXT:
-      DEBUG_MSG("[%u] get Text: %s\n", num, payload);
-
-      // send message to client
-      // webSocket.sendTXT(num, "message here");
-
-      // send data to all connected clients
-      // webSocket.broadcastTXT("message here");
-      break;
-    case WStype_BIN:
-      DEBUG_MSG("[%u] get binary lenght: %u\n", num, lenght);
-      hexdump(payload, lenght);
-
-      // send message to client
-      // webSocket.sendBIN(num, payload, lenght);
-      break;
-  }
-
 }
 
 uint32_t t1_mm;
@@ -1195,86 +1065,83 @@ uint32_t t3_mm;
 
 void loop() {
 	uint32_t mm = millis();
-	webSocket.loop();
+
 #if DEBUG  == 0	
 	led.Update();
 #endif	
-	if (startUpdate) {
-		updateAvr();
-	} else {
-		if (isDNSStarted)
-			dnsServer.processNextRequest();
+	if (isDNSStarted)
+		dnsServer.processNextRequest();
 
-		ArduinoOTA.handle();
-		
-		bool result = false;
-		switch (changed) {
-			case LED:		
-				DEBUG_MSG("Change profile to %s:\n",config.profileFileName.c_str());
-				result = loadSamplingStructFromJson(config.profileFileName);
-				if (result) {
-					DEBUG_MSG("loadSamplingStructFromJson OK\n");
+	ArduinoOTA.handle();
+	
+	bool result = false;
+	switch (changed) {
+		case LED:		
+			DEBUG_MSG("Change profile to %s:\n",config.profileFileName.c_str());
+			result = loadSamplingStructFromJson(config.profileFileName);
+			if (result) {
+				DEBUG_MSG("loadSamplingStructFromJson OK\n");
 #if DEBUG == 2
 					debugPrintSampling();
 #endif
-					saveConfig();
-				} else {
-					ESP.reset();
-				}
-				changed = NONE;
-				break;
-			case CONFIG:
 				saveConfig();
-				changed = NONE;
-				break;
-			case WIFI:
-		//wifi change
-				if (wifiConnect() == WL_CONNECTED) {
-					syncTime = true;
-					saveConfig();
-				}
-				changed = NONE;
-				break;
-			case RESET:
-				//reboot. manual or after fw update
-				DEBUG_MSG("%s\n", "Rebooting...");
-				delay(100);
-				ESP.restart();			
-				break;
-			case AVRUPDATE:
-				changed = RESET;
+			} else {
+				ESP.restart();
+			}
+			changed = NONE;
+			break;
+		case CONFIG:
+			saveConfig();
+			changed = NONE;
+			break;
+		case WIFI:
+	//wifi change
+			if (wifiConnect() == WL_CONNECTED) {
+				syncTime = true;
 				saveConfig();
-				break;
-			case SEARCHPEERS:
-				changed = NONE;
-				peersCount = searchPeers();
-				DEBUG_MSG("Add peers: %d\n",peersCount);
-				break;
-			case CONFIRMPEERS:
-				changed = CONFIG;
-				managePeers(true);
-				break;
-			case UPDATE:
-				changed = NONE;				
-				checkForFwUpdate(true);
-				break;				
-			default:
-				break;
-		}
+			}
+			changed = NONE;
+			break;
+		case RESET:
+			//reboot. manual or after fw update
+			DEBUG_MSG("%s\n", "Rebooting...");
+			delay(100);
+			ESP.restart();			
+			break;
+		case AVRUPDATE:
+			changed = RESET;
+			saveConfig();
+			break;
+		case SEARCHPEERS:
+			changed = NONE;
+			peersCount = searchPeers();
+			DEBUG_MSG("Add peers: %d\n",peersCount);
+			break;
+		case CONFIRMPEERS:
+			changed = CONFIG;
+			managePeers(true);
+			break;
+		case UPDATE:
+			changed = NONE;				
+			//checkForFwUpdate(true);
+			break;				
+		default:
+			break;
+	}
 
-		if (mm - t1_mm > TASK1) {
-			t1_mm = mm;
-			readTemperature();
-			sendValToSlave();
-		}
+	if (mm - t1_mm > TASK1) {
+		t1_mm = mm;
+//		readTemperature();
+//		sendValToSlave();
+	}
 
 		//search updates
 		if (mm - t3_mm > TASK3) {
 			t3_mm = mm;
 			//search;
-			checkForFwUpdate(false);
+//			checkForFwUpdate(false);
 		}
 		
 		if (syncTime) now();			
-	}
+	
 }
