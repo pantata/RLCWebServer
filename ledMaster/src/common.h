@@ -15,10 +15,10 @@
 #include "JsonListener.h"
 
 #define DEBUG 1
-#define DEBUGBAUD 57600
+#define DEBUGBAUD 115200
 #if DEBUG > 0
     #define DEBUGSER Serial
-	#define DEBUGSER_BEGIN(BAUD) DEBUGSER.begin(BAUD)
+	#define DEBUGSER_BEGIN(BAUD) { DEBUGSER.begin(BAUD);delay(5000); }
     #define DEBUG_MSG(...) DEBUGSER.printf(__VA_ARGS__)
     #define DEBUG_MSG1(fmt, ...) for(;0;)
     #define PRINT_CONFIG(...) DEBUGSER.printf("HEAP = %d\n",ESP.getFreeHeap())
@@ -45,9 +45,6 @@
 #define DNS_PORT 53
 #define TIMESERVER "pool.ntp.org"
 #define CFGNAME    "/nereus.cfg"
-
-#define fwUrlBase "http://192.168.1.82:8080/nereus/"
-
 #define WIFITIMEOUT  15
 #define SAMPLING_MAX 840 //6*12 bodu na kanal
 #define SAMPLING_UINT8_MAX_VALUE 255

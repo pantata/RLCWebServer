@@ -5,8 +5,7 @@
 
 /*
 *  TODO: ESP NOW pro spolupraci mezi svetly
-*
-*
+*  TODO: prepracovani pro ESP32-C3 ( pozor pouze 6 kanalu - 1 kanal softwarove??, nebo sloucit dva kanaly)
 */
 
 #include <Esp.h>
@@ -19,7 +18,6 @@
 #include <time.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <ArduinoOTA.h>
 #include <NTPClient.h>
 #include <MyTimeLib.h>
 #include <DNSServer.h>
@@ -35,9 +33,9 @@
 #include "webserver.h"
 #include "sampling.h"
 #include "tz.h"
-#include "twi_registry.h"
 #include "version.h"
-
+// #include "HttpsOTAUpdate.h"  // TODO: opravit
+#include "updater.h"
 
 //extern "C" {
 //	#include "user_interface.h"
@@ -96,6 +94,12 @@ union Unixtime unixtime;
 //uint8_t peers[PEERS][6] = {0};
 uint8_t peersCount = 0;
 bool findingPeers = false;
+
+//led channels
+const int ledChannel[] = {0,1,2,3,4,5,6};
+const int ledPins[]  =   {0,1,2,3,4,5,6};
+const int ledFreq = 1000;
+const int ledResolution = 12;
 
 #if DEBUG  == 0
 auto led = JLed(STATUSLED);
@@ -608,131 +612,37 @@ bool saveConfig() {
 
 
 int16_t ledValue[CHANNELS] = {0};
-// TODO: přepracovat do nastavení PWM
-void sendValToSlave() {
-	uint8_t error = 0;
-/*
-	//TODO: remap led position from web page to hardware
-	#define c_uv     6
-	#define c_rb     5
-	#define c_green  4
-	#define c_red    3
-	#define c_white  2
-	#define c_amber  1
-	#define c_blue   0
-	//a takto jsou zapojeny
-	//TODO: revize
-	//uint8_t led_colors[CHANNELS] = {c_blue,c_amber,c_white,c_red,c_green,c_rb,c_uv};
-	//uint8_t led_colors[CHANNELS] = {c_uv,c_rb,c_green,c_red,c_white,c_amber, c_blue};
-	uint8_t led_colors[CHANNELS] = {c_white,c_uv,c_rb,c_blue,c_green,c_red,c_amber};
-	uint16_t crc = 0xffff;
+int16_t oldLedValue[CHANNELS] = {0};
+int16_t runLedValue[CHANNELS] = {0};
+bool finalPwm = false;
 
-
-	//spocitame crc
+void setPwmVal() {
+	// TODO: opravit nacteni manual hodnoty
+	// upravit pro fade rezim 
 	for (uint8_t x = 0; x < CHANNELS; x++) {
-		if (config.manual) { 
-			ledValue[led_colors[x]] = config.manualValues[x];
-		} else {
-			ledValue[led_colors[x]] = getSamplingValue(x);
-		}		
-		uint16_t c_val = ledValue[x];
-		uint8_t lb = LOW_BYTE(c_val);
-		uint8_t hb = HIGH_BYTE(c_val);
-		crc = crc16_update(crc, lb);
-		crc = crc16_update(crc, hb);
+		oldLedValue[x] = ledValue[x];
+		ledValue[x] = getSamplingValue(x);
+		if ( oldLedValue[x] != ledValue[x] ) finalPwm = false;
 	}
-	DEBUG_MSG("Led values[%d,%d,%d,%d,%d,%d,%d]\n",
-		ledValue[0],
-		ledValue[1],
-		ledValue[2],
-		ledValue[3],
-		ledValue[4],
-		ledValue[5],
-		ledValue[6]
-	);
-	//posleme info , ze ridime
-	for (uint8_t s=0; s<slaves;s++) {
-		Wire.beginTransmission(slaveAddr[s]);
-		Wire.write(reg_MASTER); //register address
-		Wire.write(0xff);
-		Wire.endTransmission();
-
-
-		//posleme data vcetne crc
-		Wire.beginTransmission(slaveAddr[s]);
-		Wire.write(reg_LED_START); //register address
-
-		for (uint8_t x = 0; x < CHANNELS; x++) {
-			uint16_t c_val = ledValue[x];
-			uint8_t lb = LOW_BYTE(c_val);
-			uint8_t hb = HIGH_BYTE(c_val);
-
-			Wire.write(lb);
-			Wire.write(hb);
-		}
-
-		//crc
-		Wire.write(LOW_BYTE(crc));
-		Wire.write(HIGH_BYTE(crc));
-
-		//status reg_DATA_OK
-		Wire.write(error);
-		Wire.endTransmission();
-		//DEBUG_MSG("Data to slave send\n");
-	}
-
 	//send to peers
-	if (config.peersCount > 0) {
-		DEBUG_MSG("Send to peer\n");
-		uint8_t _data[]= {11,
-			LOW_BYTE(ledValue[0]),HIGH_BYTE(ledValue[0]),
-			LOW_BYTE(ledValue[1]),HIGH_BYTE(ledValue[1]),
-			LOW_BYTE(ledValue[2]),HIGH_BYTE(ledValue[2]),
-			LOW_BYTE(ledValue[3]),HIGH_BYTE(ledValue[3]),
-			LOW_BYTE(ledValue[4]),HIGH_BYTE(ledValue[4]),
-			LOW_BYTE(ledValue[5]),HIGH_BYTE(ledValue[5]),
-			LOW_BYTE(ledValue[6]),HIGH_BYTE(ledValue[6])
-		};
+	if (finalPwm == false) {
+		if (config.peersCount > 0) {
+			DEBUG_MSG("Send to peer\n");
+			uint8_t _data[]= {11,
+				LOW_BYTE(ledValue[0]),HIGH_BYTE(ledValue[0]),
+				LOW_BYTE(ledValue[1]),HIGH_BYTE(ledValue[1]),
+				LOW_BYTE(ledValue[2]),HIGH_BYTE(ledValue[2]),
+				LOW_BYTE(ledValue[3]),HIGH_BYTE(ledValue[3]),
+				LOW_BYTE(ledValue[4]),HIGH_BYTE(ledValue[4]),
+				LOW_BYTE(ledValue[5]),HIGH_BYTE(ledValue[5]),
+				LOW_BYTE(ledValue[6]),HIGH_BYTE(ledValue[6])
+			};
 
-		for (uint8_t i = 0; i < config.peersCount; i++) {
-			WifiEspNow.send(config.peers[i].mac, reinterpret_cast<const uint8_t*>(_data), 17);
-			DEBUG_MSG("Send status %d\n",WifiEspNow.getSendStatus());
+			for (uint8_t i = 0; i < config.peersCount; i++) {
+				WifiEspNow.send(config.peers[i].mac, reinterpret_cast<const uint8_t*>(_data), 17);
+				DEBUG_MSG("Send status %d\n",WifiEspNow.getSendStatus());
+			}
 		}
-	}
-*/		
-}
-
-void readTemperature() {
-	uint8_t ret = 0;
-	uint8_t temp = 0xff;
-	uint8_t temp_status = 0xee;
-	for (uint8_t s = 0; s< slaves;s++ ) {
-		Wire.beginTransmission(slaveAddr[s]);
-		Wire.write(reg_THERM_STATUS);
-		Wire.endTransmission();
-
-		uint8_t cnt = Wire.requestFrom(slaveAddr[s], 2);
-		if (cnt > 1) {
-			temp_status = Wire.read();
-			temp = Wire.read();
-		}
-
-		if (temp_status) {
-			ret = temp < 128 ? temp : temp - 256;;
-		} else {
-			ret = ERR_TEMP_READ;
-		}
-
-		moduleTemperature[s] = ret;
-	}
-}
-
-void setSlaveDemo( uint8_t start) {
-	for (uint8_t s=0; s<slaves;s++) {
-		Wire.beginTransmission(slaveAddr[s]);
-		Wire.write(reg_MASTER);
-		if (start) Wire.write(0xde); else Wire.write(0xff);
-		Wire.endTransmission();
 	}
 }
 
@@ -748,10 +658,37 @@ void debugPrintSampling() {
 }
 #endif
 
+/*
+void HttpEvent(HttpEvent_t *event)
+{
+    switch(event->event_id) {
+        case HTTP_EVENT_ERROR:
+            DEBUG_MSG("Http Event Error");
+            break;
+        case HTTP_EVENT_ON_CONNECTED:
+            DEBUG_MSG("Http Event On Connected");
+            break;
+        case HTTP_EVENT_HEADER_SENT:
+            DEBUG_MSG("Http Event Header Sent");
+            break;
+        case HTTP_EVENT_ON_HEADER:
+            DEBUG_MSG("Http Event On Header, key=%s, value=%s\n", event->header_key, event->header_value);
+            break;
+        case HTTP_EVENT_ON_DATA:
+            break;
+        case HTTP_EVENT_ON_FINISH:
+            DEBUG_MSG("Http Event On Finish");
+            break;
+        case HTTP_EVENT_DISCONNECTED:
+            DEBUG_MSG("Http Event Disconnected");
+            break;
+    }
+}
+*/
 
 void checkForFwUpdate(bool run) {
+	
 	int newVersion = 0;
-	t_httpUpdate_return ret;
 	String mac = WiFi.macAddress();
 	mac.replace(":","");
 	String fwURL = String( fwUrlBase );
@@ -768,30 +705,34 @@ void checkForFwUpdate(bool run) {
 		DEBUG_MSG("Current firmware version: %d\nAvailable firmware version: %s\n",coreVersion,newFWVersion.c_str());
 		newVersion = newFWVersion.toInt();
 	}
+	httpClient.end();
 
+/* TODO: opravit
+	HttpsOTAStatus_t otastatus;
 	if( newVersion > coreVersion ) {
 		isUpdateAvailable = true;
 		if (run) {
 			DEBUG_MSG( "Preparing to update.\n" );
 			String fwImageURL = fwURL;
 			fwImageURL.concat( ".bin" );
-			ret = ESPhttpUpdate.update( fwImageURL );
-			switch(ret) {
-				case HTTP_UPDATE_FAILED:
-					DEBUG_MSG("HTTP_UPDATE_FAILED Error (%d): %s\n", 
-						ESPhttpUpdate.getLastError(), 
-						ESPhttpUpdate.getLastErrorString().c_str());
+			HttpsOTA.onHttpEvent(HttpEvent);
+    		DEBUG_MSG("Starting OTA");
+    		HttpsOTA.begin(url, server_certificate, true);
+			while(1) {
+				otastatus = HttpsOTA.status();
+    			if(otastatus == HTTPS_OTA_SUCCESS) { 
+        			DEBUG_MSG("Firmware written successfully. To reboot device, call API ESP.restart() or PUSH restart button on device");
+					ESP.restart();
+    			} else if(otastatus == HTTPS_OTA_FAIL) { 
+        			DEBUG_MSG("Firmware Upgrade Fail");
 					break;
-				case HTTP_UPDATE_NO_UPDATES:
-					DEBUG_MSG("HTTP_UPDATE_NO_UPDATES\n");
-					break;
-				case HTTP_UPDATE_OK:
-					DEBUG_MSG("HTTP_UPDATE_OK\n");
-					break;
+    			}
+				delay(1000);
 			}
 		}	
 	}
-	httpClient.end();
+	*/
+	
 }
 
 
@@ -816,6 +757,7 @@ void OnDataRecv(const uint8_t mac[6], const uint8_t* data, size_t count, void* c
 		config.manualValues[4] = (data[10]<<8)|data[9];
 		config.manualValues[5] = (data[12]<<8)|data[11];
 		config.manualValues[6] = (data[14]<<8)|data[13];
+		finalPwm = false;
 	}
 }
 
@@ -929,48 +871,17 @@ uint8_t searchPeers() {
   return slaveCnt;
 }
 
-void setup() {
-	DEBUGSER_BEGIN(DEBUGBAUD);
-	DEBUG_MSG("\n");
+void setup() {	
+	DEBUGSER_BEGIN(DEBUGBAUD);	
+	DEBUG_MSG("\nSTART\n");
 
-#if DEBUG  == 0
-	pinMode(STATUSLED,OUTPUT);
-#endif
-
-  	//reset avr, set pin to high
-  	digitalWrite(RESET_AVR,LOW);
-  	delay(20);
-  	digitalWrite(RESET_AVR,HIGH);
-
-	ArduinoOTA.onStart([]() {
-#if DEBUG > 0		
-		DEBUG_MSG("OTA update start\n");
-#else
-		led.Blink(500,500).Repeat(3);
-#endif		
-		LittleFS.end();
-	});
-
-	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-#if DEBUG > 0				
-		DEBUG_MSG("#");
-#else
-		led.Blink(100,100);
-#endif		
-  	});
-
-  	ArduinoOTA.onEnd([]() {
-#if DEBUG > 0				
-		DEBUG_MSG("\nOTA update end, reboot\n");
-#else
-		led.Blink(500,500).Repeat(3);
-#endif		
-  	});
-
-
+	#if DEBUG  == 0
+		pinMode(STATUSLED,OUTPUT);
+	#endif
 
 	initSamplingValues();
-	if (LittleFS.begin() ) {
+
+	if (LittleFS.begin(true) ) {
 		DEBUG_MSG("FS start\n");
 		if (loadConfig(&config)) {
 			DEBUG_MSG("Load config\n");
@@ -989,38 +900,23 @@ void setup() {
 			saveSamplingStructToJson("profile.pjs");
 		}
 	} else {
-#if DEBUG > 0
-		DEBUG_MSG("FILESYSTEM ERROR\n");
-		while (1) {;} 
-#else		
-		//Serial.println("FILESYSTEM ERROR");
-		led.Blink(300,300).Forever();
-		while (1) {led.Update();} 
-#endif		
+		#if DEBUG > 0
+			DEBUG_MSG("FILESYSTEM ERROR\n");
+			while (1) {;} 
+		#else		
+			led.Blink(300,300).Forever();
+			while (1) {led.Update();} 
+		#endif		
 	}
-
-
-	//init rtc
-	//if OK, set locat time
-	/*
-	rtc.begin();
-	if (rtc.isrunning()) {
-		DEBUG_MSG("RTC FOUND\n");
-		DateTime dt = rtc.now();	
-		setTime(dt.unixtime());
-	} else {
-		DEBUG_MSG("RTC FAIL\n");
-		
-	}
-	*/
 
 	if (config.profileFileName.length() > 0) {
 		bool lok = loadSamplingStructFromJson(config.profileFileName);
 		DEBUG_MSG("Sampling config load: %s %s\n",config.profileFileName.c_str(),lok==1?"OK":"Fail");
-#if DEBUG == 2
-		debugPrintSampling();
-#endif			
+		#if DEBUG == 2
+			debugPrintSampling();
+		#endif			
 	}
+	
 	WiFi.mode(WIFI_AP_STA);
 	WiFi.hostname(config.hostname.c_str());
 	WiFi.softAP(HOSTNAME);
@@ -1034,16 +930,15 @@ void setup() {
 	setSyncProvider(getNtpTime);
 
 	webserver_begin();
-		//add mDNS service
+	
+	//add mDNS service
 	if (MDNS.begin(config.hostname.c_str())) {
 		MDNS.addService("http", "tcp", 80);
 	}
 
 	delay(5000);
 	DEBUG_MSG("Searching slave\n");
-	
-	ArduinoOTA.begin();
-
+		
 	//search ESP now slave	
 	config.peerMode = 0;
 	if (!WifiEspNow.begin()) {
@@ -1055,35 +950,45 @@ void setup() {
 			managePeers(true);		
 		}
 	}
+
+	//setup PWM channel and gpio
+	for (uint8_t x = 0; x < CHANNELS; x++) {
+		ledcSetup(ledChannel[x], ledFreq, ledResolution);
+		ledcAttachPin(ledPins[x], ledChannel[x]);
+	}
 		
 }
+
+
+/* ####### main loop ######3 */
 
 uint32_t t1_mm;
 uint32_t t2_mm;
 uint32_t t3_mm;
 
+int8_t istep = 0;
 
 void loop() {
 	uint32_t mm = millis();
 
-#if DEBUG  == 0	
-	led.Update();
-#endif	
+	#if DEBUG  == 0	
+		led.Update();
+	#endif	
 	if (isDNSStarted)
 		dnsServer.processNextRequest();
-
-	ArduinoOTA.handle();
 	
 	bool result = false;
+	
+	//process data from web
 	switch (changed) {
 		case LED:		
 			DEBUG_MSG("Change profile to %s:\n",config.profileFileName.c_str());
 			result = loadSamplingStructFromJson(config.profileFileName);
 			if (result) {
 				DEBUG_MSG("loadSamplingStructFromJson OK\n");
-#if DEBUG == 2
+				#if DEBUG == 2
 					debugPrintSampling();
-#endif
+				#endif
 				saveConfig();
 			} else {
 				ESP.restart();
@@ -1095,7 +1000,7 @@ void loop() {
 			changed = NONE;
 			break;
 		case WIFI:
-	//wifi change
+			//wifi change
 			if (wifiConnect() == WL_CONNECTED) {
 				syncTime = true;
 				saveConfig();
@@ -1107,10 +1012,6 @@ void loop() {
 			DEBUG_MSG("%s\n", "Rebooting...");
 			delay(100);
 			ESP.restart();			
-			break;
-		case AVRUPDATE:
-			changed = RESET;
-			saveConfig();
 			break;
 		case SEARCHPEERS:
 			changed = NONE;
@@ -1131,17 +1032,17 @@ void loop() {
 
 	if (mm - t1_mm > TASK1) {
 		t1_mm = mm;
-//		readTemperature();
-//		sendValToSlave();
+		setPwmVal();
 	}
 
-		//search updates
-		if (mm - t3_mm > TASK3) {
-			t3_mm = mm;
-			//search;
-//			checkForFwUpdate(false);
-		}
-		
-		if (syncTime) now();			
+	//search updates 1x daily
+	if (mm - t3_mm > TASK3) {
+		t3_mm = mm;
+		//search;
+		//checkForFwUpdate(false);
+	}
+	
+	//sync time from Internet
+	if (syncTime) now();			
 	
 }

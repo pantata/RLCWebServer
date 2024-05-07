@@ -1,0 +1,8 @@
+
+	
+
+	//setup PWM
+	for (uint8_t x = 0; x < CHANNELS; x++) {
+		ledcSetup(ledChannel[x], ledFreq, ledResolution);
+		ledcAttachPin(ledPins[x], ledChannel[x]);
+	}
