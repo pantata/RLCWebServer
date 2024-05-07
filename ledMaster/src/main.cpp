@@ -37,6 +37,9 @@
 // #include "HttpsOTAUpdate.h"  // TODO: opravit
 #include "updater.h"
 
+#include "driver/ledc.h"
+#include "esp_err.h"
+
 //extern "C" {
 //	#include "user_interface.h"
 //}
@@ -98,6 +101,7 @@ bool findingPeers = false;
 //led channels
 const int ledChannel[] = {0,1,2,3,4,5,6};
 const int ledPins[]  =   {0,1,2,3,4,5,6};
+ledc_channel_t ledc_channel[] = {LEDC_CHANNEL_0,LEDC_CHANNEL_1,LEDC_CHANNEL_2,LEDC_CHANNEL_3,LEDC_CHANNEL_4,LEDC_CHANNEL_5};
 const int ledFreq = 1000;
 const int ledResolution = 12;
 
@@ -613,7 +617,6 @@ bool saveConfig() {
 
 int16_t ledValue[CHANNELS] = {0};
 int16_t oldLedValue[CHANNELS] = {0};
-int16_t runLedValue[CHANNELS] = {0};
 bool finalPwm = false;
 
 void setPwmVal() {
@@ -621,11 +624,15 @@ void setPwmVal() {
 	// upravit pro fade rezim 
 	for (uint8_t x = 0; x < CHANNELS; x++) {
 		oldLedValue[x] = ledValue[x];
-		ledValue[x] = getSamplingValue(x);
-		if ( oldLedValue[x] != ledValue[x] ) finalPwm = false;
+		if (config.manual) { 
+			ledValue[x] = config.manualValues[x];
+		} else {
+			ledValue[x] = getSamplingValue(x);
+		}
+		if ( oldLedValue[x] != ledValue[x] ) finalPwm = true;
 	}
 	//send to peers
-	if (finalPwm == false) {
+	if (finalPwm) {
 		if (config.peersCount > 0) {
 			DEBUG_MSG("Send to peer\n");
 			uint8_t _data[]= {11,
@@ -952,13 +959,23 @@ void setup() {
 	}
 
 	//setup PWM channel and gpio
+	//TODO: sloucit dva GPIO kanaly na jeden pwm channel
 	for (uint8_t x = 0; x < CHANNELS; x++) {
 		ledcSetup(ledChannel[x], ledFreq, ledResolution);
 		ledcAttachPin(ledPins[x], ledChannel[x]);
 	}
-		
+
+
+	esp_err_t ret = ledc_fade_func_install(0);
 }
 
+void setLed() {
+	for (uint8_t x = 0; x < CHANNELS; x++) {
+        ledc_set_fade_with_time(LEDC_LOW_SPEED_MODE, ledc_channel[x], ledValue[x], TASK1 - 1);
+        ledc_fade_start(LEDC_LOW_SPEED_MODE,ledc_channel[x], LEDC_FADE_NO_WAIT);		
+	}
+	finalPwm = false;
+}
 
 /* ####### main loop ######3 */
 
@@ -1030,9 +1047,17 @@ void loop() {
 			break;
 	}
 
-	if (mm - t1_mm > TASK1) {
-		t1_mm = mm;
-		setPwmVal();
+	//je-li to master, pak nastav led hodnoty a posli na slave
+	if (config.peerMode == 0) {
+		if (mm - t1_mm > TASK1) {
+			t1_mm = mm;
+			setPwmVal();		
+		}
+	}
+
+	//doslo-li ke zmene hodnost, nastav nove PWM
+	if (finalPwm) {
+		setLed();		
 	}
 
 	//search updates 1x daily

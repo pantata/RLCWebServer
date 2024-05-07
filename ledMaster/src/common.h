@@ -31,7 +31,8 @@
 #define constrain(amt,low,high) ((amt)<(low)?(low):((amt)>(high)?(high):(amt)))
 #define MAX_PWM 4000
 #define MAX_MODULES 1
-#define CHANNELS 7
+
+#define CHANNELS 6 //maximum pro ESP32-C3
 
 #define PEERS 16
 
@@ -115,7 +116,7 @@ struct Config {
     uint16_t manualValues[7];
     bool startUpdate;
     uint8_t peersCount;
-    uint8_t peerMode;
+    uint8_t peerMode = 0;
     esp_now_peer_info_t peers[PEERS];
 };
 
