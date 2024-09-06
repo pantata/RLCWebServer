@@ -24,7 +24,7 @@
 #include <ESPmDNS.h>
 #include <Wire.h>
 #include <HTTPClient.h>
-
+#include <ElegantOTA.h>
 #include <JsonListener.h>
 #include <JsonStreamingParser.h>
 #include <jled.h>
@@ -36,6 +36,7 @@
 #include "version.h"
 // #include "HttpsOTAUpdate.h"  // TODO: opravit
 #include "updater.h"
+#include "ConfigJsonListener.h"
 
 #include "driver/ledc.h"
 #include "esp_err.h"
@@ -99,8 +100,17 @@ uint8_t peersCount = 0;
 bool findingPeers = false;
 
 //led channels
-const int ledChannel[] = {0,1,2,3,4,5,6};
-const int ledPins[]  =   {0,1,2,3,4,5,6};
+/*
+1 - RB + UV
+2 - 
+3 -
+4 - blue
+5 - deep red
+6 - cyan
+*/
+const int ledChannel[] = {0,1,2,3,4,5};
+const int ledPins[]  =   {3,1,2,6,5,4};
+
 ledc_channel_t ledc_channel[] = {LEDC_CHANNEL_0,LEDC_CHANNEL_1,LEDC_CHANNEL_2,LEDC_CHANNEL_3,LEDC_CHANNEL_4,LEDC_CHANNEL_5};
 const int ledFreq = 1000;
 const int ledResolution = 12;
@@ -164,11 +174,11 @@ time_t getNtpTime() {
 	return l;
 }
 
-uint8_t waitForConnectResult(unsigned long _connectTimeout) {
+wl_status_t waitForConnectResult(unsigned long _connectTimeout) {
 	DEBUG_MSG("%s\n", "Waiting for connection result with time out");
 	unsigned long start = millis();
 	boolean keepConnecting = true;
-	uint8_t status;
+	wl_status_t status;
 	while (keepConnecting) {
 		status = WiFi.status();
 		if (millis() > start + _connectTimeout) {
@@ -200,7 +210,7 @@ bool connectWifi(String ssid, String pass) {
 	if (ssid != "") {
 		DEBUG_MSG("Connecting to ::%s:: and ::%s:: \n", ssid.c_str(),
 				pass.c_str());
-		if (WiFi.begin(ssid.c_str(), pass.c_str()) == WL_CONNECTED) ret = true;
+		WiFi.begin(ssid.c_str(), pass.c_str());
 	} else {
 		if (WiFi.SSID()) {
 			DEBUG_MSG("%s\n", "Using last saved values, should be faster");
@@ -213,6 +223,36 @@ bool connectWifi(String ssid, String pass) {
 			DEBUG_MSG("%s\n", "No saved credentials");
 		}
 	}
+	if (waitForConnectResult(WAIT_FOR_WIFI) == WL_CONNECTED)  {
+		DEBUG_MSG("Connected successfully\n");
+		return true;
+	} else {
+		switch(WiFi.status()) {
+          case WL_NO_SSID_AVAIL:
+            DEBUG_MSG("[WiFi] SSID not found");
+            break;
+          case WL_CONNECT_FAILED:
+            DEBUG_MSG("[WiFi] Failed - WiFi not connected! Reason: ");
+            break;
+          case WL_CONNECTION_LOST:
+            DEBUG_MSG("[WiFi] Connection was lost");
+            break;
+          case WL_SCAN_COMPLETED:
+            DEBUG_MSG("[WiFi] Scan is completed");
+            break;
+          case WL_DISCONNECTED:
+            DEBUG_MSG("[WiFi] WiFi is disconnected");
+            break;
+          case WL_CONNECTED:
+            DEBUG_MSG("[WiFi] WiFi is connected!");
+            DEBUG_MSG("[WiFi] IP address: %@",  WiFi.localIP());
+            break;
+          default:
+            DEBUG_MSG("[WiFi] WiFi Status: %d", WiFi.status());
+            break;
+        }
+	}
+
 	return ret;
 }
 
@@ -236,8 +276,7 @@ bool wifiConnect() {
 	WiFi.config(ip, gw, mask, dns1, dns2);
 
 	if (config.ssid.length() > 0) {
-		connectWifi(config.ssid.c_str(), config.pwd.c_str());
-		ret = waitForConnectResult(WAIT_FOR_WIFI);
+		ret = connectWifi(config.ssid.c_str(), config.pwd.c_str());		
 	}
 
 	IPAddress apip = IPAddress((uint32_t) 0);
@@ -281,8 +320,6 @@ void normalizeConfig() {
 
 	config.apchannel = constrain(config.apchannel, 1, 11);
 
-	if (config.useDST == NULL)
-		config.useDST = true;
 	if (config.tzRule.tzName.length() == 0) {
 		config.tzRule.tzName = "SEC";
 		config.tzRule.dstStart.month = Mar;
@@ -300,139 +337,29 @@ void normalizeConfig() {
 	config.dtFormat = constrain(config.dtFormat, 0, 4);
 	config.tmFormat = constrain(config.tmFormat, 0, 7);
 	config.lang = constrain(config.lang, 0, 3);
-	if (config.startUpdate == NULL) config.startUpdate = false;
 	config.peersCount = constrain(config.peersCount, 0, 16);
 }
 
-bool loadConfig(Config *conf) {
+bool loadConfig(Config *config) {
+
 	if (LittleFS.exists(CFGNAME)) {
 		File configFile = LittleFS.open(CFGNAME, "r");
 		if (!configFile) {
 			DEBUG_MSG("Config not exist\n");
 			return false;
 		}
-		DynamicJsonDocument json(2048);
-		DeserializationError error = deserializeJson(json, configFile);
 
-		if (error) {
-			DEBUG_MSG("Failed to parse config file: %s, %s",CFGNAME,error.c_str());
-  			return false;
-		}
-		if (json.containsKey("version"))
-			conf->version = json["version"];
-		if (json.containsKey("ssid"))
-			conf->ssid = String((const char *) json["ssid"]);
-		if (json.containsKey("pwd"))
-			conf->pwd = String((const char *) json["pwd"]);
-		if (json.containsKey("hostname"))
-			conf->hostname = String((const char *) json["hostname"]);
-		if (json.containsKey("ntpServer"))
-			conf->ntpServer = String((const char*) json["ntpServer"]);
-		if (json.containsKey("localPort"))
-			conf->localPort = json["localPort"];
-		String useNtp =
-				(json.containsKey("useNtp")) ?
-						String((const char*) json["useNtp"]) : "false";
-		conf->useNtp = (useNtp.equals("true")) ? 1 : 0;
-		if (json.containsKey("profileFileName"))
-			conf->profileFileName = String((const char*) json["profileFileName"]);
-		String wifidhcp =
-				(json.containsKey("wifidhcp")) ?
-						String((const char*) json["wifidhcp"]) : "true";
-		conf->wifidhcp = (wifidhcp.equals("true")) ? 1 : 0;
-		if (json.containsKey("wifiip"))
-			conf->wifiip = String((const char*) json["wifiip"]);
-		if (json.containsKey("wifimask"))
-			conf->wifimask = String((const char*) json["wifimask"]);
-		if (json.containsKey("wifigw"))
-			conf->wifigw = String((const char*) json["wifigw"]);
-		if (json.containsKey("wifidns1"))
-			conf->wifidns1 = String((const char*) json["wifidns1"]);
-		if (json.containsKey("wifidns2"))
-			conf->wifidns2 = String((const char*) json["wifidns2"]);
-		if (json.containsKey("appwd"))
-			conf->appwd = String((const char*) json["appwd"]);
-		if (json.containsKey("apchannel"))
-			conf->apchannel = json["apchannel"];
-		if (json.containsKey("apip"))
-			conf->apip = String((const char*) json["apip"]);
-		if (json.containsKey("apmask"))
-			conf->apmask = String((const char*) json["apmask"]);
-		if (json.containsKey("apgw"))
-			conf->apgw = String((const char*) json["apgw"]);
-		String useDST =
-				(json.containsKey("useDST")) ?
-						String((const char*) json["useDST"]) : "false";
-		conf->useDST = (useDST.equals("true")) ? 1 : 0;
-		conf->tzRule = TzRule();
-		if (json.containsKey("tzRule.tzName"))
-			conf->tzRule.tzName = String((const char*) json["tzRule.tzName"]);
-		if (json.containsKey("tzRule.dstStart.day"))
-			conf->tzRule.dstStart.day = json["tzRule.dstStart.day"];
-		if (json.containsKey("tzRule.dstStart.hour"))
-			conf->tzRule.dstStart.hour = json["tzRule.dstStart.hour"];
-		if (json.containsKey("tzRule.dstStart.month"))
-			conf->tzRule.dstStart.month = json["tzRule.dstStart.month"];
-		if (json.containsKey("tzRule.dstStart.offset"))
-			conf->tzRule.dstStart.offset = json["tzRule.dstStart.offset"];
-		if (json.containsKey("tzRule.dstStart.weeek"))
-			conf->tzRule.dstStart.week = json["tzRule.dstStart.weeek"];
-		if (json.containsKey("tzRule.dstEnd.day"))
-			conf->tzRule.dstEnd.day = json["tzRule.dstEnd.day"];
-		if (json.containsKey("tzRule.dstEnd.hour"))
-			conf->tzRule.dstEnd.hour = json["tzRule.dstEnd.hour"];
-		if (json.containsKey("tzRule.dstEnd.month"))
-			conf->tzRule.dstEnd.month = json["tzRule.dstEnd.month"];
-		if (json.containsKey("tzRule.dstEnd.offset"))
-			conf->tzRule.dstEnd.offset = json["tzRule.dstEnd.offset"];
-		if (json.containsKey("tzRule.dstEnd.week"))
-			conf->tzRule.dstEnd.week = json["tzRule.dstEnd.week"];
+		ConfigJsonListener listener(config);
+		JsonStreamingParser parser;
+		parser.setListener(&listener);
 
-		if (json.containsKey("tmFormat"))
-			conf->tmFormat = json["tmFormat"];
-		if (json.containsKey("dtFormat"))
-			conf->dtFormat = json["dtFormat"];
-
-		if (json.containsKey("lang"))
-			conf->lang = json["lang"];
-
-		if (json.containsKey("startUpdate"))
-			conf->startUpdate = json["startUpdate"];
-
-		String useManual =
-				(json.containsKey("led.manual")) ?
-						String((const char*) json["led.manual"]) : "false";
-		conf->manual = (useManual.equals("true")) ? 1 : 0;
-
-		if (json.containsKey("manualValues")) {
-			for (int i = 0; i < MAX_MODULES; i++) {
-				conf->manualValues[0] = json["manualValues"][0];
-				conf->manualValues[1] = json["manualValues"][1];
-				conf->manualValues[2] = json["manualValues"][2];
-				conf->manualValues[3] = json["manualValues"][3];
-				conf->manualValues[4] = json["manualValues"][4];
-				conf->manualValues[5] = json["manualValues"][5];
-				conf->manualValues[6] = json["manualValues"][6];
-			}
-		}
-		
-		if (json.containsKey("peersCount")) {
-			conf->peersCount = json["peersCount"];
+		while (configFile.available()) {
+			parser.parse(configFile.read());
 		}
 
-		if (json.containsKey("peers")) {
-			for (int i = 0; i < conf->peersCount; i++) {
-				for (int ii = 0; ii < 6; ii++) {
-					conf->peers[i].mac[ii] = json["peers"][i][ii];
-				}
-			}
-		}
-			
-		/* Normalize config file */
-		normalizeConfig();
-		configFile.close();		
+  		configFile.close();
 		return true;
-	} 
+	}
 	return false;
 }
 
@@ -518,10 +445,15 @@ void SamplingJsonListener::value(String value) {
  
 }
 
+
+
 bool loadSamplingStructFromJson(String filename) {
 	DEBUG_MSG("Load sampling: %s\n",filename.c_str());
 	if (!LittleFS.exists(filename.c_str())) {
+		DEBUG_MSG("Load sampling error\n");
 		return false;
+	} else {
+		DEBUG_MSG("File found");
 	}
 	File f = LittleFS.open(filename.c_str(), "r");
 	if (f) {		
@@ -545,7 +477,7 @@ bool saveConfig() {
 		return false;
 	}
 	DEBUG_MSG("Create config json\n");
-	DynamicJsonDocument doc(3072);
+	JsonDocument doc;
 	doc["version"] = coreVersion;
 	doc["ssid"] = config.ssid.c_str();
 	doc["pwd"] = config.pwd.c_str();
@@ -584,7 +516,9 @@ bool saveConfig() {
 	doc["lang"] = config.lang;
 	doc["startUpdate"] = config.startUpdate;
 
-	JsonArray data = doc.createNestedArray("manualValues");
+	//obsolete JsonArray data = doc.createNestedArray("manualValues");
+	JsonArray data = doc["manualValues"].to<JsonArray>();
+	
 	data.add(config.manualValues[0]);
 	data.add(config.manualValues[1]);
 	data.add(config.manualValues[2]);
@@ -594,9 +528,11 @@ bool saveConfig() {
 	data.add(config.manualValues[6]);
 	
 	doc["peersCount"] = config.peersCount;
-	JsonArray peers = doc.createNestedArray("peers");
+	// Obsolete JsonArray peers = doc.createNestedArray("peers");
+	JsonArray peers = doc[peers].to<JsonArray>();
 	for (uint8_t i = 0; i < config.peersCount; i++) {
-		JsonArray m = peers.createNestedArray();
+		//JsonArray m = peers.createNestedArray();
+		JsonArray m = peers.add<JsonArray>();		
 		for (uint8_t ii = 0; ii<6; ii++) {
 			m.add(config.peers[i].mac[ii]);
 		}
@@ -889,6 +825,7 @@ void setup() {
 	initSamplingValues();
 
 	if (LittleFS.begin(true) ) {
+		
 		DEBUG_MSG("FS start\n");
 		if (loadConfig(&config)) {
 			DEBUG_MSG("Load config\n");
@@ -904,7 +841,7 @@ void setup() {
 			DEBUG_MSG("Init config\n");
 			normalizeConfig();
 			saveConfig();
-			saveSamplingStructToJson("profile.pjs");
+			saveSamplingStructToJson("/profile.pjs");
 		}
 	} else {
 		#if DEBUG > 0
@@ -917,25 +854,26 @@ void setup() {
 	}
 
 	if (config.profileFileName.length() > 0) {
-		bool lok = loadSamplingStructFromJson(config.profileFileName);
+		bool lok = loadSamplingStructFromJson("/" + config.profileFileName);
 		DEBUG_MSG("Sampling config load: %s %s\n",config.profileFileName.c_str(),lok==1?"OK":"Fail");
 		#if DEBUG == 2
 			debugPrintSampling();
 		#endif			
 	}
-	
+	/*
+	DEBUG_MSG("Start WiFi\n");
 	WiFi.mode(WIFI_AP_STA);
-	WiFi.hostname(config.hostname.c_str());
-	WiFi.softAP(HOSTNAME);
+	//WiFi.hostname(config.hostname.c_str());
+	//WiFi.softAP(HOSTNAME);
 
 	if (wifiConnect() == WL_CONNECTED) {
 		syncTime = true;
+		ntpClient.begin();
+		setSyncInterval(NTPSYNCINTERVAL);
+		setSyncProvider(getNtpTime);
 	}
-
-	ntpClient.begin();
-	setSyncInterval(NTPSYNCINTERVAL);
-	setSyncProvider(getNtpTime);
-
+    */
+	DEBUG_MSG("Start WEBSERVER");
 	webserver_begin();
 	
 	//add mDNS service
@@ -957,9 +895,8 @@ void setup() {
 			managePeers(true);		
 		}
 	}
-
+	DEBUG_MSG("Setup PWM\n");
 	//setup PWM channel and gpio
-	//TODO: sloucit dva GPIO kanaly na jeden pwm channel
 	for (uint8_t x = 0; x < CHANNELS; x++) {
 		ledcSetup(ledChannel[x], ledFreq, ledResolution);
 		ledcAttachPin(ledPins[x], ledChannel[x]);
@@ -967,6 +904,7 @@ void setup() {
 
 
 	esp_err_t ret = ledc_fade_func_install(0);
+	DEBUG_MSG("Setup END\n");
 }
 
 void setLed() {
@@ -1000,7 +938,7 @@ void loop() {
 	switch (changed) {
 		case LED:		
 			DEBUG_MSG("Change profile to %s:\n",config.profileFileName.c_str());
-			result = loadSamplingStructFromJson(config.profileFileName);
+			result = loadSamplingStructFromJson("/" + config.profileFileName);
 			if (result) {
 				DEBUG_MSG("loadSamplingStructFromJson OK\n");
 				#if DEBUG == 2
@@ -1017,8 +955,9 @@ void loop() {
 			changed = NONE;
 			break;
 		case WIFI:
-			//wifi change
-			if (wifiConnect() == WL_CONNECTED) {
+			DEBUG_MSG("Change WIFI\n");
+			if (wifiConnect() == true) {
+				DEBUG_MSG("Change WIFI END SUCCESS\n");
 				syncTime = true;
 				saveConfig();
 			}
@@ -1070,4 +1009,5 @@ void loop() {
 	//sync time from Internet
 	if (syncTime) now();			
 	
+	ElegantOTA.loop();
 }

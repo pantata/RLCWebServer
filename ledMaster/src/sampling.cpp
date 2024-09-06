@@ -160,8 +160,9 @@ bool deleteSampling(uint8_t channel,uint8_t timeSlot)
     }
     return false;
 }
-#define SLOTTOSEC   600     //(10 minut = 600sec)
+
 uint16_t getSamplingValue(uint8_t channel) {
+    #define SLOTTOSEC   600     //(10 minut = 600sec)
 /*
     samplings.sampling[0].channel =  0     [ 0 .. 6 ]
     samplings.sampling[0].timeSlot = 48    =8:00     [ 10 min = 6x per hour = 6*24 = max 144 per day and channel] 

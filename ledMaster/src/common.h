@@ -107,14 +107,14 @@ struct Config {
     String apip; // par apip
     String apmask; // par apmask
     String apgw; // par apgw
-    bool useDST;
+    bool useDST = true;
     TzRule tzRule;
     uint8_t dtFormat;
     uint8_t tmFormat;
     bool manual;
     uint8_t lang;
     uint16_t manualValues[7];
-    bool startUpdate;
+    bool startUpdate = false;
     uint8_t peersCount;
     uint8_t peerMode = 0;
     esp_now_peer_info_t peers[PEERS];
@@ -186,14 +186,10 @@ extern bool syncTime;
 extern const char *str_lang[4];
 extern bool isUpdateAvailable;
 
-#define LOW_BYTE(x)        	(x & 0xff)
-#define HIGH_BYTE(x)       	((x >> 8) & 0xff)
+#define LOW_BYTE(x)         ((uint8_t)(x & 0xff))
+#define HIGH_BYTE(x)         ((uint8_t)((x >> 8) & 0xff))
 
-/*
-extern String inputString;
-extern boolean stringComplete;
-extern bool incomingLedValues;
-*/
+
 extern const uint16_t coreVersion;
 const uint16_t port = 328;
 
@@ -220,7 +216,18 @@ class SamplingJsonListener: public JsonListener {
     virtual void startObject(); 
 };
 
-
+static inline bool isLeapYear(uint8_t offset) {
+    int rok = 1970 + offset;
+    if (rok % 400 == 0) {
+        return true; // Rok je přestupný
+    } else if (rok % 100 == 0) {
+        return false; // Rok není přestupný
+    } else if (rok % 4 == 0) {
+        return true; // Rok je přestupný
+    } else {
+        return false; // Rok není přestupný
+    }
+}
 
 
 #endif /* common_h */

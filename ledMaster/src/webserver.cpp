@@ -7,16 +7,16 @@
 //  @version v0.2-10-gf4a3c71
 
 #include <Arduino.h>
-#include <AsyncElegantOTA.h>
 #include <WiFi.h>
 #include "FS.h"
 #include <LittleFS.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <ElegantOTA.h>
 #include <AsyncJson.h>
 #include <ArduinoJson.h>
 #include <MyTimeLib.h>
-#include <Update.h>
+//#include <Update.h>
 #include "tz.h"
 #include "common.h"
 #include "RlcWebFw.h"
@@ -26,6 +26,7 @@
 
 AsyncWebServer server(80);
 
+unsigned long ota_progress_millis = 0;
 time_t utc;
 
 DstRule cest = { Mar, Second, Sun, 2, 120 };  //UTC + 2 hours
@@ -58,7 +59,7 @@ class CaptiveRequestHandler: public AsyncWebHandler {
 void sendJsonResultResponse(AsyncWebServerRequest *request, bool cond,
 		String okResultText, String errorResultText, uint32_t processedTime) {
 	AsyncResponseStream *response = request->beginResponseStream("text/json");
-	DynamicJsonDocument jsonBuffer(256);
+	JsonDocument jsonBuffer;
 	jsonBuffer["result"] = (cond) ? okResultText : errorResultText;
 	jsonBuffer["time"] = processedTime;
 	serializeJson(jsonBuffer, *response);
@@ -109,10 +110,10 @@ void onUpload(AsyncWebServerRequest *request, String filename, size_t index,
 
 	File f;
 	if (!index) {
-		f = LittleFS.open(filename.c_str(), "w");
-		DEBUG_MSG("UPLOAD:%s\n",filename.c_str());
+		f = LittleFS.open(("/"+filename).c_str(), "w");
+		DEBUG_MSG("UPLOAD:%s\n",("/"+filename).c_str());
 	} else {
-		f = LittleFS.open(filename.c_str(), "a");
+		f = LittleFS.open(("/" + filename).c_str(), "a");
 	}
 
 	for (size_t i = 0; i < len; i++) {
@@ -143,6 +144,7 @@ void setLang(AsyncWebServerRequest *request) {
 }
 
 void setTimeCgi(AsyncWebServerRequest *request) {
+	DEBUG_MSG("\nSet TIME\n");
 	String useNtp = request->arg("use-ntp");
 	String ntpip = request->arg("ntpip");
 	String useDST = request->arg("use-dst");
@@ -186,14 +188,34 @@ void setTimeCgi(AsyncWebServerRequest *request) {
 		config.useNtp = false;
 
 		tmElements_t t;
+		DEBUG_MSG("\nSet:-%s-, -%s-, -%s-\n",dd,mm,yy);
+		t.Year = yy.toInt() + 30;
+		t.Month = constrain(mm.toInt() + 1, 1,12);
+		if (isLeapYear(t.Year) && t.Month == 2) {
+			t.Day = constrain(dd.toInt(),1,29);
+		} else if (t.Month == 2) {
+			t.Day = constrain(dd.toInt(),1,28);
+		} else if (t.Day == 4 || t.Day == 6 || t.Day == 9 || t.Day == 11) {
+			t.Day = constrain(dd.toInt(),1,28);
+		} else {
+			t.Day = constrain(dd.toInt(),1,31);
+		}
+		t.Hour = hh.toInt();
+		t.Minute = mi.toInt();
+		t.Second = 0;
+/*
 		t.Day = atoi(dd.c_str());
 		t.Month = atoi(mm.c_str());
-		t.Year = atoi(yy.c_str() + 2000);
+		t.Year = atoi(yy.c_str() + 30);
 		t.Hour = atoi(hh.c_str());
 		t.Minute = atoi(mi.c_str());
 		t.Second = 0;
+		
+*/		
 		time_t tt = makeTime(t);
 		if (config.useDST == true) {
+			DEBUG_MSG("\nSet DST\n");
+			DEBUG_MSG("\nSet: %d, %d, %d\n",t.Day,t.Month,t.Year);
 			Tz tzlocal = Tz(config.tzRule.dstStart, config.tzRule.dstEnd);
 			setTime(tzlocal.toUTC(tt));
 		} else {
@@ -205,6 +227,30 @@ void setTimeCgi(AsyncWebServerRequest *request) {
 	config.dtFormat = atoi(dateFormat.c_str());
 	request->send_P(200, "text/html", "OK");
 
+}
+
+void onOTAStart() {
+  // Log when OTA has started
+  Serial.println("OTA update started!");
+  // <Add your own code here>
+}
+
+void onOTAProgress(size_t current, size_t final) {
+  // Log every 1 second
+  if (millis() - ota_progress_millis > 1000) {
+    ota_progress_millis = millis();
+    Serial.printf("OTA Progress Current: %u bytes, Final: %u bytes\n", current, final);
+  }
+}
+
+void onOTAEnd(bool success) {
+  // Log when OTA has finished
+  if (success) {
+    Serial.println("OTA update finished successfully!");
+  } else {
+    Serial.println("There was an error during OTA update!");
+  }
+  // <Add your own code here>
 }
 
 void webserver_begin() {
@@ -225,12 +271,6 @@ void webserver_begin() {
 		sendJsonResultResponse(request,true);
 		changed = RESET;
 	});
-
-	server.on("/avrUpdate", HTTP_GET, [](AsyncWebServerRequest *request) {
-		sendJsonResultResponse(request,true);
-		config.startUpdate = true;
-		changed = AVRUPDATE;
-	});	
 
 	server.on("/meminfo", HTTP_GET,
 			[](AsyncWebServerRequest *request) {
@@ -311,6 +351,7 @@ void webserver_begin() {
 				}
 			});
 
+/*
 	server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request) {
 		request->send(200,"text/html",update_html);
 	});
@@ -319,7 +360,7 @@ void webserver_begin() {
 		changed = UPDATE;
 		sendJsonResultResponse(request,true);
 	});
-
+*/
 #if DEBUG > 0
 	server.on("/formatfs", HTTP_GET, [](AsyncWebServerRequest *request) {
 		uint32_t startTime=millis();
@@ -399,12 +440,11 @@ void webserver_begin() {
 					config.wifigw=request->arg("gw");
 					config.wifidns1=request->arg("dns1");
 					config.wifidns2=request->arg("dns2");
-				}
-
-				changed = WIFI;
+				}				
 				AsyncWebServerResponse *response = request->beginResponse(200);
 				response->addHeader("refresh","20;url=http://"+config.hostname+".local");
 				request->send(response);
+				changed = WIFI;
 			});
 
 	server.on("/settime.cgi", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -461,7 +501,8 @@ void webserver_begin() {
 				}
 
 				root["timeslot"] = (uint32_t)hour(localtime)*3600+(uint32_t)minute(localtime)*60+(uint32_t)second(localtime)%600;
-				JsonArray tsv = root.createNestedArray("timeSlotValues");
+				//JsonArray tsv = root.createNestedArray("timeSlotValues");
+				JsonArray tsv = root["timeSlotValues"].to<JsonArray>();
 				for(uint8_t j=0;j<CHANNELS;j++) {
 					if (config.manual == true) {
 						tsv.add((int)config.manualValues[j]);
@@ -519,7 +560,8 @@ void webserver_begin() {
 		root["isManual"] = config.manual;
 		root["peerMode"] = config.peerMode;
 		root["profileFileName"] = config.profileFileName.c_str();
-		JsonArray slv = root.createNestedArray("slaves");
+		//obsolete JsonArray slv = root.createNestedArray("slaves");
+		JsonArray slv = root["slaves"].to<JsonArray>();
 		char buffer[14]  = {'\0'};
 		for(uint8_t j=0;j<config.peersCount;j++) {
 			snprintf(buffer,14,"NEREUS_%02x%02x%02x", 
@@ -537,10 +579,10 @@ void webserver_begin() {
 	server.on("/gettime.cgi", HTTP_GET, [](AsyncWebServerRequest *request) {
 		time_t utc = now();    //current time from the Time Library
 			AsyncResponseStream *response = request->beginResponseStream("text/json");
-			DynamicJsonDocument jsonBuffer(256);
-			jsonBuffer["utc"] = utc;
+			JsonDocument doc;
+			doc["utc"] = utc;
 			//jsonBuffer.printTo(*response);
-			serializeJson(jsonBuffer, *response);
+			serializeJson(doc, *response);
 			request->send(response);
 		});
 
@@ -576,7 +618,7 @@ void webserver_begin() {
 			[](AsyncWebServerRequest *request) {
 				uint32_t startTime = millis();
 				AsyncResponseStream *response = request->beginResponseStream("text/json");
-				DynamicJsonDocument doc(1024);
+				JsonDocument doc;
 				doc["coreVersion"] = coreVersion;
 				doc["masterVersion"] = versionInfo.mainModule;
 				doc["Version_0"] = versionInfo.slaveModule[0];
@@ -591,7 +633,7 @@ void webserver_begin() {
 
 	server.on("/setled.cgi", HTTP_POST, [](AsyncWebServerRequest *request) {
 		String json = (String)request->arg("body");
-		DynamicJsonDocument doc(256);
+		JsonDocument doc;
 		DeserializationError error = deserializeJson(doc, json);
 		if (error) {
 			DEBUG_MSG("Error parsing manual values: %s\n",error.c_str());
@@ -616,7 +658,8 @@ void webserver_begin() {
 		uint32_t startTime=millis();
 		AsyncJsonResponse * response = new AsyncJsonResponse();
 		JsonObject root = response->getRoot();
-		JsonArray slv = root.createNestedArray("slaves");
+		// obsolete JsonArray slv = root.createNestedArray("slaves");
+		JsonArray slv = root["slaves"].to<JsonArray>();
 		char buffer[14]  = {'\0'};
 		for(uint8_t j=0;j<peersCount;j++) {
 			snprintf(buffer,14,"NEREUS_%02x%02x%02x", 
@@ -638,7 +681,7 @@ void webserver_begin() {
 
 	server.on("/removeslave.cgi", HTTP_POST, [](AsyncWebServerRequest *request) {
 		String json = (String)request->arg("body");
-		StaticJsonDocument<48> doc;
+		JsonDocument doc;
 		DeserializationError error = deserializeJson(doc, json);
 		if (error) {
 			DEBUG_MSG("Error parsing slave: %s\n",error.c_str());
@@ -659,7 +702,12 @@ void webserver_begin() {
 		changed = CONFIG;
 	});
 
-	AsyncElegantOTA.begin(&server); 
+	ElegantOTA.begin(&server); 
+
+	ElegantOTA.onStart(onOTAStart);
+  	ElegantOTA.onProgress(onOTAProgress);
+  	ElegantOTA.onEnd(onOTAEnd);
+
 	server.begin();
 }
 

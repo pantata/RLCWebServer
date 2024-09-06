@@ -1,0 +1,124 @@
+void setup() {
+	//DEBUGSER_BEGIN(DEBUGBAUD);
+	Serial.begin(115200);
+	DEBUG_MSG("\n");
+	DEBUG_MSG("START START \n");
+
+#if DEBUG  == 0
+	pinMode(STATUSLED,OUTPUT);
+#endif
+
+	ArduinoOTA.onStart([]() {
+#if DEBUG > 0		
+		DEBUG_MSG("OTA update start\n");
+#else
+		led.Blink(500,500).Repeat(3);
+#endif		
+		LittleFS.end();
+	});
+
+	ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+#if DEBUG > 0				
+		DEBUG_MSG("#");
+#else
+		led.Blink(100,100);
+#endif		
+  	});
+
+  	ArduinoOTA.onEnd([]() {
+#if DEBUG > 0				
+		DEBUG_MSG("\nOTA update end, reboot\n");
+#else
+		led.Blink(500,500).Repeat(3);
+#endif		
+  	});
+
+
+
+	initSamplingValues();
+	if (LittleFS.begin() ) {
+		DEBUG_MSG("FS start\n");
+		if (loadConfig(&config)) {
+			DEBUG_MSG("Load config\n");
+			if (config.version != coreVersion) {
+				config.version = coreVersion;
+				//UPDATE ....
+				normalizeConfig();
+				DEBUG_MSG("Update config\n");
+				//saveSamplingStructToJson("profile.pjs");
+				saveConfig();
+			}			
+		} else {
+			DEBUG_MSG("Init config\n");
+			normalizeConfig();
+			saveConfig();
+			saveSamplingStructToJson("profile.pjs");
+		}
+	} else {
+#if DEBUG > 0
+		DEBUG_MSG("FILESYSTEM ERROR\n");
+		while (1) {;} 
+#else		
+		//Serial.println("FILESYSTEM ERROR");
+		led.Blink(300,300).Forever();
+		while (1) {led.Update();} 
+#endif		
+	}
+
+	if (config.profileFileName.length() > 0) {
+		bool lok = loadSamplingStructFromJson(config.profileFileName);
+		DEBUG_MSG("Sampling config load: %s %s\n",config.profileFileName.c_str(),lok==1?"OK":"Fail");
+#if DEBUG == 2
+		debugPrintSampling();
+#endif			
+	}
+	
+	WiFi.mode(WIFI_AP_STA);
+	WiFi.hostname(config.hostname.c_str());
+	WiFi.softAP(HOSTNAME);
+
+	if (wifiConnect() == WL_CONNECTED) {
+		syncTime = true;
+	}
+
+	ntpClient.begin();
+	setSyncInterval(NTPSYNCINTERVAL);
+	setSyncProvider(getNtpTime);
+
+	webserver_begin();
+		//add mDNS service
+	if (MDNS.begin(config.hostname.c_str())) {
+		MDNS.addService("http", "tcp", 80);
+	}
+
+	delay(5000);
+	DEBUG_MSG("Searching slave\n");
+	
+	ArduinoOTA.begin();
+
+	//search ESP now slave	
+	config.peerMode = 0;
+	if (!WifiEspNow.begin()) {
+		DEBUG_MSG("WifiEspNow.begin() failed\n");
+	} else {
+		WifiEspNow.onReceive(OnDataRecv, nullptr);
+		peersCount = config.peersCount;			
+		if (peersCount > 0) {
+			managePeers(true);		
+		}
+	}
+
+	//setup PWM
+	for (uint8_t x = 0; x < CHANNELS; x++) {
+		ledcSetup(ledChannel[x], ledFreq, ledResolution);
+		ledcAttachPin(ledPins[x], ledChannel[x]);
+	}
+		
+}
+
+uint32_t t1_mm;
+uint32_t t2_mm;
+uint32_t t3_mm;
+
+int8_t istep = 0;
+

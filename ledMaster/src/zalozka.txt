@@ -6,3 +6,137 @@
 		ledcSetup(ledChannel[x], ledFreq, ledResolution);
 		ledcAttachPin(ledPins[x], ledChannel[x]);
 	}
+
+
+	bool loadConfig(Config *conf) {
+	if (LittleFS.exists(CFGNAME)) {
+		File configFile = LittleFS.open(CFGNAME, "r");
+		if (!configFile) {
+			DEBUG_MSG("Config not exist\n");
+			return false;
+		}
+		//DynamicJsonDocument json(2048);
+		JsonDocument json;
+		DeserializationError error = deserializeJson(json, configFile);
+
+		if (error) {
+			DEBUG_MSG("Failed to parse config file: %s, %s",CFGNAME,error.c_str());
+  			return false;
+		}
+		if (json.containsKey("version"))
+			conf->version = json["version"];
+		if (json.containsKey("ssid"))
+			conf->ssid = String((const char *) json["ssid"]);
+		if (json.containsKey("pwd"))
+			conf->pwd = String((const char *) json["pwd"]);
+		if (json.containsKey("hostname"))
+			conf->hostname = String((const char *) json["hostname"]);
+		if (json.containsKey("ntpServer"))
+			conf->ntpServer = String((const char*) json["ntpServer"]);
+		if (json.containsKey("localPort"))
+			conf->localPort = json["localPort"];
+		String useNtp =
+				(json.containsKey("useNtp")) ?
+						String((const char*) json["useNtp"]) : "false";
+		conf->useNtp = (useNtp.equals("true")) ? 1 : 0;
+		if (json.containsKey("profileFileName"))
+			conf->profileFileName = String((const char*) json["profileFileName"]);
+		String wifidhcp =
+				(json.containsKey("wifidhcp")) ?
+						String((const char*) json["wifidhcp"]) : "true";
+		conf->wifidhcp = (wifidhcp.equals("true")) ? 1 : 0;
+		if (json.containsKey("wifiip"))
+			conf->wifiip = String((const char*) json["wifiip"]);
+		if (json.containsKey("wifimask"))
+			conf->wifimask = String((const char*) json["wifimask"]);
+		if (json.containsKey("wifigw"))
+			conf->wifigw = String((const char*) json["wifigw"]);
+		if (json.containsKey("wifidns1"))
+			conf->wifidns1 = String((const char*) json["wifidns1"]);
+		if (json.containsKey("wifidns2"))
+			conf->wifidns2 = String((const char*) json["wifidns2"]);
+		if (json.containsKey("appwd"))
+			conf->appwd = String((const char*) json["appwd"]);
+		if (json.containsKey("apchannel"))
+			conf->apchannel = json["apchannel"];
+		if (json.containsKey("apip"))
+			conf->apip = String((const char*) json["apip"]);
+		if (json.containsKey("apmask"))
+			conf->apmask = String((const char*) json["apmask"]);
+		if (json.containsKey("apgw"))
+			conf->apgw = String((const char*) json["apgw"]);
+		String useDST =
+				(json.containsKey("useDST")) ?
+						String((const char*) json["useDST"]) : "false";
+		conf->useDST = (useDST.equals("true")) ? 1 : 0;
+		conf->tzRule = TzRule();
+		if (json.containsKey("tzRule.tzName"))
+			conf->tzRule.tzName = String((const char*) json["tzRule.tzName"]);
+		if (json.containsKey("tzRule.dstStart.day"))
+			conf->tzRule.dstStart.day = json["tzRule.dstStart.day"];
+		if (json.containsKey("tzRule.dstStart.hour"))
+			conf->tzRule.dstStart.hour = json["tzRule.dstStart.hour"];
+		if (json.containsKey("tzRule.dstStart.month"))
+			conf->tzRule.dstStart.month = json["tzRule.dstStart.month"];
+		if (json.containsKey("tzRule.dstStart.offset"))
+			conf->tzRule.dstStart.offset = json["tzRule.dstStart.offset"];
+		if (json.containsKey("tzRule.dstStart.weeek"))
+			conf->tzRule.dstStart.week = json["tzRule.dstStart.weeek"];
+		if (json.containsKey("tzRule.dstEnd.day"))
+			conf->tzRule.dstEnd.day = json["tzRule.dstEnd.day"];
+		if (json.containsKey("tzRule.dstEnd.hour"))
+			conf->tzRule.dstEnd.hour = json["tzRule.dstEnd.hour"];
+		if (json.containsKey("tzRule.dstEnd.month"))
+			conf->tzRule.dstEnd.month = json["tzRule.dstEnd.month"];
+		if (json.containsKey("tzRule.dstEnd.offset"))
+			conf->tzRule.dstEnd.offset = json["tzRule.dstEnd.offset"];
+		if (json.containsKey("tzRule.dstEnd.week"))
+			conf->tzRule.dstEnd.week = json["tzRule.dstEnd.week"];
+
+		if (json.containsKey("tmFormat"))
+			conf->tmFormat = json["tmFormat"];
+		if (json.containsKey("dtFormat"))
+			conf->dtFormat = json["dtFormat"];
+
+		if (json.containsKey("lang"))
+			conf->lang = json["lang"];
+
+		if (json.containsKey("startUpdate"))
+			conf->startUpdate = json["startUpdate"];
+
+		String useManual =
+				(json.containsKey("led.manual")) ?
+						String((const char*) json["led.manual"]) : "false";
+		conf->manual = (useManual.equals("true")) ? 1 : 0;
+
+		if (json.containsKey("manualValues")) {
+			for (int i = 0; i < MAX_MODULES; i++) {
+				conf->manualValues[0] = json["manualValues"][0];
+				conf->manualValues[1] = json["manualValues"][1];
+				conf->manualValues[2] = json["manualValues"][2];
+				conf->manualValues[3] = json["manualValues"][3];
+				conf->manualValues[4] = json["manualValues"][4];
+				conf->manualValues[5] = json["manualValues"][5];
+				conf->manualValues[6] = json["manualValues"][6];
+			}
+		}
+		
+		if (json.containsKey("peersCount")) {
+			conf->peersCount = json["peersCount"];
+		}
+
+		if (json.containsKey("peers")) {
+			for (int i = 0; i < conf->peersCount; i++) {
+				for (int ii = 0; ii < 6; ii++) {
+					conf->peers[i].mac[ii] = json["peers"][i][ii];
+				}
+			}
+		}
+			
+		/* Normalize config file */
+		normalizeConfig();
+		configFile.close();		
+		return true;
+	} 
+	return false;
+}
