@@ -8,15 +8,12 @@
 *  TODO: prepracovani pro ESP32-C3 ( pozor pouze 6 kanalu - 1 kanal softwarove??, nebo sloucit dva kanaly)
 */
 
-#include <Esp.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>
-#include <WifiEspNow.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
 #include <LittleFS.h>
 #include <time.h>
-#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <NTPClient.h>
 #include <MyTimeLib.h>
@@ -24,10 +21,10 @@
 #include <ESPmDNS.h>
 #include <Wire.h>
 #include <HTTPClient.h>
-#include <ElegantOTA.h>
 #include <JsonListener.h>
 #include <JsonStreamingParser.h>
 #include <jled.h>
+
 #include "common.h"
 #include "RlcWebFw.h"
 #include "webserver.h"
